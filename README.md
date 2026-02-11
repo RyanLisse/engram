@@ -51,7 +51,7 @@ Engram is a shared memory layer that any OpenClaw agent can plug into. Local-fir
 - **Convex** — Cloud backend (realtime, scheduled functions, server-side logic)
 - **LanceDB** — Local vector search (sub-10ms, per-node)
 - **TypeScript** — MCP server + Convex functions
-- **OpenAI Embeddings** — Vector representations for semantic search
+- **Cohere Embed 4** — Multimodal embeddings (1024-dim: text + images + code)
 
 ## Status
 
