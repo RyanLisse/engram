@@ -6,3 +6,6 @@ dist/
 *.lance/
 .DS_Store
 node_modules/
+
+# bv (beads viewer) local config and caches
+.bv/
