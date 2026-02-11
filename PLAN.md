@@ -528,7 +528,7 @@ Agent never waits for steps 2-9. Step 1 returns immediately.
 - [ ] Scope-aware sync (only sync facts agent has access to)
 - [ ] Pull new/updated facts from Convex since last sync
 - [ ] Use `mergeInsert` for atomic upserts into LanceDB
-- [ ] Local vector search fallback (IVF_PQ when > 10K facts)
+- [ ] Local vector search fallback (BTree indexes on scopeId/factType immediately; HNSW-SQ when > 20K facts)
 - [ ] Sync log tracking + catch-up mechanism for bulk operations
 
 ### Phase 6: Migration + Polish (Week 3-4)
@@ -563,7 +563,7 @@ Agent never waits for steps 2-9. Step 1 returns immediately.
 | Entity extraction | GPT-4o-mini | $0.04/1K facts, works in Convex V8 isolates |
 | Local vector DB | LanceDB `@lancedb/lancedb` (async API) | Sub-10ms, offline support, `mergeInsert` upserts, multi-vector support |
 | HTTP client | `ConvexHttpClient` | Stateless HTTP, no WebSocket overhead |
-| Enrichment | Single `internalAction` per fact with status tracking | Sequential pipeline with retry on failure |
+| Enrichment | Single `internalAction` per fact with status tracking | Sequential pipeline with retry via `@convex-dev/action-retrier` |
 | Access control | Scope-based (not per-fact ACLs) | Cleaner, validated by GIZIN + PAI research |
 | Memory lifecycle | 5-state machine (active → dormant → merged → archived → pruned) | Merge before delete (SimpleMem + ALMA) |
 | Decay | Differential by fact type + emotional weight | Decisions/corrections decay slowly, notes fast |
@@ -605,3 +605,48 @@ All research informing this architecture lives in `docs/research/`:
 5. Multi-graph retrieval (semantic + temporal + causal + entity) is a major differentiator
 6. Static importance formulas < learned utility from outcomes
 7. Memory consolidation (facts → themes → knowledge) is SOTA
+
+---
+
+## Implementation Patterns (from tech-stack research)
+
+Detailed patterns and code examples live in [`docs/research/tech-stack-best-practices.md`](docs/research/tech-stack-best-practices.md). Key patterns:
+
+### Convex Patterns
+- **Action orchestrates, mutation writes**: Enrichment pipeline uses `internalAction` for external APIs (Cohere, GPT-4o-mini), calls `internalMutation` to persist results atomically
+- **Paginated cron processing**: Crons batch-process 500 records at a time via `ctx.scheduler.runAfter(0, ...)` for self-continuation
+- **Action retry with `@convex-dev/action-retrier`**: Actions are at-most-once (no auto-retry); use action-retrier component for enrichment reliability
+- **Batch mutations for migration**: Phase 6 imports should use single mutations with 100-500 record batches (not loop-of-mutations anti-pattern)
+- **Idempotent actions**: Check if embedding/enrichment already exists before calling external APIs on retry
+
+### MCP Server Patterns
+- **stdio transport logging**: ALL logging to `stderr` (`console.error`), never `console.log` (corrupts JSON-RPC)
+- **Error responses for LLM consumers**: Return `isError: true` with what/why/what-to-do guidance, not protocol-level errors
+- **Circuit breaker**: Wrap Convex calls in circuit breaker (3 failures → 30s open → half-open retry) for resilience
+- **MCP Resources**: Expose `engram://stats` resource for memory system health/stats (read-only)
+- **MCP Prompts**: Register `warm-start` prompt template for topic-based context loading
+
+### LanceDB Patterns
+- **Index strategy**: Start without vector indexes (brute-force < 10ms for < 50K records). Create BTree indexes on `scopeId` and `factType` immediately. Add HNSW-SQ (cosine, m=16) only when local fact count exceeds ~20K rows
+- **Sync daemon**: Module-level singleton, `mergeInsert` upserts every 30s, scope-aware (only sync permitted scopes)
+- **Connection management**: Lazy singleton for both connection and table handles
+
+### Schema Decision: Inline vs Split Embeddings
+Current design: embeddings inline in `facts` table. Convex docs recommend splitting to a dedicated `fact_embeddings` table for vector search performance at scale. **Decision: Start inline (simpler), split if performance degrades.** The vector index works either way.
+
+### Testing Strategy
+- **MCP Inspector**: Interactive tool testing via `npx @modelcontextprotocol/inspector`
+- **InMemoryTransport**: Unit tests use `InMemoryTransport.createLinkedPair()` for in-process client↔server testing
+- **Convex testing**: Use Convex dashboard + `convex run` for function testing
+
+---
+
+## Competitive Landscape
+
+| System | Approach | Engram Differentiator |
+|--------|----------|-----------------------|
+| **Supermemory** | Container-based access, profile mode (static + dynamic facts), hybrid search | Engram: scope-based with richer policies (retention, decay, compression), multi-graph retrieval, emotional anchoring |
+| **Mem0** | OpenMemory, single-agent focus, vector + graph | Engram: multi-agent-first with scope ACLs, differential decay, theme consolidation |
+| **Letta/MemGPT** | 3-tier (core/recall/archival), memory blocks | Engram: more fact types, signals/feedback loop, temporal/causal links |
+| **EverMemOS/EverMind** | MemCell/MemScene hierarchy, SOTA LoCoMo benchmarks | Engram: local-first hybrid, MCP-native, multi-agent scope sharing |
+| **LanceDB MemoryLance** | Local vector DB + Claude MCP | Engram: Convex cloud sync, enrichment pipeline, importance scoring, forgetting |

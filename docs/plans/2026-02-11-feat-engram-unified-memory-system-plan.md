@@ -23,8 +23,8 @@ OpenClaw agents currently suffer from:
 ## Proposed Solution
 
 A three-tier architecture:
-1. **Convex cloud backend** — Source of truth, 7 tables, async enrichment, scheduled jobs
-2. **MCP server per agent** — 8 tool primitives, Convex HTTP client, stdio transport
+1. **Convex cloud backend** — Source of truth, 10 tables, async enrichment (6 actions), 7 scheduled jobs
+2. **MCP server per agent** — 12 MCP tool primitives, Convex HTTP client, stdio transport
 3. **LanceDB local cache** — Sub-10ms vector search, synced from Convex every 30s
 
 ---
@@ -38,11 +38,12 @@ A three-tier architecture:
     ┌────────────────────────────────────────────┐
     │  facts ── entities ── conversations         │
     │  sessions ── agents ── memory_scopes        │
-    │  sync_log                                    │
+    │  signals ── themes ── sync_log               │
     │                                              │
-    │  Actions: embed, extract, importance         │
-    │  Crons: decay (daily), rerank (weekly),      │
-    │         cleanup (daily)                      │
+    │  Actions: embed, extract, compress,          │
+    │           synthesize, summarize, importance   │
+    │  Crons: decay, forget, compact, consolidate, │
+    │         rerank, rules, cleanup               │
     └──────────────────┬───────────────────────────┘
                        │ ConvexHttpClient
           ┌────────────┼────────────┐
@@ -79,10 +80,10 @@ A three-tier architecture:
 #### Tasks
 
 - [ ] Initialize Convex project: `npx create-convex`
-- [ ] Define schema in `convex/schema.ts` with all 7 tables
+- [ ] Define schema in `convex/schema.ts` with all 10 tables (including signals, themes)
 - [ ] Implement CRUD mutations/queries for `facts` table
 - [ ] Implement CRUD mutations/queries for `entities` table
-- [ ] Implement CRUD for `conversations`, `sessions`, `agents`, `memory_scopes`, `sync_log`
+- [ ] Implement CRUD for `conversations`, `sessions`, `agents`, `memory_scopes`, `signals`, `themes`, `sync_log`
 - [ ] Configure full-text search index on `facts.content` with filter fields `scopeId`, `factType`, `createdBy`
 - [ ] Write seed script (`scripts/seed.ts`) to populate initial entities from existing memory.md
 - [ ] Verify full-text search returns results filtered by scope
@@ -196,6 +197,41 @@ export default defineSchema({
   })
     .index("by_name", ["name"]),
 
+  // NEW: PAI feedback loop
+  signals: defineTable({
+    factId: v.optional(v.id("facts")),
+    sessionId: v.optional(v.id("sessions")),
+    agentId: v.string(),
+    signalType: v.string(),           // explicit_rating|implicit_sentiment|failure
+    value: v.number(),                // 1-10 for ratings, -1.0 to 1.0 for sentiment
+    comment: v.optional(v.string()),
+    confidence: v.optional(v.float64()),
+    context: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_fact", ["factId", "timestamp"])
+    .index("by_agent", ["agentId", "timestamp"])
+    .index("by_type", ["signalType", "timestamp"]),
+
+  // NEW: EverMemOS MemScenes — thematic fact clusters
+  themes: defineTable({
+    name: v.string(),
+    description: v.string(),
+    factIds: v.array(v.id("facts")),
+    entityIds: v.array(v.id("entities")),
+    scopeId: v.id("memory_scopes"),
+    importance: v.float64(),
+    lastUpdated: v.number(),
+    embedding: v.optional(v.array(v.float64())),
+  })
+    .index("by_scope", ["scopeId"])
+    .index("by_importance", ["importance"])
+    .vectorIndex("theme_search", {
+      vectorField: "embedding",
+      dimensions: 1024,
+      filterFields: ["scopeId"],
+    }),
+
   sync_log: defineTable({
     nodeId: v.string(),
     lastSyncTimestamp: v.number(),
@@ -218,6 +254,8 @@ convex/
     sessions.ts      # create, updateActivity, getByAgent
     agents.ts        # register, get, updateLastSeen
     scopes.ts        # create, getPermitted, addMember, removeMember
+    signals.ts       # recordSignal, getByFact, getByAgent
+    themes.ts        # create, update, getByScope, search
     sync.ts          # getFactsSince, updateSyncLog, getSyncStatus
 ```
 
@@ -284,7 +322,7 @@ function estimateImportance(content: string): number {
 ```
 
 #### Success Criteria
-- [ ] `npx convex dev` runs successfully with all 7 tables
+- [ ] `npx convex dev` runs successfully with all 10 tables
 - [ ] Can insert and query facts via Convex dashboard
 - [ ] Full-text search returns filtered results
 - [ ] Seed script populates initial entities
@@ -293,7 +331,7 @@ function estimateImportance(content: string): number {
 
 ### Phase 2: MCP Server (Week 1-2)
 
-**Goal:** TypeScript MCP server with 8 tools connected to Convex backend.
+**Goal:** TypeScript MCP server with 12 tools connected to Convex backend.
 
 #### Tasks
 
@@ -301,7 +339,7 @@ function estimateImportance(content: string): number {
 - [ ] Install dependencies: `@modelcontextprotocol/sdk`, `convex`, `zod`, `cohere-ai`
 - [ ] Create `lib/convex-client.ts` — ConvexHttpClient singleton
 - [ ] Create `schemas/shared.ts` — Shared Zod schemas
-- [ ] Implement all 8 tools (one file each in `tools/`)
+- [ ] Implement all 12 tools (one file each in `tools/`): store-fact, recall, search, link-entity, get-context, observe, register-agent, query-raw, record-signal, record-feedback, summarize, prune
 - [ ] Create `index.ts` — server init, tool registration, stdio transport
 - [ ] Test each tool with MCP Inspector: `npx @modelcontextprotocol/inspector npx tsx src/index.ts`
 - [ ] Create OpenClaw skill package (`skill/SKILL.md`, `skill/install.sh`)
@@ -476,7 +514,7 @@ export function getConvexClient(): ConvexHttpClient {
 
 #### Success Criteria
 - [ ] `npm run build` compiles without errors
-- [ ] MCP Inspector shows all 8 tools with correct schemas
+- [ ] MCP Inspector shows all 12 tools with correct schemas
 - [ ] `memory_store_fact` stores a fact in Convex and returns factId
 - [ ] `memory_search` returns facts matching full-text query
 - [ ] `memory_observe` returns immediately (fire-and-forget)
@@ -829,9 +867,10 @@ async function recallWithFallback(query: string, limit: number, scopeId?: string
 
 #### Index Strategy
 
-- **No vector index initially** — brute-force is faster for < 10K facts
-- **Add IVF_PQ** when facts exceed 10K: `table.createIndex("vector", { config: lancedb.Index.ivfPq({ distanceType: "cosine" }) })`
-- **Always create:** FTS index on `content`, B-tree on `scope` and `importance`
+- **No vector index initially** — brute-force is faster for < 50K facts (< 10ms on modern hardware)
+- **BTree indexes immediately** on `scopeId` and `factType` (helps filter queries from day 1)
+- **Add HNSW-SQ** when facts exceed ~20K: `table.createIndex("embedding", { config: lancedb.Index.hnswSq({ distanceType: "cosine", m: 16 }) })`
+- **Always create:** FTS index on `content`
 
 #### Success Criteria
 - [ ] Sync daemon pulls facts from Convex every 30s
