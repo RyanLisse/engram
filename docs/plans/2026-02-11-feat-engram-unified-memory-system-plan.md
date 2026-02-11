@@ -8,7 +8,7 @@ date: 2026-02-11
 
 ## Overview
 
-Engram is a shared memory layer for OpenClaw agents. Agents store atomic facts, recall context via semantic search, and share knowledge across devices and sessions. Local-first via LanceDB, cloud-synced through Convex, exposed via 8 MCP tools.
+Engram is a shared memory layer for OpenClaw agents. Agents store atomic facts, recall context via semantic search, and share knowledge across devices and sessions. Local-first via LanceDB, cloud-synced through Convex, multimodal embeddings via Cohere Embed 4, exposed via 12 MCP tools.
 
 This plan covers end-to-end implementation across 6 phases, from Convex foundation to MemoryLance migration.
 
@@ -59,10 +59,10 @@ A three-tier architecture:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Backend | Convex | Realtime, native vector search, scheduled functions, free tier |
-| Vector search | Convex native (1536-dim) | Sufficient for scale, no external dependency |
+| Vector search | Convex native (1024-dim) | Sufficient for scale, no external dependency |
 | MCP SDK | `@modelcontextprotocol/sdk` v1.26+ | `registerTool` API with Zod schemas |
 | Transport | stdio | Agent spawns MCP server as child process |
-| Embeddings | OpenAI `text-embedding-3-small` | $0.02/1M tokens, 1536-dim, industry standard |
+| Embeddings | **Cohere Embed 4** (1024-dim) | Multimodal (text+images+code), SOTA quality, replaces OpenAI |
 | Entity extraction | GPT-4o-mini in Convex actions | $0.04/1K facts, works in V8 isolates |
 | Local vector DB | LanceDB `@lancedb/lancedb` | Sub-10ms, offline support, `mergeInsert` upserts |
 | HTTP client | `ConvexHttpClient` | Stateless HTTP, no WebSocket overhead |
@@ -121,7 +121,7 @@ export default defineSchema({
     })
     .vectorIndex("vector_search", {
       vectorField: "embedding",
-      dimensions: 1536,
+      dimensions: 1024,
       filterFields: ["scopeId"],
     }),
 
@@ -298,7 +298,7 @@ function estimateImportance(content: string): number {
 #### Tasks
 
 - [ ] Initialize `mcp-server/` with package.json, tsconfig.json
-- [ ] Install dependencies: `@modelcontextprotocol/sdk`, `convex`, `zod`
+- [ ] Install dependencies: `@modelcontextprotocol/sdk`, `convex`, `zod`, `cohere-ai`
 - [ ] Create `lib/convex-client.ts` — ConvexHttpClient singleton
 - [ ] Create `schemas/shared.ts` — Shared Zod schemas
 - [ ] Implement all 8 tools (one file each in `tools/`)
@@ -324,6 +324,7 @@ function estimateImportance(content: string): number {
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "cohere-ai": "^7.0.0",
     "convex": "^1.17.0",
     "zod": "^3.25.0"
   },
@@ -468,7 +469,8 @@ export function getConvexClient(): ConvexHttpClient {
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `CONVEX_URL` | Yes | Convex deployment URL |
-| `OPENAI_API_KEY` | Yes | For embedding generation |
+| `COHERE_API_KEY` | Yes | For Cohere Embed 4 embeddings |
+| `OPENAI_API_KEY` | Yes | For entity extraction (GPT-4o-mini) |
 | `ENGRAM_AGENT_ID` | No | Default agent identity |
 | `ENGRAM_DEFAULT_SCOPE` | No | Default memory scope |
 
@@ -489,7 +491,7 @@ export function getConvexClient(): ConvexHttpClient {
 #### Tasks
 
 - [ ] Implement `convex/actions/enrich.ts` — single internalAction for full enrichment pipeline
-- [ ] Wire OpenAI `text-embedding-3-small` for embedding generation
+- [ ] Wire Cohere Embed 4 (`embed-v4.0`, 1024-dim) for embedding generation
 - [ ] Wire GPT-4o-mini for entity extraction + relationship inference
 - [ ] Implement multi-factor importance scoring (content 40%, centrality 30%, temporal 20%, access 10%)
 - [ ] Configure vector search index on facts table
@@ -544,20 +546,21 @@ export const enrichFact = internalAction({
 });
 
 async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
+  const response = await fetch("https://api.cohere.com/v2/embed", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.COHERE_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "text-embedding-3-small",
-      input: text,
-      dimensions: 1536,
+      model: "embed-v4.0",
+      texts: [text],
+      input_type: "search_document",
+      embedding_types: ["float"],
     }),
   });
   const data = await response.json();
-  return data.data[0].embedding;
+  return data.embeddings.float[0]; // 1024-dim
 }
 
 async function extractEntities(content: string) {
@@ -643,7 +646,7 @@ export const semanticSearch = internalAction({
 
 #### Success Criteria
 - [ ] Storing a fact triggers async enrichment within seconds
-- [ ] Facts get embeddings (1536-dim float array populated)
+- [ ] Facts get embeddings (1024-dim float array populated)
 - [ ] Entities are auto-extracted and upserted
 - [ ] Importance scores reflect multi-factor formula
 - [ ] `memory_recall("authentication patterns")` returns semantically relevant facts
