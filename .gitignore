@@ -5,3 +5,4 @@ dist/
 .lance/
 *.lance/
 .DS_Store
+node_modules/

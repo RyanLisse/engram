@@ -1,0 +1,26 @@
+{
+  "name": "engram",
+  "version": "1.0.0",
+  "description": "**Unified multi-agent memory for OpenClaw.**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyanLisse/engram.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RyanLisse/engram/issues"
+  },
+  "homepage": "https://github.com/RyanLisse/engram#readme",
+  "dependencies": {
+    "beautiful-mermaid": "^0.1.3"
+  }
+}

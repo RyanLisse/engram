@@ -16,31 +16,27 @@ Engram is a shared memory layer that any OpenClaw agent can plug into. Local-fir
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────┐
-│                 Convex Backend                     │
-│                                                    │
-│  facts ── entities ── conversations ── sessions   │
-│  agents ── memory_scopes ── sync_log              │
-│                                                    │
-│  Scheduled: decay, importance, garbage collect     │
-│  Actions: embed, summarize, extract entities       │
-└─────────────────────┬────────────────────────────┘
-                      │
-               Convex HTTP API
-                      │
-       ┌──────────────┼──────────────┐
-       │              │              │
-  ┌────┴────┐   ┌────┴────┐   ┌────┴────┐
-  │  Agent  │   │  Agent  │   │  Agent  │
-  │  (MCP)  │   │  (MCP)  │   │  (MCP)  │
-  └────┬────┘   └────┬────┘   └────┬────┘
-       │              │              │
-  ┌────┴────┐   ┌────┴────┐   ┌────┴────┐
-  │ LanceDB │   │ LanceDB │   │ LanceDB │
-  │ (local) │   │ (local) │   │ (local) │
-  └─────────┘   └─────────┘   └─────────┘
-```
+![Architecture](docs/diagrams/architecture.svg)
+
+### Data Flow — Store & Recall
+
+![Data Flow](docs/diagrams/data-flow.svg)
+
+### Memory Scopes — Multi-Agent Access Control
+
+![Memory Scopes](docs/diagrams/memory-scopes.svg)
+
+### Importance Scoring — Multi-Factor Relevance
+
+![Importance Scoring](docs/diagrams/importance-scoring.svg)
+
+### Agent Lifecycle
+
+![Agent Lifecycle](docs/diagrams/agent-lifecycle.svg)
+
+### Enrichment Pipeline — Async Fact Processing
+
+![Enrichment Pipeline](docs/diagrams/enrichment-pipeline.svg)
 
 ## Agent-Native Principles
 
