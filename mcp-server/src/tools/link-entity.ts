@@ -17,7 +17,6 @@ export const linkEntitySchema = z.object({
       z.object({
         toEntityId: z.string().describe("Target entity ID"),
         relationType: z.string().describe("Relationship type (e.g., colleague, dependency)"),
-        metadata: z.record(z.any()).optional(),
       })
     )
     .optional()
@@ -27,15 +26,17 @@ export const linkEntitySchema = z.object({
 export type LinkEntityInput = z.infer<typeof linkEntitySchema>;
 
 export async function linkEntity(
-  input: LinkEntityInput
+  input: LinkEntityInput,
+  agentId: string
 ): Promise<{ entity: any; created: boolean } | { isError: true; message: string }> {
   try {
-    // Upsert the entity
+    // Upsert the entity with createdBy
     const result = await convex.upsertEntity({
       entityId: input.entityId,
       name: input.name,
       type: input.type,
       metadata: input.metadata,
+      createdBy: agentId,
     });
 
     if (!result) {
@@ -45,25 +46,29 @@ export async function linkEntity(
       };
     }
 
-    const created = result.created ?? false;
-    const entity = result.entity ?? result;
+    // The upsert returns an ID (either existing or new)
+    const entityConvexId = result._id || result;
+    const created = typeof result === "string"; // New insert returns just the ID
 
     // Add relationships if provided
     if (input.relationships && input.relationships.length > 0) {
-      await Promise.all(
-        input.relationships.map((rel) =>
-          convex.addRelationship({
-            fromEntityId: input.entityId,
-            toEntityId: rel.toEntityId,
-            relationType: rel.relationType,
-            metadata: rel.metadata,
-          })
-        )
-      );
+      // Look up the entity to get its Convex _id
+      const entity = await convex.getEntityByEntityId(input.entityId);
+      if (entity) {
+        await Promise.all(
+          input.relationships.map((rel) =>
+            convex.addRelationship({
+              entityId: entity._id,
+              targetId: rel.toEntityId,
+              relationType: rel.relationType,
+            })
+          )
+        );
+      }
     }
 
     return {
-      entity,
+      entity: { _id: entityConvexId, entityId: input.entityId, name: input.name, type: input.type },
       created,
     };
   } catch (error: any) {

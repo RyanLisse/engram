@@ -233,3 +233,24 @@ export const archiveFact = internalMutation({
     });
   },
 });
+
+// ─── Public Mutations (agent-accessible) ────────────────────────────
+
+/** Mark facts as pruned (soft-delete, never true-delete). */
+export const markPruned = mutation({
+  args: {
+    factIds: v.array(v.id("facts")),
+  },
+  handler: async (ctx, { factIds }) => {
+    const now = Date.now();
+    let pruned = 0;
+    for (const factId of factIds) {
+      const fact = await ctx.db.get(factId);
+      if (fact && fact.lifecycleState !== "pruned") {
+        await ctx.db.patch(factId, { lifecycleState: "pruned", updatedAt: now });
+        pruned++;
+      }
+    }
+    return { pruned };
+  },
+});

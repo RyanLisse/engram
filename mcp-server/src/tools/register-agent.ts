@@ -19,18 +19,22 @@ export async function registerAgent(
   input: RegisterAgentInput
 ): Promise<{ agent: any; scopes: any[] } | { isError: true; message: string }> {
   try {
-    // Ensure private scope exists
-    const privateScopeName = `private:${input.agentId}`;
+    // Ensure private scope exists (using dash convention: private-{agentId})
+    const privateScopeName = `private-${input.agentId}`;
     let privateScope = await convex.getScopeByName(privateScopeName);
 
     if (!privateScope) {
-      // Create private scope
-      privateScope = await convex.createScope({
+      // Create private scope with correct args matching Convex mutation
+      await convex.createScope({
         name: privateScopeName,
-        type: "private",
         description: `Private scope for ${input.name}`,
-        visibility: "private",
+        members: [input.agentId],
+        readPolicy: "members",
+        writePolicy: "members",
       });
+
+      // Re-fetch to get the full scope object with _id
+      privateScope = await convex.getScopeByName(privateScopeName);
 
       if (!privateScope) {
         return {
@@ -38,13 +42,6 @@ export async function registerAgent(
           message: "Failed to create private scope",
         };
       }
-
-      // Add agent as admin member
-      await convex.addScopeMember({
-        scopeId: privateScope._id,
-        agentId: input.agentId,
-        role: "admin",
-      });
     }
 
     // Resolve defaultScope if provided
@@ -62,7 +59,7 @@ export async function registerAgent(
     const agent = await convex.registerAgent({
       agentId: input.agentId,
       name: input.name,
-      capabilities: input.capabilities,
+      capabilities: input.capabilities || [],
       defaultScope: defaultScopeId,
       telos: input.telos,
     });

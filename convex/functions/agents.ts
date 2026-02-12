@@ -20,6 +20,13 @@ export const getByAgentId = query({
   },
 });
 
+export const list = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    return await ctx.db.query("agents").take(limit ?? 50);
+  },
+});
+
 // ─── Mutations ───────────────────────────────────────────────────────
 
 export const register = mutation({

@@ -102,6 +102,7 @@ export async function upsertEntity(args: {
   name: string;
   type: string;
   metadata?: Record<string, any>;
+  createdBy: string;
 }) {
   return await mutate("functions/entities:upsert", args);
 }
@@ -119,10 +120,9 @@ export async function searchEntities(args: {
 }
 
 export async function addRelationship(args: {
-  fromEntityId: string;
-  toEntityId: string;
+  entityId: string;
+  targetId: string;
   relationType: string;
-  metadata?: Record<string, any>;
 }) {
   return await mutate("functions/entities:addRelationship", args);
 }
@@ -159,10 +159,11 @@ export async function getPermittedScopes(agentId: string) {
 
 export async function createScope(args: {
   name: string;
-  type: string;
-  description?: string;
-  visibility?: string;
-  policies?: Record<string, any>;
+  description: string;
+  members: string[];
+  readPolicy: string;
+  writePolicy: string;
+  retentionDays?: number;
 }) {
   return await mutate("functions/scopes:create", args);
 }
@@ -170,7 +171,6 @@ export async function createScope(args: {
 export async function addScopeMember(args: {
   scopeId: string;
   agentId: string;
-  role: string;
 }) {
   return await mutate("functions/scopes:addMember", args);
 }
@@ -230,9 +230,21 @@ export async function recordSignal(args: {
   signalType: string;
   value: number;
   comment?: string;
-  context?: Record<string, any>;
+  context?: string;
 }) {
   return await mutate("functions/signals:recordSignal", args);
+}
+
+export async function markPruned(factIds: string[]) {
+  return await mutate("functions/facts:markPruned", { factIds });
+}
+
+export async function listAgents() {
+  return await query("functions/agents:list", {});
+}
+
+export async function listScopes(agentId: string) {
+  return await query("functions/scopes:getPermitted", { agentId });
 }
 
 export async function getSignalsByFact(factId: string) {

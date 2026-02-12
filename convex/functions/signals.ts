@@ -9,6 +9,7 @@ export const recordSignal = mutation({
     signalType: v.union(
       v.literal("explicit_rating"),
       v.literal("implicit_sentiment"),
+      v.literal("usefulness"),
       v.literal("failure")
     ),
     value: v.number(),

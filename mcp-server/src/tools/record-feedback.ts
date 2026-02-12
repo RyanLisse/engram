@@ -26,7 +26,7 @@ export async function recordFeedback(
           agentId,
           signalType: "usefulness",
           value: 1,
-          context: { recallId: input.recallId },
+          context: `recall:${input.recallId}`,
         })
       )
     );
@@ -40,7 +40,7 @@ export async function recordFeedback(
             agentId,
             signalType: "usefulness",
             value: 0,
-            context: { recallId: input.recallId },
+            context: `recall:${input.recallId}`,
           })
         )
       );

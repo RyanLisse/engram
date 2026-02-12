@@ -25,6 +25,7 @@ export async function prune(
   | {
       prunedCount: number;
       prunedFactIds: string[];
+      dryRun: boolean;
     }
   | { isError: true; message: string }
 > {
@@ -85,27 +86,28 @@ export async function prune(
       const isOld = fact._creationTime < cutoffTime;
       const lowImportance = (fact.importanceScore ?? 0.5) < input.maxForgetScore;
       const lowAccess = (fact.accessCount ?? 0) < 3;
-      return isOld && lowImportance && lowAccess && fact.state !== "pruned";
+      return isOld && lowImportance && lowAccess && fact.lifecycleState !== "pruned";
     });
 
+    const candidateIds = candidates.map((f: any) => f._id);
+
     if (input.dryRun) {
-      // Dry run: just return what would be pruned
       return {
         prunedCount: candidates.length,
-        prunedFactIds: candidates.map((f: any) => f._id),
+        prunedFactIds: candidateIds,
+        dryRun: true,
       };
     }
 
-    // Actually prune (mark as pruned, don't delete)
-    // NOTE: This requires a Convex mutation to update state to "pruned"
-    // For now, we'll just return the count as if we did it
-    // TODO: Add a `markPruned` mutation in Convex
-
-    console.error(`[prune] Would prune ${candidates.length} facts (not implemented yet)`);
+    // Actually prune: mark facts as pruned via Convex mutation
+    if (candidateIds.length > 0) {
+      await convex.markPruned(candidateIds);
+    }
 
     return {
-      prunedCount: candidates.length,
-      prunedFactIds: candidates.map((f: any) => f._id),
+      prunedCount: candidateIds.length,
+      prunedFactIds: candidateIds,
+      dryRun: false,
     };
   } catch (error: any) {
     console.error("[prune] Error:", error);

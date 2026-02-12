@@ -247,7 +247,7 @@ const TOOLS: Tool[] = [
   {
     name: "memory_query_raw",
     description:
-      "Escape hatch for direct Convex queries (read-only). Not fully implemented - use specific search functions instead.",
+      "Escape hatch for direct Convex queries (read-only). Query any table: facts, entities, agents, scopes, sessions, signals, themes, sync_log.",
     inputSchema: {
       type: "object",
       properties: {
@@ -279,7 +279,7 @@ const TOOLS: Tool[] = [
         signalType: {
           type: "string",
           description:
-            "Signal type (rating, sentiment, usefulness, correctness, etc.)",
+            "Signal type: rating, sentiment, usefulness, correctness, or failure",
         },
         value: {
           type: "number",
@@ -419,7 +419,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "memory_link_entity": {
         const validated = linkEntitySchema.parse(args);
-        const result = await linkEntity(validated);
+        const result = await linkEntity(validated, AGENT_ID);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
@@ -451,7 +451,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "memory_query_raw": {
         const validated = queryRawSchema.parse(args);
-        const result = await queryRaw(validated);
+        const result = await queryRaw(validated, AGENT_ID);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
