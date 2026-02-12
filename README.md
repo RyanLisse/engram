@@ -50,31 +50,33 @@ node mcp-server/dist/index.js
 
 ## Architecture
 
-![System Architecture](docs/diagrams/architecture.svg)
+> Diagrams available in [dark (tokyo-night)](docs/diagrams/) and [light (github-light)](docs/diagrams/light/) themes.
+
+![System Architecture](docs/diagrams/light/architecture.svg)
 
 ### Data Flow — Store & Recall
 
-![Data Flow](docs/diagrams/data-flow.svg)
+![Data Flow](docs/diagrams/light/data-flow.svg)
 
 ### Memory Lifecycle
 
-![Memory Lifecycle](docs/diagrams/memory-lifecycle.svg)
+![Memory Lifecycle](docs/diagrams/light/memory-lifecycle.svg)
 
 ### Enrichment Pipeline — Async Fact Processing
 
-![Enrichment Pipeline](docs/diagrams/enrichment-pipeline.svg)
+![Enrichment Pipeline](docs/diagrams/light/enrichment-pipeline.svg)
 
 ### Memory Scopes — Multi-Agent Access Control
 
-![Memory Scopes](docs/diagrams/memory-scopes.svg)
+![Memory Scopes](docs/diagrams/light/memory-scopes.svg)
 
 ### Importance Scoring — Multi-Factor Relevance
 
-![Importance Scoring](docs/diagrams/importance-scoring.svg)
+![Importance Scoring](docs/diagrams/light/importance-scoring.svg)
 
 ### Agent Lifecycle
 
-![Agent Lifecycle](docs/diagrams/agent-lifecycle.svg)
+![Agent Lifecycle](docs/diagrams/light/agent-lifecycle.svg)
 
 ## MCP Tools (12 Primitives)
 

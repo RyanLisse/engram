@@ -36,7 +36,7 @@ export const seedAll = internalMutation({
         entityId: "entity-ryan",
         name: "Ryan",
         type: "person",
-        metadata: { role: "creator", github: "RyanLisse" },
+        metadata: { role: "creator" },
         relationships: [
           { targetId: "entity-openclaw", relationType: "created_by", since: "2024" },
           { targetId: "entity-engram", relationType: "created_by", since: "2026" },
@@ -72,7 +72,7 @@ export const seedAll = internalMutation({
         entityId: "entity-engram",
         name: "Engram",
         type: "project",
-        metadata: { description: "Unified multi-agent memory system", repo: "RyanLisse/engram" },
+        metadata: { description: "Unified multi-agent memory system" },
         relationships: [
           { targetId: "entity-convex", relationType: "depends_on" },
           { targetId: "entity-lancedb", relationType: "depends_on" },

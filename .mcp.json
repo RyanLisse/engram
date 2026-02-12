@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "",
+        "ENGRAM_AGENT_ID": "",
+        "COHERE_API_KEY": ""
+      },
+      "description": "Engram multi-agent memory system — 12 tools for storing, recalling, and sharing knowledge"
+    }
+  }
+}

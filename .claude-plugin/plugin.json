@@ -1,0 +1,18 @@
+{
+  "name": "engram",
+  "description": "Unified multi-agent memory system. Store atomic facts, recall context via semantic search, share knowledge across agents, devices, and sessions.",
+  "version": "1.0.0",
+  "author": "Ryan Lisse",
+  "license": "MIT",
+  "homepage": "https://github.com/RyanLisse/engram",
+  "repository": "https://github.com/RyanLisse/engram",
+  "keywords": [
+    "memory",
+    "multi-agent",
+    "mcp",
+    "convex",
+    "vector-search",
+    "embeddings",
+    "knowledge-graph"
+  ]
+}

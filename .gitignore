@@ -1,11 +1,16 @@
 node_modules/
+dist/
 .env
 .env.local
-dist/
 .lance/
 *.lance/
 .DS_Store
-node_modules/
 
-# bv (beads viewer) local config and caches
+# Development tools
 .bv/
+.serena/
+.beads/daemon.log
+
+# Build output
+mcp-server/dist/
+*.tsbuildinfo
