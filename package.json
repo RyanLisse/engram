@@ -7,6 +7,9 @@
     "doc": "docs"
   },
   "scripts": {
+    "convex:dev": "npx convex dev",
+    "convex:codegen": "npx convex codegen",
+    "seed": "npx tsx scripts/seed.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

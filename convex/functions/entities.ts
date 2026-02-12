@@ -15,7 +15,7 @@ export const getByEntityId = query({
   handler: async (ctx, { entityId }) => {
     return await ctx.db
       .query("entities")
-      .withIndex("by_entity_id", (q: any) => q.eq("entityId", entityId))
+      .withIndex("by_entity_id", (q) => q.eq("entityId", entityId))
       .unique();
   },
 });
@@ -30,7 +30,7 @@ export const search = query({
     const limit = args.limit ?? 10;
     let q = ctx.db
       .query("entities")
-      .withSearchIndex("search_name", (s: any) => {
+      .withSearchIndex("search_name", (s) => {
         let search = s.search("name", args.query);
         if (args.type) {
           search = search.eq("type", args.type);
@@ -48,20 +48,22 @@ export const upsert = mutation({
     entityId: v.string(),
     name: v.string(),
     type: v.string(),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(
+      v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))
+    ),
     createdBy: v.string(),
     importanceScore: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("entities")
-      .withIndex("by_entity_id", (q: any) => q.eq("entityId", args.entityId))
+      .withIndex("by_entity_id", (q) => q.eq("entityId", args.entityId))
       .unique();
 
     const now = Date.now();
 
     if (existing) {
-      const patch: Record<string, any> = {
+      const patch: Record<string, unknown> = {
         name: args.name,
         type: args.type,
         lastSeen: now,
@@ -104,7 +106,7 @@ export const addRelationship = mutation({
 
     // Check for duplicate relationship (same targetId + relationType)
     const isDuplicate = entity.relationships.some(
-      (r: any) =>
+      (r) =>
         r.targetId === args.targetId && r.relationType === args.relationType
     );
     if (isDuplicate) return;

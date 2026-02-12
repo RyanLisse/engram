@@ -1,4 +1,5 @@
 import { internalMutation } from "../_generated/server";
+import { Id } from "../_generated/dataModel";
 
 /**
  * Seed the database with initial scopes, entities, and sample facts.
@@ -115,7 +116,7 @@ export const seedAll = internalMutation({
       },
     ];
 
-    const entityIds: Record<string, any> = {};
+    const entityIds: Record<string, Id<"entities">> = {};
     for (const def of entityDefs) {
       const id = await ctx.db.insert("entities", {
         ...def,

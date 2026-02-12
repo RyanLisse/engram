@@ -1,12 +1,13 @@
 import { v } from "convex/values";
 import { query, mutation, internalQuery } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 /** Check if an agent has write access to a scope. Throws on denial. */
 export async function checkWriteAccessHelper(
-  ctx: { db: any },
+  ctx: QueryCtx | MutationCtx,
   scopeId: Id<"memory_scopes">,
   agentId: string
 ): Promise<void> {
@@ -44,7 +45,7 @@ export const getByName = query({
   handler: async (ctx, { name }) => {
     return await ctx.db
       .query("memory_scopes")
-      .withIndex("by_name", (q: any) => q.eq("name", name))
+      .withIndex("by_name", (q) => q.eq("name", name))
       .unique();
   },
 });
@@ -54,7 +55,7 @@ export const getPermitted = query({
   handler: async (ctx, { agentId }) => {
     const allScopes = await ctx.db.query("memory_scopes").collect();
     return allScopes.filter(
-      (scope: any) =>
+      (scope) =>
         scope.readPolicy === "all" || scope.members.includes(agentId)
     );
   },
@@ -130,7 +131,7 @@ export const create = mutation({
     // Check for duplicate scope name
     const existing = await ctx.db
       .query("memory_scopes")
-      .withIndex("by_name", (q: any) => q.eq("name", args.name))
+      .withIndex("by_name", (q) => q.eq("name", args.name))
       .unique();
     if (existing) {
       throw new Error(`Scope "${args.name}" already exists`);

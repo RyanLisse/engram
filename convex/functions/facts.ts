@@ -50,7 +50,7 @@ export const searchFacts = query({
   handler: async (ctx, args) => {
     const search = ctx.db
       .query("facts")
-      .withSearchIndex("search_content", (q: any) => {
+      .withSearchIndex("search_content", (q) => {
         let s = q.search("content", args.query);
         if (args.scopeId) s = s.eq("scopeId", args.scopeId);
         if (args.factType) s = s.eq("factType", args.factType);
@@ -141,7 +141,7 @@ export const updateEnrichment = internalMutation({
     if (!fact) throw new Error(`Fact not found: ${factId}`);
 
     // Build patch with only provided fields
-    const patch: Record<string, any> = { updatedAt: Date.now() };
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
     if (fields.embedding !== undefined) patch.embedding = fields.embedding;
     if (fields.factualSummary !== undefined) patch.factualSummary = fields.factualSummary;
     if (fields.entityIds !== undefined) patch.entityIds = fields.entityIds;

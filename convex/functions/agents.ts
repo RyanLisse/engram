@@ -15,7 +15,7 @@ export const getByAgentId = query({
   handler: async (ctx, { agentId }) => {
     return await ctx.db
       .query("agents")
-      .withIndex("by_agent_id", (q: any) => q.eq("agentId", agentId))
+      .withIndex("by_agent_id", (q) => q.eq("agentId", agentId))
       .unique();
   },
 });
@@ -30,12 +30,14 @@ export const register = mutation({
     defaultScope: v.string(),
     nodeId: v.optional(v.string()),
     telos: v.optional(v.string()),
-    settings: v.optional(v.any()),
+    settings: v.optional(
+      v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))
+    ),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("agents")
-      .withIndex("by_agent_id", (q: any) => q.eq("agentId", args.agentId))
+      .withIndex("by_agent_id", (q) => q.eq("agentId", args.agentId))
       .unique();
 
     if (existing) {

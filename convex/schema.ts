@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+const metadataValue = v.union(v.string(), v.number(), v.boolean(), v.null());
+
 export default defineSchema({
   // ─── facts ───────────────────────────────────────────────────────────
   // Atomic memory units. The core table of Engram.
@@ -71,7 +73,7 @@ export default defineSchema({
     type: v.string(), // person|project|company|concept|tool
     firstSeen: v.number(),
     lastSeen: v.number(),
-    metadata: v.any(), // flexible key-value
+    metadata: v.record(v.string(), metadataValue), // flexible key-value
     relationships: v.array(
       v.object({
         targetId: v.string(),
@@ -138,7 +140,7 @@ export default defineSchema({
     factCount: v.number(),
     defaultScope: v.string(), // "private"|"team"|"public"
     telos: v.optional(v.string()), // Purpose/goal (PAI: "Ship code faster")
-    settings: v.optional(v.any()), // agent-specific memory config
+    settings: v.optional(v.record(v.string(), metadataValue)), // agent-specific memory config
   }).index("by_agent_id", ["agentId"]),
 
   // ─── memory_scopes ───────────────────────────────────────────────────
