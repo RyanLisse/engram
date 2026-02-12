@@ -134,7 +134,7 @@ export const seedAll = internalMutation({
       capabilities: ["memory", "code", "research", "planning"],
       lastSeen: now,
       factCount: 0,
-      defaultScope: "private",
+      defaultScope: "private-indy",
       telos: "Magnify Ryan's capabilities across all projects",
     });
 

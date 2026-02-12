@@ -8,6 +8,18 @@
  * @module
  */
 
+import type * as actions_embed from "../actions/embed.js";
+import type * as actions_enrich from "../actions/enrich.js";
+import type * as actions_importance from "../actions/importance.js";
+import type * as actions_vectorSearch from "../actions/vectorSearch.js";
+import type * as crons from "../crons.js";
+import type * as crons_cleanup from "../crons/cleanup.js";
+import type * as crons_compact from "../crons/compact.js";
+import type * as crons_consolidate from "../crons/consolidate.js";
+import type * as crons_decay from "../crons/decay.js";
+import type * as crons_forget from "../crons/forget.js";
+import type * as crons_rerank from "../crons/rerank.js";
+import type * as crons_rules from "../crons/rules.js";
 import type * as functions_agents from "../functions/agents.js";
 import type * as functions_conversations from "../functions/conversations.js";
 import type * as functions_entities from "../functions/entities.js";
@@ -26,6 +38,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "actions/embed": typeof actions_embed;
+  "actions/enrich": typeof actions_enrich;
+  "actions/importance": typeof actions_importance;
+  "actions/vectorSearch": typeof actions_vectorSearch;
+  crons: typeof crons;
+  "crons/cleanup": typeof crons_cleanup;
+  "crons/compact": typeof crons_compact;
+  "crons/consolidate": typeof crons_consolidate;
+  "crons/decay": typeof crons_decay;
+  "crons/forget": typeof crons_forget;
+  "crons/rerank": typeof crons_rerank;
+  "crons/rules": typeof crons_rules;
   "functions/agents": typeof functions_agents;
   "functions/conversations": typeof functions_conversations;
   "functions/entities": typeof functions_entities;

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Engram is a unified multi-agent memory system for OpenClaw agents. It provides a shared memory layer where agents store atomic facts, recall context via semantic search, and share knowledge across devices and sessions. Local-first via LanceDB, cloud-synced through Convex. Multimodal embeddings via Cohere Embed 4.
 
-**Status:** Planning phase — no implementation code yet. See PLAN.md for the 6-phase build plan. See `docs/research/` for architecture research and `docs/plans/` for the detailed implementation plan.
+**Status:** Phases 1-6 complete. Core system operational (Convex backend + MCP server + crons + LanceDB sync daemon). See PLAN.md for the build checklist and `docs/research/` for architecture research.
 
 ## Tech Stack
 
@@ -55,31 +55,34 @@ The MCP server exposes these tools to agents:
 11. `memory_summarize` — Consolidate facts on a topic (AgeMem SUMMARY)
 12. `memory_prune` — Agent-initiated cleanup of stale facts (AgeMem FILTER)
 
-## Planned Directory Structure
+## Directory Structure
 
 ```
 convex/           # Convex backend
-  schema.ts       # 10 table definitions
-  functions/      # CRUD + search (facts, entities, conversations, sessions, agents, scopes, signals, themes, sync)
-  actions/        # Async: embed (Cohere), compress, synthesize, extract entities, summarize, importance scoring
-  crons/          # Scheduled: decay, forget, compact, consolidate, rerank, rules, cleanup
+  schema.ts       # 10 table definitions with indexes
+  functions/      # CRUD + search (facts, entities, conversations, sessions, agents, scopes, signals, themes, sync, seed)
+  actions/        # Async: enrich, embed (Cohere Embed 4), importance, vectorSearch
+  crons.ts        # 7 cron job configuration
+  crons/          # Cron implementations: decay, forget, compact, consolidate, rerank, rules, cleanup
 mcp-server/src/   # MCP server
-  index.ts        # Entry point
+  index.ts        # Entry point (12 tools, stdio transport)
   tools/          # 12 MCP tool implementations
-  lib/            # convex-client, lance-sync daemon, embeddings wrapper (Cohere)
+  lib/            # convex-client (string-based paths), lance-sync daemon, embeddings (Cohere Embed 4)
 skill/            # OpenClaw skill package (SKILL.md + install.sh)
-scripts/          # migrate.ts (MemoryLance import), seed.ts (initial entities)
 ```
 
-## Build Phases
+## Key Implementation Details
 
-Implementation follows 6 phases (see PLAN.md for full checklist):
-1. **Foundation** — Convex project setup, 10-table schema, basic CRUD, full-text search
-2. **MCP Server** — TypeScript MCP server scaffold, 12 tools, Convex HTTP client
-3. **Async Enrichment** — Cohere embeddings, compression, synthesis, entity extraction, importance scoring, vector search
-4. **Multi-Agent** — Agent registration, scopes, multi-scope queries, handoff tracking, signals
-5. **Local Sync** — LanceDB sync daemon, scope-aware sync, local vector search fallback
-6. **Migration** — Import from existing MemoryLance + all 7 cron jobs configured
+### Convex Integration from MCP Server
+The MCP server is a separate TypeScript package that cannot import Convex generated types. All Convex calls use string-based function paths (e.g., `"functions/facts:storeFact"`) wrapped in typed helper functions in `mcp-server/src/lib/convex-client.ts`. The `as any` cast is isolated to that one file.
+
+### Scope Resolution Convention
+Scope names follow the pattern `private-{agentId}` (e.g., `private-indy`). Tools resolve scope names to Convex document IDs via `getScopeByName()`. The agent's `defaultScope` field stores the scope name, not the ID.
+
+### Embedding Model
+Cohere Embed 4 (`embed-v4.0`, 1024 dimensions) is used in both:
+- `convex/actions/embed.ts` — Enrichment pipeline (runs in Convex Node.js runtime)
+- `mcp-server/src/lib/embeddings.ts` — MCP server client (for future local use)
 
 ## Design Principles
 

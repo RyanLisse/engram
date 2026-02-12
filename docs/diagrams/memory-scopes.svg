@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2711.0675 501" width="2711.0675" height="501" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2998.3550000000005 309" width="2998.3550000000005" height="309" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -26,85 +26,63 @@
     <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
   </marker>
 </defs>
-<rect x="2039.7674999999995" y="309" width="631.3" height="152" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="2039.7674999999995" y="309" width="631.3" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="2051.7674999999995" y="323" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🌍 Global Scope&quot;</text>
-<rect x="1102.3175" y="293" width="917.4499999999998" height="168" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1102.3175" y="293" width="917.4499999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1114.3175" y="307" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;👥 Team Scopes&quot;</text>
-<rect x="1122.3175" y="329" width="389.39999999999986" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1122.3175" y="329" width="389.39999999999986" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1134.3175" y="343" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;team-ml&quot;</text>
-<rect x="1531.7175000000002" y="329" width="468.04999999999995" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1531.7175000000002" y="329" width="468.04999999999995" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1543.7175000000002" y="343" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;team-dev&quot;</text>
-<rect x="40" y="293" width="1042.3175" height="168" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="40" y="293" width="1042.3175" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="52" y="307" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📁 Project Scopes&quot;</text>
-<rect x="512.3000000000002" y="329" width="550.0174999999999" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="512.3000000000002" y="329" width="550.0174999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="524.3000000000002" y="343" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;project-briefly&quot;</text>
-<rect x="60.00000000000003" y="329" width="432.3000000000001" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="60.00000000000003" y="329" width="432.3000000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="72.00000000000003" y="343" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;project-engram&quot;</text>
-<rect x="71.17499999999995" y="40" width="2389.7025" height="168" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="71.17499999999995" y="40" width="2389.7025" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="83.17499999999995" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🔒 Private Scopes&quot;</text>
-<rect x="91.17499999999995" y="76" width="1463.105" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="91.17499999999995" y="76" width="1463.105" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="103.17499999999995" y="90" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;indy-private&quot;</text>
-<rect x="1574.28" y="76" width="866.5974999999999" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1574.28" y="76" width="866.5974999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1586.28" y="90" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;coder-private&quot;</text>
-<polyline points="666.4725000000001,168 666.4725000000001,188 1493.1049999999998,188 1493.1049999999998,345 2114.5175,345 2114.5175,403 2061.7675,403" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1902.3925,168 1902.3925,188 2377.915,188 2377.915,403 2236.7675,403" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="666.4725000000001,168 666.4725000000001,188 1005.795,188 1005.795,345 1224.6675,345 1224.6675,385" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="666.4725000000001,168 666.4725000000001,188 592.4125000000001,188 592.4125000000001,403 687.7675,403" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="666.4725000000001,168 666.4725000000001,188 162.34999999999997,188 162.34999999999997,385" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1902.3925,168 1902.3925,188 2123.8274999999994,188 2123.8274999999994,345 1655.5175,345 1655.5175,385" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1902.3925,168 1902.3925,188 1743.1674999999998,188 1743.1674999999998,345 914.1550000000001,345 914.1550000000001,403 884.2175000000001,403" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<rect x="1453.6449999999998" y="263" width="78.92" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="1493.1049999999998" y="276.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read: all&quot;</text>
-<rect x="2338.455" y="263" width="78.92" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="2377.915" y="276.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read: all&quot;</text>
-<rect x="937.7349999999999" y="263" width="136.12" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="1005.795" y="276.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read+write: members&quot;</text>
-<rect x="524.3525000000002" y="263" width="136.12" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="592.4125000000001" y="276.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read+write: members&quot;</text>
-<rect x="94.28999999999996" y="263" width="136.12" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="162.34999999999997" y="276.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read+write: members&quot;</text>
-<rect x="2055.7674999999995" y="263" width="136.12" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="2123.8274999999994" y="276.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read+write: members&quot;</text>
-<rect x="1675.1074999999998" y="263" width="136.12" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="1743.1674999999998" y="276.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read+write: members&quot;</text>
-<rect x="2061.7675" y="385" width="175" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2260.7675" y="385" width="182.15" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2466.9175000000005" y="385" width="182.15" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1144.3175" y="385" width="160.70000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1329.0175000000002" y="385" width="160.70000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1553.7175" y="385" width="203.60000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1781.3174999999999" y="385" width="196.45000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="687.7675" y="385" width="196.45000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="908.2175000000002" y="385" width="132.10000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="81.99999999999996" y="385" width="160.70000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="266.7" y="385" width="203.60000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="113.17500000000001" y="132" width="189.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="586.1225000000001" y="132" width="160.70000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1596.28" y="132" width="167.85000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1818.4675" y="132" width="167.85000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<text x="2149.2675" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;System preferences&quot;</text>
-<text x="2351.8424999999997" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;User identity facts&quot;</text>
-<text x="2557.9925000000003" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Tool configurations&quot;</text>
-<text x="1224.6675" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Model benchmarks&quot;</text>
-<text x="1409.3675" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Training configs&quot;</text>
-<text x="1655.5175" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Architecture decisions&quot;</text>
-<text x="1879.5424999999998" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Code patterns learned&quot;</text>
-<text x="785.9925000000001" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;API integration notes&quot;</text>
-<text x="974.2675000000002" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Bug patterns&quot;</text>
-<text x="162.34999999999997" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Schema decisions&quot;</text>
-<text x="368.5" y="403" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Performance benchmarks&quot;</text>
-<text x="207.82500000000002" y="150" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Personal corrections&quot;</text>
-<text x="666.4725000000001" y="150" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Scratchpad notes&quot;</text>
-<text x="1680.205" y="150" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Build cache paths&quot;</text>
-<text x="1902.3925" y="150" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Error workarounds&quot;</text>
+<rect x="1088.255" y="157" width="810.05" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="1088.255" y="157" width="810.05" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="1100.255" y="171" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Global Scope&quot;</text>
+<rect x="1918.3049999999998" y="157" width="1040.0500000000002" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="1918.3049999999998" y="157" width="1040.0500000000002" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="1930.3049999999998" y="171" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Private Scopes&quot;</text>
+<rect x="40" y="157" width="496.10499999999956" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="157" width="496.10499999999956" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="171" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Team Scopes&quot;</text>
+<rect x="556.1049999999996" y="157" width="512.1500000000001" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="556.1049999999996" y="157" width="512.1500000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="568.1049999999996" y="171" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Project Scopes&quot;</text>
+<polyline points="1079.1249999999998,76 1079.1249999999998,96 1565.1424999999997,96 1565.1424999999997,193 2181.5299999999997,193 2181.5299999999997,213" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1079.1249999999998,76 1079.1249999999998,96 1051.3899999999999,96 1051.3899999999999,193 1262.1049999999998,193 1262.1049999999998,213" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1079.1249999999998,76 1079.1249999999998,96 835.0649999999997,96 835.0649999999997,193 403.42999999999995,193 403.42999999999995,231 514.1049999999996,231" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1079.1249999999998,76 1079.1249999999998,96 726.9849999999998,96 726.9849999999998,193 704.1424999999999,193 704.1424999999999,231 578.1049999999996,231" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1922.79,76 1922.79,96 2691.5550000000003,96 2691.5550000000003,213" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1922.79,76 1922.79,96 2129.4174999999996,96 2129.4174999999996,193 1580.2049999999997,193 1580.2049999999997,231 1413.955,231" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1922.79,76 1922.79,96 1664.6424999999997,96 1664.6424999999997,193 930.2174999999999,193 930.2174999999999,231 1046.2549999999997,231" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="560.2699999999998,76 560.2699999999998,96 614.3099999999997,96 614.3099999999997,193 182.675,193 182.675,231 67.40499999999952,231" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="560.2699999999998,76 560.2699999999998,96 506.2299999999998,96 506.2299999999998,193 1185.1799999999998,193 1185.1799999999998,231 1110.2549999999997,231" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<rect x="1517.1024999999997" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="1565.1424999999997" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="1003.3499999999999" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="1051.3899999999999" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="787.0249999999997" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="835.0649999999997" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="678.9449999999998" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="726.9849999999998" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="2643.5150000000003" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="2691.5550000000003" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="2081.3774999999996" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="2129.4174999999996" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="1625.1824999999997" y="131" width="78.92" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="1664.6424999999997" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read only&quot;</text>
+<rect x="566.2699999999998" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="614.3099999999997" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="458.18999999999977" y="131" width="96.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="506.2299999999998" y="144.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;read + write&quot;</text>
+<rect x="1041.6749999999997" y="40" width="74.9" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1881.7649999999999" y="40" width="82.05000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="504.94499999999977" y="40" width="110.65" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1110.2549999999997" y="213" width="303.70000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1437.955" y="213" width="196.45000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1658.4049999999997" y="213" width="217.9" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1940.3049999999998" y="213" width="482.45000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2446.755" y="213" width="489.6" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="67.40499999999952" y="213" width="446.70000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="578.1049999999996" y="213" width="468.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="1079.1249999999998" y="58" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Indy&quot;</text>
+<text x="1922.79" y="58" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Coder&quot;</text>
+<text x="560.2699999999998" y="58" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ML Worker&quot;</text>
+<text x="1262.1049999999996" y="231" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;readPolicy: all&lt;br/&gt;writePolicy: all&quot;</text>
+<text x="1536.1799999999998" y="231" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Engram uses Convex...&quot;</text>
+<text x="1767.3549999999998" y="231" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Cohere Embed 4 chosen...&quot;</text>
+<text x="2181.5299999999997" y="231" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;private-indy&lt;br/&gt;readPolicy: members&lt;br/&gt;writePolicy: members&quot;</text>
+<text x="2691.5550000000003" y="231" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;private-coder&lt;br/&gt;readPolicy: members&lt;br/&gt;writePolicy: members&quot;</text>
+<text x="290.75499999999954" y="231" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;team-ml&lt;br/&gt;readPolicy: members&lt;br/&gt;writePolicy: members&quot;</text>
+<text x="812.1799999999996" y="231" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;project-engram&lt;br/&gt;readPolicy: all&lt;br/&gt;writePolicy: members&quot;</text>
 </svg>

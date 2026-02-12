@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation, internalMutation } from "../_generated/server";
+import { query, mutation, internalMutation, internalQuery } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { checkWriteAccessHelper } from "./scopes";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -62,6 +63,44 @@ export const searchFacts = query({
   },
 });
 
+// ─── Internal Queries ────────────────────────────────────────────────
+
+/** Internal query to get a fact by ID (used by actions and crons). */
+export const getFactInternal = internalQuery({
+  args: { factId: v.id("facts") },
+  handler: async (ctx, { factId }) => {
+    return await ctx.db.get(factId);
+  },
+});
+
+/** List facts by scope with pagination (used by crons). */
+export const listByScope = internalQuery({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, limit }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
+      .take(limit ?? 100);
+  },
+});
+
+/** List facts by lifecycle state (used by crons). */
+export const listByLifecycle = internalQuery({
+  args: {
+    lifecycleState: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { lifecycleState, limit }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_lifecycle", (q) => q.eq("lifecycleState", lifecycleState))
+      .take(limit ?? 100);
+  },
+});
+
 // ─── Mutations ───────────────────────────────────────────────────────
 
 export const storeFact = mutation({
@@ -104,8 +143,8 @@ export const storeFact = mutation({
       lifecycleState: "active",
     });
 
-    // 4. Schedule async enrichment (Phase 3 — action not implemented yet)
-    // await ctx.scheduler.runAfter(0, internal.actions.enrich.enrichFact, { factId });
+    // 4. Schedule async enrichment (runs immediately after response)
+    await ctx.scheduler.runAfter(0, internal.actions.enrich.enrichFact, { factId });
 
     return { factId, importanceScore };
   },
@@ -127,7 +166,7 @@ export const bumpAccess = mutation({
 
 // ─── Internal Mutations ──────────────────────────────────────────────
 
-/** Stub for Phase 3: enrichment pipeline writes back embeddings, summaries, entities, importance. */
+/** Enrichment pipeline writes back embeddings, summaries, entities, importance. */
 export const updateEnrichment = internalMutation({
   args: {
     factId: v.id("facts"),
@@ -148,5 +187,49 @@ export const updateEnrichment = internalMutation({
     if (fields.importanceScore !== undefined) patch.importanceScore = fields.importanceScore;
 
     await ctx.db.patch(factId, patch);
+  },
+});
+
+/** Update lifecycle state (used by crons). */
+export const updateLifecycleState = internalMutation({
+  args: {
+    factId: v.id("facts"),
+    lifecycleState: v.string(),
+  },
+  handler: async (ctx, { factId, lifecycleState }) => {
+    await ctx.db.patch(factId, { lifecycleState, updatedAt: Date.now() });
+  },
+});
+
+/** Update forget score (used by decay cron). */
+export const updateForgetScore = internalMutation({
+  args: {
+    factId: v.id("facts"),
+    forgetScore: v.float64(),
+  },
+  handler: async (ctx, { factId, forgetScore }) => {
+    await ctx.db.patch(factId, { forgetScore, updatedAt: Date.now() });
+  },
+});
+
+/** Update relevance score (used by rerank cron). */
+export const updateRelevanceScore = internalMutation({
+  args: {
+    factId: v.id("facts"),
+    relevanceScore: v.float64(),
+  },
+  handler: async (ctx, { factId, relevanceScore }) => {
+    await ctx.db.patch(factId, { relevanceScore, updatedAt: Date.now() });
+  },
+});
+
+/** Archive a fact (sets lifecycle to archived). */
+export const archiveFact = internalMutation({
+  args: { factId: v.id("facts") },
+  handler: async (ctx, { factId }) => {
+    await ctx.db.patch(factId, {
+      lifecycleState: "archived",
+      updatedAt: Date.now(),
+    });
   },
 });

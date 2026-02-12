@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 785.2 1145" width="785.2" height="1145" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3761.0900000000006 410" width="3761.0900000000006" height="410" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -26,50 +26,57 @@
     <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
   </marker>
 </defs>
-<rect x="181.8125" y="40" width="410.85000000000014" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="181.8125" y="40" width="410.85000000000014" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="193.8125" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🎯 Trigger&quot;</text>
-<rect x="175.45000000000002" y="196" width="424.3" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="175.45000000000002" y="196" width="424.3" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="187.45000000000002" y="210" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Step 1: Store Raw — &lt;50ms&quot;</text>
-<rect x="172.27499999999998" y="369" width="440.6500000000001" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="172.27499999999998" y="369" width="440.6500000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="184.27499999999998" y="383" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Step 2: Embed — ~200ms&quot;</text>
-<rect x="204.45000000000005" y="525" width="376.29999999999995" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="204.45000000000005" y="525" width="376.29999999999995" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="216.45000000000005" y="539" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Step 3: Extract — ~500ms&quot;</text>
-<rect x="40" y="681" width="705.2" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="40" y="681" width="705.2" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="52" y="695" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Step 4: Score — ~10ms&quot;</text>
-<rect x="54.299999999999955" y="837" width="676.6000000000001" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="54.299999999999955" y="837" width="676.6000000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="66.29999999999995" y="851" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Step 5: Update&quot;</text>
-<rect x="186.57500000000005" y="993" width="412.04999999999995" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="186.57500000000005" y="993" width="412.04999999999995" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="198.57500000000005" y="1007" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Step 6: Sync Signal&quot;</text>
-<polyline points="294.8875,132 294.8875,270 215.72500000000002,270" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="490.31250000000006,132 490.31250000000006,270 569.475,270" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="392.6,288 392.6,425" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="392.6,461 392.6,581" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="392.6,617 392.6,737" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="392.6,773 392.6,893" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="392.6,929 392.6,1049" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<rect x="364.58000000000004" y="343" width="56.04" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
-<text x="392.6" y="356.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;async&quot;</text>
-<rect x="203.8125" y="96" width="182.15" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="409.96250000000003" y="96" width="160.70000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="215.72500000000002" y="252" width="353.75" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="194.275" y="425" width="396.65000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="226.45000000000002" y="581" width="332.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="62" y="737" width="661.2" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="76.30000000000001" y="893" width="632.6" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="208.57500000000002" y="1049" width="368.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<text x="294.8875" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;memory_store_fact()&quot;</text>
-<text x="490.31250000000006" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;memory_observe()&quot;</text>
-<text x="392.6" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Insert raw fact&lt;br/&gt;content + source + tags&quot;</text>
-<text x="392.6" y="443" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;OpenAI text-embedding-3-small&lt;br/&gt;1536 dimensions&quot;</text>
-<text x="392.6" y="599" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Entity extraction&lt;br/&gt;GLM-4.5-air (free)&quot;</text>
-<text x="392.6" y="755" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Importance calculator&lt;br/&gt;content 40% + centrality 30%&lt;br/&gt;+ temporal 20% + access 10%&quot;</text>
-<text x="392.6" y="911" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Update fact with:&lt;br/&gt;• embedding vector&lt;br/&gt;• entity links&lt;br/&gt;• importance score&quot;</text>
-<text x="392.6" y="1067" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Mark in sync_log&lt;br/&gt;for all registered nodes&quot;</text>
+<rect x="40" y="40" width="322.25" height="150.25" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="40" width="322.25" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Agent Context&quot;</text>
+<rect x="513.1700000000001" y="40" width="1141.3200000000002" height="168.75" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="513.1700000000001" y="40" width="1141.3200000000002" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="525.1700000000001" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Immediate — under 50ms&quot;</text>
+<rect x="1317.94" y="192.75" width="1843.6000000000001" height="176" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="1317.94" y="192.75" width="1843.6000000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="1329.94" y="206.75" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Async — Agent never waits&quot;</text>
+<rect x="3241.5400000000004" y="217.25" width="479.5500000000002" height="127" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="3241.5400000000004" y="217.25" width="479.5500000000002" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="3253.5400000000004" y="231.25" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Enriched Fact&quot;</text>
+<polyline points="342.25,140.25 362.25,140.25 362.25,160.25 533.1700000000001,160.25" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="708.1700000000001,160.25 944.8500000000001,160.25" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1112.7,160.25 1132.7000000000003,160.25 1132.7000000000003,146 1486.2150000000004,146 1486.2150000000004,144" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1337.9400000000003,126 1317.9400000000003,126 1317.9400000000003,116 201.125,116 201.125,122.25" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1112.7,160.25 1132.7000000000003,160.25 1132.7000000000003,174.5 1486.2150000000004,174.5 1486.2150000000004,280.75" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1580.8650000000005,298.75 1754.4900000000002,298.75" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1922.3400000000001,298.75 1942.3400000000001,298.75 1942.3400000000001,328.75 2171.0400000000004,328.75" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1922.3400000000001,298.75 1942.3400000000001,298.75 1942.3400000000001,268.75 2042.3400000000001,268.75" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2639.19,328.75 3014.715,328.75 3014.715,316.75" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2767.8900000000003,268.75 3014.715,268.75 3014.715,280.75" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="3141.54,298.75 3261.5400000000004,298.75" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<rect x="398.25" y="146.75" width="78.92" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="437.71" y="160.25" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;MCP stdio&quot;</text>
+<rect x="764.1700000000001" y="102.5" width="124.68" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="826.5100000000001" y="116" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;Response to agent&quot;</text>
+<rect x="1168.7000000000003" y="161" width="113.24000000000001" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="1225.3200000000002" y="174.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">&quot;fire and forget&quot;</text>
+<rect x="60" y="122.25" width="282.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="533.1700000000001" y="142.25" width="175" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="944.8500000000001" y="142.25" width="167.85000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1337.9400000000003" y="108" width="296.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1391.5650000000003" y="280.75" width="189.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1754.4900000000002" y="280.75" width="167.85000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2171.0400000000004" y="310.75" width="468.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2042.3400000000001" y="250.75" width="725.5500000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2887.8900000000003" y="280.75" width="253.65" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3261.5400000000004" y="282.25" width="439.55" height="33" fill="var(--_node-fill)" stroke="none" />
+<line x1="3261.5400000000004" y1="282.25" x2="3261.5400000000004" y2="315.25" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<line x1="3701.0900000000006" y1="282.25" x2="3701.0900000000006" y2="315.25" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<ellipse cx="3481.3150000000005" cy="315.25" rx="219.775" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<ellipse cx="3481.3150000000005" cy="282.25" rx="219.775" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="201.125" y="140.25" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Agent calls&lt;br/&gt;memory_store_fact&quot;</text>
+<text x="620.6700000000001" y="160.25" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;storeFact mutation&quot;</text>
+<text x="1028.775" y="160.25" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Insert fact to DB&quot;</text>
+<text x="1486.2150000000004" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Return factId +&lt;br/&gt;importanceScore&quot;</text>
+<text x="1486.2150000000004" y="298.75" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;scheduler.runAfter 0&quot;</text>
+<text x="1838.4150000000002" y="298.75" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;enrichFact action&quot;</text>
+<text x="2405.1150000000002" y="328.75" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;generateEmbedding&lt;br/&gt;Cohere embed-v4.0&lt;br/&gt;1024 dimensions&quot;</text>
+<text x="2405.1150000000002" y="268.75" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;calculateImportance&lt;br/&gt;factType weight&lt;br/&gt;emotionalWeight&lt;br/&gt;entity count&lt;br/&gt;content length&quot;</text>
+<text x="3014.715" y="298.75" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;updateEnrichment&lt;br/&gt;mutation&quot;</text>
+<text x="3481.3150000000005" y="298.75" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;facts table&lt;br/&gt;with embedding +&lt;br/&gt;refined importance&quot;</text>
 </svg>
