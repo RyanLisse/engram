@@ -1,6 +1,35 @@
 import { internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 
+function normalize(content: string): string {
+  return content.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function detectContradiction(a: string, b: string): boolean {
+  const left = normalize(a);
+  const right = normalize(b);
+
+  const polarityPairs: Array<[string, string]> = [
+    ["enabled", "disabled"],
+    ["allow", "deny"],
+    ["approved", "rejected"],
+    ["success", "failed"],
+    ["true", "false"],
+  ];
+
+  for (const [positive, negative] of polarityPairs) {
+    const leftPositive = left.includes(positive);
+    const leftNegative = left.includes(negative);
+    const rightPositive = right.includes(positive);
+    const rightNegative = right.includes(negative);
+    if ((leftPositive && rightNegative) || (leftNegative && rightPositive)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export const runForget = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -29,9 +58,31 @@ export const runForget = internalMutation({
         forgetScore += 0.2;
       }
 
-      // Contradicts higher-importance fact: +0.1 (simplified check)
-      // For v1, we skip this as it requires cross-fact comparison
-      // TODO: implement in v2 with entity-based contradiction detection
+      // Contradicts higher-importance fact: +0.1 (entity-linked heuristic)
+      if ((fact.entityIds?.length ?? 0) > 0) {
+        const related = await ctx.db
+          .query("facts")
+          .withIndex("by_scope", (q) => q.eq("scopeId", fact.scopeId))
+          .filter((q) =>
+            q.and(
+              q.neq(q.field("_id"), fact._id),
+              q.eq(q.field("lifecycleState"), "active"),
+              q.gt(q.field("importanceScore"), fact.importanceScore)
+            )
+          )
+          .take(100);
+
+        const hasContradiction = related.some((other) => {
+          const sharesEntity = fact.entityIds.some((entityId) =>
+            (other.entityIds ?? []).includes(entityId)
+          );
+          return sharesEntity && detectContradiction(fact.content, other.content);
+        });
+
+        if (hasContradiction) {
+          forgetScore += 0.1;
+        }
+      }
 
       // Archive facts with forgetScore > 0.7
       if (forgetScore > 0.7) {

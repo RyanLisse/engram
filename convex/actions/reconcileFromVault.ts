@@ -5,12 +5,22 @@ import fs from "node:fs/promises";
 import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { api } from "../_generated/api";
-import yaml from "js-yaml";
 
 function parseFile(raw: string): { frontmatter: Record<string, unknown>; body: string } {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (!match) return { frontmatter: {}, body: raw.trim() };
-  const frontmatter = (yaml.load(match[1]) as Record<string, unknown>) ?? {};
+  const frontmatter = Object.fromEntries(
+    match[1]
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && line.includes(":"))
+      .map((line) => {
+        const idx = line.indexOf(":");
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        return [key, value];
+      })
+  );
   return { frontmatter, body: match[2].trim() };
 }
 
