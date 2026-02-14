@@ -5,6 +5,8 @@
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 import { randomUUID } from "crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export const recallSchema = z.object({
   query: z.string().describe("Search query for semantic recall"),
@@ -21,6 +23,18 @@ export async function recall(
   agentId: string
 ): Promise<{ facts: any[]; recallId: string } | { isError: true; message: string }> {
   try {
+    const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
+    const indexPath = path.join(vaultRoot, ".index", "vault-index.md");
+    let queryText = input.query;
+    try {
+      const indexContent = await fs.readFile(indexPath, "utf8");
+      if (indexContent.toLowerCase().includes(input.query.toLowerCase())) {
+        queryText = `${input.query} critical notable`;
+      }
+    } catch {
+      // index not present yet
+    }
+
     // Resolve scopeId if provided
     let scopeIds: string[] | undefined;
 
@@ -48,7 +62,7 @@ export async function recall(
 
     // Perform search (full-text for now; vector search comes in Phase 3)
     const results = await convex.searchFacts({
-      query: input.query,
+      query: queryText,
       limit: input.limit,
       scopeIds,
       factType: input.factType,
@@ -74,8 +88,16 @@ export async function recall(
     // Generate recallId for feedback tracking
     const recallId = randomUUID();
 
+    const prioritized = [...results].sort((a: any, b: any) => {
+      const tierWeight = (tier?: string) =>
+        tier === "critical" ? 3 : tier === "notable" ? 2 : tier === "background" ? 1 : 0;
+      const byTier = tierWeight(b.observationTier) - tierWeight(a.observationTier);
+      if (byTier !== 0) return byTier;
+      return (b.importanceScore ?? 0) - (a.importanceScore ?? 0);
+    });
+
     return {
-      facts: results,
+      facts: prioritized,
       recallId,
     };
   } catch (error: any) {

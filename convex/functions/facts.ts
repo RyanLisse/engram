@@ -113,6 +113,25 @@ export const listByScopePublic = query({
   },
 });
 
+/** List facts that have not yet been mirrored into the markdown vault. */
+export const getUnmirrored = query({
+  args: {
+    scopeId: v.optional(v.id("memory_scopes")),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, limit }) => {
+    const candidates = await ctx.db
+      .query("facts")
+      .withIndex("unmirrored", (q) =>
+        q.eq("vaultPath", undefined).eq("lifecycleState", "active")
+      )
+      .take(limit ?? 200);
+
+    if (!scopeId) return candidates;
+    return candidates.filter((fact) => fact.scopeId === scopeId);
+  },
+});
+
 // ─── Internal Queries ────────────────────────────────────────────────
 
 /** Internal query to get a fact by ID (used by actions and crons). */
@@ -165,6 +184,8 @@ export const storeFact = mutation({
     conversationId: v.optional(v.id("conversations")),
     emotionalContext: v.optional(v.string()),
     emotionalWeight: v.optional(v.float64()),
+    confidence: v.optional(v.float64()),
+    importanceTier: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Check write permission
@@ -186,6 +207,8 @@ export const storeFact = mutation({
       conversationId: args.conversationId,
       emotionalContext: args.emotionalContext,
       emotionalWeight: args.emotionalWeight,
+      confidence: args.confidence,
+      importanceTier: args.importanceTier,
       timestamp: Date.now(),
       relevanceScore: 1.0,
       accessedCount: 0,
@@ -195,8 +218,81 @@ export const storeFact = mutation({
 
     // 4. Schedule async enrichment (runs immediately after response)
     await ctx.scheduler.runAfter(0, internal.actions.enrich.enrichFact, { factId });
+    // 5. Schedule non-blocking vault mirror signal
+    await ctx.scheduler.runAfter(0, internal.actions.mirrorToVault.mirrorToVault, {
+      factId,
+    });
 
     return { factId, importanceScore };
+  },
+});
+
+/** Mark fact as mirrored to a specific vault path. */
+export const updateVaultPath = mutation({
+  args: {
+    factId: v.id("facts"),
+    vaultPath: v.string(),
+    vaultSyncedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, { factId, vaultPath, vaultSyncedAt }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) throw new Error(`Fact not found: ${factId}`);
+    await ctx.db.patch(factId, {
+      vaultPath,
+      vaultSyncedAt: vaultSyncedAt ?? Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/** Apply a human edit pulled from the vault file system. */
+export const applyVaultEdit = mutation({
+  args: {
+    factId: v.optional(v.id("facts")),
+    content: v.string(),
+    scopeId: v.id("memory_scopes"),
+    createdBy: v.string(),
+    tags: v.optional(v.array(v.string())),
+    entityIds: v.optional(v.array(v.string())),
+    vaultPath: v.string(),
+    updatedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = args.updatedAt ?? Date.now();
+
+    if (args.factId) {
+      const fact = await ctx.db.get(args.factId);
+      if (fact) {
+        await ctx.db.patch(args.factId, {
+          content: args.content,
+          tags: args.tags ?? fact.tags,
+          entityIds: args.entityIds ?? fact.entityIds,
+          vaultPath: args.vaultPath,
+          vaultSyncedAt: now,
+          updatedAt: now,
+        });
+        return { factId: args.factId, created: false };
+      }
+    }
+
+    const factId = await ctx.db.insert("facts", {
+      content: args.content,
+      source: "import",
+      entityIds: args.entityIds ?? [],
+      tags: args.tags ?? [],
+      factType: "observation",
+      scopeId: args.scopeId,
+      createdBy: args.createdBy,
+      timestamp: now,
+      relevanceScore: 1.0,
+      accessedCount: 0,
+      importanceScore: 0.5,
+      lifecycleState: "active",
+      vaultPath: args.vaultPath,
+      vaultSyncedAt: now,
+      updatedAt: now,
+    });
+    return { factId, created: true };
   },
 });
 
@@ -236,6 +332,33 @@ export const updateEnrichment = internalMutation({
     if (fields.entityIds !== undefined) patch.entityIds = fields.entityIds;
     if (fields.importanceScore !== undefined) patch.importanceScore = fields.importanceScore;
 
+    await ctx.db.patch(factId, patch);
+  },
+});
+
+/** Internal mutation for observation tiering/compression pipeline fields. */
+export const updateObservationFields = internalMutation({
+  args: {
+    factId: v.id("facts"),
+    observationTier: v.optional(v.string()),
+    observationCompressed: v.optional(v.boolean()),
+    observationOriginalContent: v.optional(v.string()),
+    importanceTier: v.optional(v.string()),
+    confidence: v.optional(v.float64()),
+    content: v.optional(v.string()),
+  },
+  handler: async (ctx, { factId, ...fields }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) throw new Error(`Fact not found: ${factId}`);
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    if (fields.observationTier !== undefined) patch.observationTier = fields.observationTier;
+    if (fields.observationCompressed !== undefined) patch.observationCompressed = fields.observationCompressed;
+    if (fields.observationOriginalContent !== undefined) {
+      patch.observationOriginalContent = fields.observationOriginalContent;
+    }
+    if (fields.importanceTier !== undefined) patch.importanceTier = fields.importanceTier;
+    if (fields.confidence !== undefined) patch.confidence = fields.confidence;
+    if (fields.content !== undefined) patch.content = fields.content;
     await ctx.db.patch(factId, patch);
   },
 });

@@ -69,6 +69,42 @@ export async function storeFact(args: {
   return await mutate("functions/facts:storeFact", args);
 }
 
+export async function getUnmirroredFacts(args: {
+  scopeId?: string;
+  limit?: number;
+}) {
+  return await query("functions/facts:getUnmirrored", args);
+}
+
+export async function updateVaultPath(args: {
+  factId: string;
+  vaultPath: string;
+  vaultSyncedAt?: number;
+}) {
+  return await mutate("functions/facts:updateVaultPath", args);
+}
+
+export async function applyVaultEdit(args: {
+  factId?: string;
+  content: string;
+  scopeId: string;
+  createdBy: string;
+  tags?: string[];
+  entityIds?: string[];
+  vaultPath: string;
+  updatedAt?: number;
+}) {
+  return await mutate("functions/facts:applyVaultEdit", args);
+}
+
+export async function runReconcileFromVault(args: { filePath: string }) {
+  return await action("actions/reconcileFromVault:reconcileFromVault", args);
+}
+
+export async function classifyObservation(args: { factId: string }) {
+  return await action("actions/classifyObservation:classifyObservation", args);
+}
+
 export async function searchFacts(args: {
   query: string;
   limit?: number;
@@ -145,6 +181,13 @@ export async function addRelationship(args: {
   relationType: string;
 }) {
   return await mutate("functions/entities:addRelationship", args);
+}
+
+export async function updateBacklinks(args: {
+  factId: string;
+  entityNames: string[];
+}) {
+  return await mutate("functions/entities:updateBacklinks", args);
 }
 
 // ========================================

@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { autoLinkEntities } from "../lib/auto-linker.js";
 
 export const storeFactSchema = z.object({
   content: z.string().describe("The fact content to store"),
@@ -55,9 +56,17 @@ export async function storeFact(
       resolvedScopeId = scope._id;
     }
 
+    const entityNames: string[] = [];
+    for (const entityId of input.entityIds ?? []) {
+      const entity = await convex.getEntityByEntityId(entityId);
+      if (entity?.name) entityNames.push(entity.name);
+      else entityNames.push(entityId);
+    }
+    const linkedContent = autoLinkEntities(input.content, entityNames);
+
     // Store the fact
     const result = await convex.storeFact({
-      content: input.content,
+      content: linkedContent,
       source: input.source || "direct",
       createdBy: agentId,
       scopeId: resolvedScopeId as string,
@@ -72,6 +81,13 @@ export async function storeFact(
         isError: true,
         message: "Failed to store fact: invalid response from server",
       };
+    }
+
+    if (result.factId && entityNames.length > 0) {
+      await convex.updateBacklinks({
+        factId: result.factId,
+        entityNames,
+      });
     }
 
     return {

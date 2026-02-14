@@ -4,10 +4,12 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { loadBudgetAwareContext } from "../lib/budget-aware-loader.js";
 
 export const getContextSchema = z.object({
   topic: z.string().describe("Topic to gather context about"),
   maxFacts: z.number().optional().default(20).describe("Maximum facts to include"),
+  tokenBudget: z.number().optional().default(3000).describe("Max token budget"),
   includeEntities: z.boolean().optional().default(true).describe("Include related entities"),
   includeThemes: z.boolean().optional().default(true).describe("Include thematic clusters"),
   scopeId: z.string().optional().describe("Scope to search within"),
@@ -52,12 +54,14 @@ export async function getContext(
       }
     }
 
-    // Search for relevant facts
-    const facts = await convex.searchFacts({
+    // Search for relevant facts with budget-aware prioritization
+    const budgeted = await loadBudgetAwareContext({
       query: input.topic,
-      limit: input.maxFacts,
-      scopeIds,
+      tokenBudget: input.tokenBudget,
+      scopeId: scopeIds?.[0],
+      maxFacts: input.maxFacts,
     });
+    const facts = budgeted.facts.map((item) => item.fact);
 
     if (!Array.isArray(facts)) {
       return {
@@ -104,7 +108,7 @@ export async function getContext(
     }
 
     // Generate summary
-    const summary = `Context for "${input.topic}": ${facts.length} facts, ${entities.length} entities, ${themes.length} themes, ${recentHandoffs.length} recent handoffs`;
+    const summary = `Context for "${input.topic}": ${facts.length} facts (${budgeted.usedTokens}/${budgeted.tokenBudget} tokens), ${entities.length} entities, ${themes.length} themes, ${recentHandoffs.length} recent handoffs`;
 
     return {
       facts,

@@ -89,6 +89,13 @@ export const checkWriteAccess = query({
   },
 });
 
+export const listAll = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("memory_scopes").collect();
+  },
+});
+
 // Internal query for use in mutations/actions
 export const getInternal = internalQuery({
   args: { scopeId: v.id("memory_scopes") },

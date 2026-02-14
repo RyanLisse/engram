@@ -24,4 +24,14 @@ crons.weekly("rerank", { dayOfWeek: "sunday", hourUTC: 6, minuteUTC: 0 }, intern
 // Daily: Steering rule extraction (runs daily but only processes on 1st of month)
 crons.daily("rules", { hourUTC: 7, minuteUTC: 0 }, internal.crons.rules.runRules);
 
+// Every 5 min: Mirror sync heartbeat (MCP daemon performs IO)
+crons.interval("vault-sync-heartbeat", { minutes: 5 }, internal.crons.sync.runSync);
+
+// Every 5 min: Vault index regeneration trigger
+crons.interval(
+  "vault-regenerate-indices",
+  { minutes: 5 },
+  internal.crons.regenerateIndices.runRegenerateIndices
+);
+
 export default crons;

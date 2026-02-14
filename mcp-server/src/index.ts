@@ -33,6 +33,11 @@ import { recordFeedback, recordFeedbackSchema } from "./tools/record-feedback.js
 import { summarize, summarizeSchema } from "./tools/summarize.js";
 import { prune, pruneSchema } from "./tools/prune.js";
 import { endSession, endSessionSchema } from "./tools/end-session.js";
+import { vaultSync, vaultSyncSchema } from "./tools/vault-sync.js";
+import { queryVault, queryVaultSchema } from "./tools/query-vault.js";
+import { exportGraph, exportGraphSchema } from "./tools/export-graph.js";
+import { checkpoint, checkpointSchema } from "./tools/checkpoint.js";
+import { wake, wakeSchema } from "./tools/wake.js";
 
 // Get agent ID from env (defaults to "indy")
 const AGENT_ID = process.env.ENGRAM_AGENT_ID || "indy";
@@ -389,6 +394,68 @@ const TOOLS: Tool[] = [
       },
     },
   },
+  {
+    name: "memory_vault_sync",
+    description: "Sync Convex facts with Obsidian vault files (export/import/both).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        direction: {
+          type: "string",
+          enum: ["export", "import", "both"],
+          description: "Sync direction",
+        },
+        force: { type: "boolean", description: "Force large batch processing" },
+        dryRun: { type: "boolean", description: "Preview only, no writes" },
+        scopeId: { type: "string", description: "Optional scope filter" },
+      },
+    },
+  },
+  {
+    name: "memory_query_vault",
+    description: "Query markdown vault files directly for local-first retrieval.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search text" },
+        limit: { type: "number", description: "Max files to return" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "memory_export_graph",
+    description: "Export Obsidian graph JSON from wiki-links in vault notes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        includeContent: { type: "boolean", description: "Read file content for edge detection" },
+      },
+    },
+  },
+  {
+    name: "memory_checkpoint",
+    description: "Create a durable checkpoint snapshot for session wake/resume.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        scopeId: { type: "string" },
+        summary: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "memory_wake",
+    description: "Restore context from a previously stored checkpoint.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        checkpointId: { type: "string" },
+      },
+      required: ["checkpointId"],
+    },
+  },
 ];
 
 // Create server instance
@@ -516,6 +583,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "memory_prune": {
         const validated = pruneSchema.parse(args);
         const result = await prune(validated, AGENT_ID);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "memory_vault_sync": {
+        const validated = vaultSyncSchema.parse(args);
+        const result = await vaultSync(validated);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "memory_query_vault": {
+        const validated = queryVaultSchema.parse(args);
+        const result = await queryVault(validated);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "memory_export_graph": {
+        const validated = exportGraphSchema.parse(args);
+        const result = await exportGraph(validated);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "memory_checkpoint": {
+        const validated = checkpointSchema.parse(args);
+        const result = await checkpoint(validated, AGENT_ID);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "memory_wake": {
+        const validated = wakeSchema.parse(args);
+        const result = await wake(validated);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };

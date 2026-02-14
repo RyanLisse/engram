@@ -85,6 +85,7 @@ export const upsert = mutation({
       firstSeen: now,
       lastSeen: now,
       metadata: args.metadata ?? {},
+      backlinks: [],
       relationships: [],
       importanceScore: args.importanceScore ?? 0.5,
       accessCount: 0,
@@ -123,5 +124,70 @@ export const addRelationship = mutation({
       relationships: [...entity.relationships, relationship],
       lastSeen: Date.now(),
     });
+  },
+});
+
+export const updateBacklinks = mutation({
+  args: {
+    factId: v.id("facts"),
+    entityNames: v.array(v.string()),
+  },
+  handler: async (ctx, { factId, entityNames }) => {
+    for (const entityName of entityNames) {
+      const entity = await ctx.db
+        .query("entities")
+        .withSearchIndex("search_name", (q) => q.search("name", entityName))
+        .take(1);
+      const found = entity[0];
+      if (!found) continue;
+      const backlinks = found.backlinks ?? [];
+      if (backlinks.includes(factId)) continue;
+      await ctx.db.patch(found._id, {
+        backlinks: [...backlinks, factId],
+        lastSeen: Date.now(),
+      });
+    }
+    return { updated: true };
+  },
+});
+
+export const validateBacklinks = query({
+  args: {},
+  handler: async (ctx) => {
+    const entities = await ctx.db.query("entities").collect();
+    let dangling = 0;
+    for (const entity of entities) {
+      for (const factId of entity.backlinks ?? []) {
+        const fact = await ctx.db.get(factId);
+        if (!fact) dangling += 1;
+      }
+    }
+    return { dangling };
+  },
+});
+
+export const rebuildBacklinks = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const entities = await ctx.db.query("entities").collect();
+    for (const entity of entities) {
+      await ctx.db.patch(entity._id, { backlinks: [] });
+    }
+
+    const facts = await ctx.db.query("facts").collect();
+    for (const fact of facts) {
+      for (const entityName of fact.entityIds ?? []) {
+        const entity = await ctx.db
+          .query("entities")
+          .withSearchIndex("search_name", (q) => q.search("name", entityName))
+          .take(1);
+        const found = entity[0];
+        if (!found) continue;
+        const backlinks = found.backlinks ?? [];
+        if (backlinks.includes(fact._id)) continue;
+        await ctx.db.patch(found._id, { backlinks: [...backlinks, fact._id] });
+      }
+    }
+    return { rebuilt: true };
   },
 });

@@ -13,6 +13,13 @@ export default defineSchema({
     factualSummary: v.optional(v.string()), // Compressed representation (SimpleMem)
     timestamp: v.number(),
     updatedAt: v.optional(v.number()), // Track modifications for sync
+    vaultPath: v.optional(v.string()), // Relative vault path (e.g., private-indy/foo.md)
+    vaultSyncedAt: v.optional(v.number()), // Last successful mirror sync timestamp
+    confidence: v.optional(v.float64()), // 0.0-1.0 confidence score
+    importanceTier: v.optional(v.string()), // structural|potential|contextual
+    observationTier: v.optional(v.string()), // critical|notable|background
+    observationCompressed: v.optional(v.boolean()), // whether background compression ran
+    observationOriginalContent: v.optional(v.string()), // original pre-compression text
     source: v.string(), // "direct"|"observation"|"import"|"consolidation"
     entityIds: v.array(v.string()),
     relevanceScore: v.float64(),
@@ -54,6 +61,10 @@ export default defineSchema({
     .index("by_type", ["factType", "timestamp"])
     .index("by_importance", ["importanceScore"])
     .index("by_lifecycle", ["lifecycleState", "timestamp"])
+    .index("by_vault_path", ["vaultPath"])
+    .index("by_vault_synced", ["vaultSyncedAt"])
+    .index("by_observation_tier", ["observationTier", "timestamp"])
+    .index("unmirrored", ["vaultPath", "lifecycleState"])
     .searchIndex("search_content", {
       searchField: "content",
       filterFields: ["scopeId", "factType", "createdBy"],
@@ -74,6 +85,7 @@ export default defineSchema({
     firstSeen: v.number(),
     lastSeen: v.number(),
     metadata: v.record(v.string(), metadataValue), // flexible key-value
+    backlinks: v.optional(v.array(v.id("facts"))), // facts that reference this entity
     relationships: v.array(
       v.object({
         targetId: v.string(),

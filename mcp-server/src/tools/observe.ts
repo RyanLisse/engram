@@ -52,7 +52,7 @@ export async function observe(
     }
 
     // Store as observation fact (fire-and-forget)
-    await convex.storeFact({
+    const stored = await convex.storeFact({
       content: input.observation,
       source: "observation",
       createdBy: agentId,
@@ -60,6 +60,9 @@ export async function observe(
       factType: "observation",
       emotionalContext: input.emotionalContext,
     });
+    if (stored?.factId) {
+      await convex.classifyObservation({ factId: stored.factId });
+    }
 
     return { ack: true };
   } catch (error: any) {
