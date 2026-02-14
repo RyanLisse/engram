@@ -86,6 +86,13 @@ export async function searchFacts(args: {
   return await query("functions/facts:searchFacts", convexArgs);
 }
 
+export async function listFactsByScope(args: {
+  scopeId: string;
+  limit?: number;
+}) {
+  return await query("functions/facts:listByScopePublic", args);
+}
+
 export async function getFact(factId: string) {
   return await query("functions/facts:getFact", { factId });
 }
@@ -147,8 +154,8 @@ export async function addRelationship(args: {
 export async function registerAgent(args: {
   agentId: string;
   name: string;
-  capabilities?: string[];
-  defaultScope?: string;
+  capabilities: string[];
+  defaultScope: string;
   telos?: string;
   isInnerCircle?: boolean;
 }) {
@@ -195,8 +202,9 @@ export async function addScopeMember(args: {
 
 export async function createSession(args: {
   agentId: string;
-  scopeId: string;
-  metadata?: Record<string, any>;
+  contextSummary: string;
+  parentSession?: string;
+  nodeId?: string;
 }) {
   return await mutate("functions/sessions:create", args);
 }
@@ -210,10 +218,11 @@ export async function getSessionsByAgent(agentId: string) {
 // ========================================
 
 export async function createConversation(args: {
-  title?: string;
+  sessionId: string;
   participants: string[];
-  scopeId: string;
-  metadata?: Record<string, any>;
+  contextSummary: string;
+  tags: string[];
+  importance?: number;
 }) {
   return await mutate("functions/conversations:create", args);
 }
@@ -227,9 +236,9 @@ export async function addFactToConversation(args: {
 
 export async function addHandoff(args: {
   conversationId: string;
-  fromAgentId: string;
-  toAgentId: string;
-  context?: Record<string, any>;
+  fromAgent: string;
+  toAgent: string;
+  contextSummary: string;
 }) {
   return await mutate("functions/conversations:addHandoff", args);
 }
@@ -288,11 +297,12 @@ export async function getThemesByScope(scopeId: string) {
 }
 
 export async function createTheme(args: {
-  title: string;
-  description?: string;
-  scopeId: string;
+  name: string;
+  description: string;
   factIds: string[];
-  metadata?: Record<string, any>;
+  entityIds: string[];
+  scopeId: string;
+  importance?: number;
 }) {
   return await mutate("functions/themes:create", args);
 }
@@ -303,21 +313,20 @@ export async function createTheme(args: {
 
 export async function getFactsSince(args: {
   scopeId: string;
-  lastSyncTimestamp: number;
+  since: number;
   limit?: number;
 }) {
   return await query("functions/sync:getFactsSince", args);
 }
 
 export async function updateSyncLog(args: {
-  agentId: string;
-  scopeId: string;
-  lastSyncTimestamp: number;
-  syncedFactCount: number;
+  nodeId: string;
+  factsSynced: number;
+  status: "ok" | "error" | "syncing";
 }) {
   return await mutate("functions/sync:updateSyncLog", args);
 }
 
-export async function getSyncStatus(agentId: string) {
-  return await query("functions/sync:getSyncStatus", { agentId });
+export async function getSyncStatus(nodeId: string) {
+  return await query("functions/sync:getSyncStatus", { nodeId });
 }

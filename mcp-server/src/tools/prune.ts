@@ -68,10 +68,9 @@ export async function prune(
 
     // Search for old facts in scope
     const resolvedScopeId = scopeId!;
-    const allFacts = await convex.searchFacts({
-      query: "",
+    const allFacts = await convex.listFactsByScope({
+      scopeId: resolvedScopeId,
       limit: 1000,
-      scopeIds: [resolvedScopeId],
     });
 
     if (!Array.isArray(allFacts)) {

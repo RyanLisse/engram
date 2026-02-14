@@ -47,7 +47,7 @@ console.error("[engram-mcp] Starting Engram MCP Server...");
 console.error(`[engram-mcp] Agent ID: ${AGENT_ID}`);
 console.error(`[engram-mcp] Convex URL: ${process.env.CONVEX_URL}`);
 
-// Define all 12 tools
+// Define all 13 tools
 const TOOLS: Tool[] = [
   {
     name: "memory_store_fact",
@@ -389,25 +389,6 @@ const TOOLS: Tool[] = [
       },
     },
   },
-  {
-    name: "memory_end_session",
-    description:
-      "Store session handoff summary for cross-agent continuity. Writes session_summary fact to shared-personal scope. Returns factId and handoffRecorded status.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        summary: {
-          type: "string",
-          description: "Session summary for handoff to other agents",
-        },
-        conversationId: {
-          type: "string",
-          description: "Conversation ID to link handoff to",
-        },
-      },
-      required: ["summary"],
-    },
-  },
 ];
 
 // Create server instance
@@ -535,14 +516,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "memory_prune": {
         const validated = pruneSchema.parse(args);
         const result = await prune(validated, AGENT_ID);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
-      }
-
-      case "memory_end_session": {
-        const validated = endSessionSchema.parse(args);
-        const result = await endSession(validated, AGENT_ID);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };

@@ -99,6 +99,20 @@ export const getRecentHandoffs = query({
   },
 });
 
+/** List facts by scope (public, used by MCP prune tool). */
+export const listByScopePublic = query({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, limit }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
+      .take(limit ?? 1000);
+  },
+});
+
 // ─── Internal Queries ────────────────────────────────────────────────
 
 /** Internal query to get a fact by ID (used by actions and crons). */

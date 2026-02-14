@@ -139,8 +139,8 @@ export async function queryRaw(
       }
 
       case "sync_log": {
-        const syncAgent = filter.agentId || agentId;
-        const status = await convex.getSyncStatus(syncAgent);
+        const nodeId = filter.nodeId || `lance-${filter.agentId || agentId}`;
+        const status = await convex.getSyncStatus(nodeId);
         results = status ? (Array.isArray(status) ? status : [status]) : [];
         break;
       }

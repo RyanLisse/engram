@@ -87,7 +87,7 @@ export async function getContext(
         // Filter themes relevant to topic (simple string match)
         themes = themeResults.filter(
           (theme: any) =>
-            theme.title?.toLowerCase().includes(input.topic.toLowerCase()) ||
+            theme.name?.toLowerCase().includes(input.topic.toLowerCase()) ||
             theme.description?.toLowerCase().includes(input.topic.toLowerCase())
         );
       }
