@@ -144,11 +144,28 @@ export const addMember = mutation({
   args: {
     scopeId: v.id("memory_scopes"),
     agentId: v.string(),
+    callerAgentId: v.optional(v.string()), // Who is adding the member
   },
-  handler: async (ctx, { scopeId, agentId }) => {
+  handler: async (ctx, { scopeId, agentId, callerAgentId }) => {
     const scope = await ctx.db.get(scopeId);
     if (!scope) throw new Error(`Scope not found: ${scopeId}`);
     if (scope.members.includes(agentId)) return; // idempotent
+
+    // Check admin policy if provided
+    if (callerAgentId) {
+      const adminPolicy = scope.adminPolicy || "creator";
+      if (adminPolicy === "creator") {
+        if (scope.members[0] !== callerAgentId) {
+          throw new Error(`Only scope creator can add members to "${scope.name}"`);
+        }
+      } else if (adminPolicy === "members") {
+        if (!scope.members.includes(callerAgentId)) {
+          throw new Error(`Only scope members can add members to "${scope.name}"`);
+        }
+      }
+      // adminPolicy === "admin_only" would need separate admin list (future phase)
+    }
+
     await ctx.db.patch(scopeId, {
       members: [...scope.members, agentId],
     });
@@ -159,10 +176,26 @@ export const removeMember = mutation({
   args: {
     scopeId: v.id("memory_scopes"),
     agentId: v.string(),
+    callerAgentId: v.optional(v.string()), // Who is removing the member
   },
-  handler: async (ctx, { scopeId, agentId }) => {
+  handler: async (ctx, { scopeId, agentId, callerAgentId }) => {
     const scope = await ctx.db.get(scopeId);
     if (!scope) throw new Error(`Scope not found: ${scopeId}`);
+
+    // Check admin policy if provided
+    if (callerAgentId) {
+      const adminPolicy = scope.adminPolicy || "creator";
+      if (adminPolicy === "creator") {
+        if (scope.members[0] !== callerAgentId) {
+          throw new Error(`Only scope creator can remove members from "${scope.name}"`);
+        }
+      } else if (adminPolicy === "members") {
+        if (!scope.members.includes(callerAgentId)) {
+          throw new Error(`Only scope members can remove members from "${scope.name}"`);
+        }
+      }
+    }
+
     await ctx.db.patch(scopeId, {
       members: scope.members.filter((m: string) => m !== agentId),
     });

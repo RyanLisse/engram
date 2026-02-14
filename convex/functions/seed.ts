@@ -28,6 +28,15 @@ export const seedAll = internalMutation({
       writePolicy: "members",
     });
 
+    const sharedPersonal = await ctx.db.insert("memory_scopes", {
+      name: "shared-personal",
+      description: "Shared memory for inner circle agents (handoffs, session summaries)",
+      members: ["indy"],
+      readPolicy: "members",
+      writePolicy: "members",
+      adminPolicy: "creator", // First member (indy) is admin
+    });
+
     // ─── 2. Create Initial Entities ────────────────────────────────
     const now = Date.now();
 
@@ -193,7 +202,11 @@ export const seedAll = internalMutation({
     }
 
     return {
-      scopes: { global: globalScope, privateIndy: privateIndy },
+      scopes: {
+        global: globalScope,
+        privateIndy: privateIndy,
+        sharedPersonal: sharedPersonal,
+      },
       entities: Object.keys(entityIds).length,
       facts: sampleFacts.length,
       agents: 1,

@@ -3,10 +3,10 @@
 /**
  * Engram MCP Server
  *
- * Provides 12 memory tools for multi-agent systems:
+ * Provides 13 memory tools for multi-agent systems:
  * - memory_store_fact, memory_recall, memory_search
  * - memory_link_entity, memory_get_context, memory_observe
- * - memory_register_agent, memory_query_raw
+ * - memory_register_agent, memory_end_session, memory_query_raw
  * - memory_record_signal, memory_record_feedback
  * - memory_summarize, memory_prune
  */
@@ -32,6 +32,7 @@ import { recordSignal, recordSignalSchema } from "./tools/record-signal.js";
 import { recordFeedback, recordFeedbackSchema } from "./tools/record-feedback.js";
 import { summarize, summarizeSchema } from "./tools/summarize.js";
 import { prune, pruneSchema } from "./tools/prune.js";
+import { endSession, endSessionSchema } from "./tools/end-session.js";
 
 // Get agent ID from env (defaults to "indy")
 const AGENT_ID = process.env.ENGRAM_AGENT_ID || "indy";
@@ -224,7 +225,7 @@ const TOOLS: Tool[] = [
   {
     name: "memory_register_agent",
     description:
-      "Agent self-registration with capabilities and scopes. Creates private scope if needed. Returns agent and available scopes.",
+      "Agent self-registration with capabilities and scopes. Creates private scope if needed. Inner-circle agents auto-join shared-personal scope.",
     inputSchema: {
       type: "object",
       properties: {
@@ -240,8 +241,31 @@ const TOOLS: Tool[] = [
           description: "Default scope name (will create if not exists)",
         },
         telos: { type: "string", description: "Agent's telos/purpose" },
+        isInnerCircle: {
+          type: "boolean",
+          description: "If true, agent joins shared-personal scope for cross-agent memory",
+        },
       },
       required: ["agentId", "name"],
+    },
+  },
+  {
+    name: "memory_end_session",
+    description:
+      "Store a session handoff summary for cross-agent continuity. Writes a session_summary fact to shared-personal scope (inner-circle agents only).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "Session summary for the next agent",
+        },
+        conversationId: {
+          type: "string",
+          description: "Optional conversation ID to link handoff to",
+        },
+      },
+      required: ["summary"],
     },
   },
   {
@@ -365,6 +389,25 @@ const TOOLS: Tool[] = [
       },
     },
   },
+  {
+    name: "memory_end_session",
+    description:
+      "Store session handoff summary for cross-agent continuity. Writes session_summary fact to shared-personal scope. Returns factId and handoffRecorded status.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "Session summary for handoff to other agents",
+        },
+        conversationId: {
+          type: "string",
+          description: "Conversation ID to link handoff to",
+        },
+      },
+      required: ["summary"],
+    },
+  },
 ];
 
 // Create server instance
@@ -449,6 +492,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "memory_end_session": {
+        const validated = endSessionSchema.parse(args);
+        const result = await endSession(validated, AGENT_ID);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
       case "memory_query_raw": {
         const validated = queryRawSchema.parse(args);
         const result = await queryRaw(validated, AGENT_ID);
@@ -484,6 +535,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "memory_prune": {
         const validated = pruneSchema.parse(args);
         const result = await prune(validated, AGENT_ID);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "memory_end_session": {
+        const validated = endSessionSchema.parse(args);
+        const result = await endSession(validated, AGENT_ID);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };

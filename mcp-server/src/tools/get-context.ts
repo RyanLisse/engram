@@ -23,6 +23,7 @@ export async function getContext(
       facts: any[];
       entities: any[];
       themes: any[];
+      recentHandoffs: any[];
       summary: string;
     }
   | { isError: true; message: string }
@@ -92,13 +93,24 @@ export async function getContext(
       }
     }
 
+    // Get recent handoffs from other agents
+    let recentHandoffs: any[] = [];
+    if (scopeIds && scopeIds.length > 0) {
+      try {
+        recentHandoffs = await convex.getRecentHandoffs(agentId, scopeIds, 5);
+      } catch (error) {
+        console.error("[get-context] Failed to fetch handoffs:", error);
+      }
+    }
+
     // Generate summary
-    const summary = `Context for "${input.topic}": ${facts.length} facts, ${entities.length} entities, ${themes.length} themes`;
+    const summary = `Context for "${input.topic}": ${facts.length} facts, ${entities.length} entities, ${themes.length} themes, ${recentHandoffs.length} recent handoffs`;
 
     return {
       facts,
       entities,
       themes,
+      recentHandoffs,
       summary,
     };
   } catch (error: any) {

@@ -64,6 +64,7 @@ export async function storeFact(args: {
   entityIds?: string[];
   tags?: string[];
   emotionalContext?: string;
+  conversationId?: string;
 }) {
   return await mutate("functions/facts:storeFact", args);
 }
@@ -91,6 +92,18 @@ export async function getFact(factId: string) {
 
 export async function bumpAccess(factId: string) {
   return await mutate("functions/facts:bumpAccess", { factId });
+}
+
+export async function getRecentHandoffs(
+  currentAgentId: string,
+  scopeIds: string[],
+  limit?: number
+) {
+  return await query("functions/facts:getRecentHandoffs", {
+    currentAgentId,
+    scopeIds,
+    limit,
+  });
 }
 
 // ========================================
@@ -137,6 +150,7 @@ export async function registerAgent(args: {
   capabilities?: string[];
   defaultScope?: string;
   telos?: string;
+  isInnerCircle?: boolean;
 }) {
   return await mutate("functions/agents:register", args);
 }
@@ -218,6 +232,20 @@ export async function addHandoff(args: {
   context?: Record<string, any>;
 }) {
   return await mutate("functions/conversations:addHandoff", args);
+}
+
+/** Record handoff on a conversation (session end). Uses empty toAgent when not yet known. */
+export async function addHandoffToConversation(args: {
+  conversationId: string;
+  fromAgent: string;
+  summary: string;
+}) {
+  return await mutate("functions/conversations:addHandoff", {
+    conversationId: args.conversationId,
+    fromAgent: args.fromAgent,
+    toAgent: "",
+    contextSummary: args.summary,
+  });
 }
 
 // ========================================

@@ -63,6 +63,42 @@ export const searchFacts = query({
   },
 });
 
+/**
+ * Get recent session handoff summaries from other agents.
+ * Used by memory_get_context to warm-start with cross-agent context.
+ */
+export const getRecentHandoffs = query({
+  args: {
+    currentAgentId: v.string(),
+    scopeIds: v.array(v.id("memory_scopes")),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { currentAgentId, scopeIds, limit }) => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+    // Get session_summary facts from other agents in permitted scopes
+    const handoffs = await ctx.db
+      .query("facts")
+      .withIndex("by_type", (q) => q.eq("factType", "session_summary"))
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("createdBy"), currentAgentId),
+          q.gte(q.field("timestamp"), sevenDaysAgo),
+          q.or(...scopeIds.map(id => q.eq(q.field("scopeId"), id)))
+        )
+      )
+      .order("desc")
+      .take(limit ?? 5);
+
+    return handoffs.map(fact => ({
+      conversationId: fact.conversationId,
+      fromAgent: fact.createdBy,
+      summary: fact.content,
+      timestamp: fact.timestamp,
+    }));
+  },
+});
+
 // ─── Internal Queries ────────────────────────────────────────────────
 
 /** Internal query to get a fact by ID (used by actions and crons). */

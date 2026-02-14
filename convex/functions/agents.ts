@@ -1,5 +1,36 @@
 import { v } from "convex/values";
 import { query, mutation } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
+
+// ─── Helper Functions ────────────────────────────────────────────────
+
+async function ensureSharedPersonalMembership(ctx: MutationCtx, agentId: string) {
+  // Find or create shared-personal scope
+  let sharedScope = await ctx.db
+    .query("memory_scopes")
+    .withIndex("by_name", (q) => q.eq("name", "shared-personal"))
+    .unique();
+
+  if (!sharedScope) {
+    // Create shared-personal scope on first inner-circle registration
+    const scopeId = await ctx.db.insert("memory_scopes", {
+      name: "shared-personal",
+      description: "Shared memory for inner circle agents",
+      members: [agentId],
+      readPolicy: "members",
+      writePolicy: "members",
+      adminPolicy: "creator", // First member is admin
+    });
+    return scopeId;
+  }
+
+  // Add agent to members if not already there
+  if (!sharedScope.members.includes(agentId)) {
+    await ctx.db.patch(sharedScope._id, {
+      members: [...sharedScope.members, agentId],
+    });
+  }
+}
 
 // ─── Queries ─────────────────────────────────────────────────────────
 
@@ -40,6 +71,7 @@ export const register = mutation({
     settings: v.optional(
       v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))
     ),
+    isInnerCircle: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -55,12 +87,19 @@ export const register = mutation({
         nodeId: args.nodeId,
         telos: args.telos,
         settings: args.settings,
+        isInnerCircle: args.isInnerCircle,
         lastSeen: Date.now(),
       });
+
+      // Add to shared-personal scope if inner circle
+      if (args.isInnerCircle) {
+        await ensureSharedPersonalMembership(ctx, args.agentId);
+      }
+
       return existing._id;
     }
 
-    return await ctx.db.insert("agents", {
+    const agentDocId = await ctx.db.insert("agents", {
       agentId: args.agentId,
       name: args.name,
       capabilities: args.capabilities,
@@ -68,9 +107,17 @@ export const register = mutation({
       nodeId: args.nodeId,
       telos: args.telos,
       settings: args.settings,
+      isInnerCircle: args.isInnerCircle,
       factCount: 0,
       lastSeen: Date.now(),
     });
+
+    // Add to shared-personal scope if inner circle
+    if (args.isInnerCircle) {
+      await ensureSharedPersonalMembership(ctx, args.agentId);
+    }
+
+    return agentDocId;
   },
 });
 

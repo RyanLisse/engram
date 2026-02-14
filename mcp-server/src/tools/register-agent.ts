@@ -11,6 +11,7 @@ export const registerAgentSchema = z.object({
   capabilities: z.array(z.string()).optional().describe("Agent capabilities/skills"),
   defaultScope: z.string().optional().describe("Default scope name (will create if not exists)"),
   telos: z.string().optional().describe("Agent's telos/purpose"),
+  isInnerCircle: z.boolean().optional().describe("Whether agent is part of inner circle (auto-join shared-personal scope)"),
 });
 
 export type RegisterAgentInput = z.infer<typeof registerAgentSchema>;
@@ -44,24 +45,17 @@ export async function registerAgent(
       }
     }
 
-    // Resolve defaultScope if provided
-    let defaultScopeId = privateScope._id;
-    if (input.defaultScope) {
-      const customScope = await convex.getScopeByName(input.defaultScope);
-      if (customScope) {
-        defaultScopeId = customScope._id;
-      } else {
-        console.error(`[register-agent] Default scope "${input.defaultScope}" not found, using private scope`);
-      }
-    }
+    // Convex agents table stores defaultScope as scope name (string)
+    const defaultScopeName = input.defaultScope ?? privateScopeName;
 
     // Register agent
     const agent = await convex.registerAgent({
       agentId: input.agentId,
       name: input.name,
       capabilities: input.capabilities || [],
-      defaultScope: defaultScopeId,
+      defaultScope: defaultScopeName,
       telos: input.telos,
+      isInnerCircle: input.isInnerCircle,
     });
 
     if (!agent) {

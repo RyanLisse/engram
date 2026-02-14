@@ -141,6 +141,8 @@ export default defineSchema({
     defaultScope: v.string(), // "private"|"team"|"public"
     telos: v.optional(v.string()), // Purpose/goal (PAI: "Ship code faster")
     settings: v.optional(v.record(v.string(), metadataValue)), // agent-specific memory config
+    isInnerCircle: v.optional(v.boolean()), // Auto-join shared-personal scope
+    capabilityEmbedding: v.optional(v.array(v.float64())), // Pre-computed for routing (Phase 2)
   }).index("by_agent_id", ["agentId"]),
 
   // ─── memory_scopes ───────────────────────────────────────────────────
@@ -151,6 +153,7 @@ export default defineSchema({
     members: v.array(v.string()), // agent IDs
     readPolicy: v.string(), // "members"|"all"
     writePolicy: v.string(), // "members"|"creator"|"all"
+    adminPolicy: v.optional(v.string()), // "creator"|"members"|"admin_only"
     retentionDays: v.optional(v.number()),
 
     // Task-specific policies (ALMA)
