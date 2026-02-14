@@ -7,6 +7,13 @@ import * as convex from "../lib/convex-client.js";
 import { loadBudgetAwareContext } from "../lib/budget-aware-loader.js";
 import fs from "node:fs/promises";
 import path from "node:path";
+import {
+  getEntitiesPrimitive,
+  getHandoffs,
+  getNotifications,
+  getThemesPrimitive,
+  markNotificationsRead,
+} from "./primitive-retrieval.js";
 
 export const getContextSchema = z.object({
   topic: z.string().describe("Topic to gather context about"),
@@ -34,6 +41,14 @@ export async function getContext(
       themes: any[];
       recentHandoffs: any[];
       notifications: any[];
+      agentContext: {
+        agentId: string;
+        name?: string;
+        capabilities: string[];
+        telos?: string;
+        defaultScope?: string;
+        permittedScopes: string[];
+      };
       sources: {
         observations: any[];
         dailyNotes: any[];
@@ -45,6 +60,8 @@ export async function getContext(
   | { isError: true; message: string }
 > {
   try {
+    console.error("[deprecation] memory_get_context is a compatibility wrapper over primitive tools");
+    const agent = await convex.getAgentByAgentId(agentId);
     // Resolve scope
     let scopeIds: string[] | undefined;
 
@@ -99,7 +116,7 @@ export async function getContext(
     // Gather entities if requested
     let entities: any[] = [];
     if (input.includeEntities) {
-      const entityResults = await convex.searchEntities({
+      const entityResults = await getEntitiesPrimitive({
         query: input.topic,
         limit: 10,
       });
@@ -111,11 +128,10 @@ export async function getContext(
     // Gather themes if requested
     let themes: any[] = [];
     if (input.includeThemes && scopeIds && scopeIds.length > 0) {
-      // Get themes from first scope (simplified)
-      const themeResults = await convex.getThemesByScope(scopeIds[0]);
-      if (Array.isArray(themeResults)) {
+      const scopedThemes = await getThemesPrimitive({ scopeId: scopeIds[0], limit: 20 });
+      if (Array.isArray(scopedThemes)) {
         // Filter themes relevant to topic (simple string match)
-        themes = themeResults.filter(
+        themes = (scopedThemes as any[]).filter(
           (theme: any) =>
             theme.name?.toLowerCase().includes(input.topic.toLowerCase()) ||
             theme.description?.toLowerCase().includes(input.topic.toLowerCase())
@@ -127,7 +143,7 @@ export async function getContext(
     let recentHandoffs: any[] = [];
     if (scopeIds && scopeIds.length > 0) {
       try {
-        recentHandoffs = await convex.getRecentHandoffs(agentId, scopeIds, 5);
+        recentHandoffs = (await getHandoffs({ scopeIds, limit: 5 }, agentId)) as any[];
       } catch (error) {
         console.error("[get-context] Failed to fetch handoffs:", error);
       }
@@ -135,10 +151,10 @@ export async function getContext(
 
     let notifications: any[] = [];
     try {
-      const unread = await convex.getUnreadNotifications({ agentId, limit: 10 });
+      const unread = await getNotifications({ limit: 10 }, agentId);
       if (Array.isArray(unread)) {
         notifications = unread;
-        await convex.markNotificationsRead(unread.map((n: any) => n._id));
+        await markNotificationsRead({ notificationIds: unread.map((n: any) => n._id) });
       }
     } catch (error) {
       console.error("[get-context] Failed to fetch notifications:", error);
@@ -181,6 +197,14 @@ export async function getContext(
       themes,
       recentHandoffs,
       notifications,
+      agentContext: {
+        agentId,
+        name: agent?.name,
+        capabilities: agent?.capabilities ?? [],
+        telos: agent?.telos,
+        defaultScope: agent?.defaultScope,
+        permittedScopes: scopeIds ?? [],
+      },
       sources: {
         observations,
         dailyNotes,

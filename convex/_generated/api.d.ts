@@ -31,8 +31,10 @@ import type * as crons_rerank from "../crons/rerank.js";
 import type * as crons_rules from "../crons/rules.js";
 import type * as crons_sync from "../crons/sync.js";
 import type * as functions_agents from "../functions/agents.js";
+import type * as functions_config from "../functions/config.js";
 import type * as functions_conversations from "../functions/conversations.js";
 import type * as functions_entities from "../functions/entities.js";
+import type * as functions_events from "../functions/events.js";
 import type * as functions_facts from "../functions/facts.js";
 import type * as functions_notifications from "../functions/notifications.js";
 import type * as functions_recallFeedback from "../functions/recallFeedback.js";
@@ -42,6 +44,8 @@ import type * as functions_sessions from "../functions/sessions.js";
 import type * as functions_signals from "../functions/signals.js";
 import type * as functions_sync from "../functions/sync.js";
 import type * as functions_themes from "../functions/themes.js";
+import type * as lib_configResolver from "../lib/configResolver.js";
+import type * as migrations_001_seed_system_config from "../migrations/001_seed_system_config.js";
 
 import type {
   ApiFromModules,
@@ -73,8 +77,10 @@ declare const fullApi: ApiFromModules<{
   "crons/rules": typeof crons_rules;
   "crons/sync": typeof crons_sync;
   "functions/agents": typeof functions_agents;
+  "functions/config": typeof functions_config;
   "functions/conversations": typeof functions_conversations;
   "functions/entities": typeof functions_entities;
+  "functions/events": typeof functions_events;
   "functions/facts": typeof functions_facts;
   "functions/notifications": typeof functions_notifications;
   "functions/recallFeedback": typeof functions_recallFeedback;
@@ -84,6 +90,8 @@ declare const fullApi: ApiFromModules<{
   "functions/signals": typeof functions_signals;
   "functions/sync": typeof functions_sync;
   "functions/themes": typeof functions_themes;
+  "lib/configResolver": typeof lib_configResolver;
+  "migrations/001_seed_system_config": typeof migrations_001_seed_system_config;
 }>;
 
 /**

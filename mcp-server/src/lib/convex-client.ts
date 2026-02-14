@@ -8,6 +8,8 @@
 import { ConvexHttpClient } from "convex/browser";
 
 let client: ConvexHttpClient | null = null;
+const configCache = new Map<string, { value: any; expiresAt: number }>();
+const CONFIG_TTL_MS = 60 * 60 * 1000;
 
 /**
  * Get or create the singleton Convex client
@@ -151,6 +153,23 @@ export async function getFact(factId: string) {
   return await query("functions/facts:getFact", { factId });
 }
 
+export async function updateFact(args: {
+  factId: string;
+  content?: string;
+  tags?: string[];
+  factType?: string;
+}) {
+  return await mutate("functions/facts:updateFact", args);
+}
+
+export async function archiveFactPublic(factId: string) {
+  return await mutate("functions/facts:archiveFactPublic", { factId });
+}
+
+export async function boostRelevance(args: { factId: string; boost?: number }) {
+  return await mutate("functions/facts:boostRelevance", args);
+}
+
 export async function bumpAccess(factId: string) {
   return await mutate("functions/facts:bumpAccess", { factId });
 }
@@ -183,6 +202,10 @@ export async function upsertEntity(args: {
 
 export async function getEntityByEntityId(entityId: string) {
   return await query("functions/entities:getByEntityId", { entityId });
+}
+
+export async function deleteEntity(args: { entityId: string; hardDelete?: boolean }) {
+  return await mutate("functions/entities:deleteEntity", args);
 }
 
 export async function searchEntities(args: {
@@ -243,6 +266,10 @@ export async function getPermittedScopes(agentId: string) {
   return await query("functions/scopes:getPermitted", { agentId });
 }
 
+export async function deleteScope(args: { scopeId: string; hardDelete?: boolean; force?: boolean }) {
+  return await mutate("functions/scopes:deleteScope", args);
+}
+
 export async function createScope(args: {
   name: string;
   description: string;
@@ -276,6 +303,10 @@ export async function createSession(args: {
 
 export async function getSessionsByAgent(agentId: string) {
   return await query("functions/sessions:getByAgent", { agentId });
+}
+
+export async function deleteSession(args: { sessionId: string; hardDelete?: boolean }) {
+  return await mutate("functions/sessions:deleteSession", args);
 }
 
 // ========================================
@@ -322,6 +353,10 @@ export async function addHandoffToConversation(args: {
   });
 }
 
+export async function deleteConversation(args: { conversationId: string; hardDelete?: boolean }) {
+  return await mutate("functions/conversations:deleteConversation", args);
+}
+
 // ========================================
 // Signals API
 // ========================================
@@ -363,6 +398,21 @@ export async function markPruned(factIds: string[]) {
   return await mutate("functions/facts:markPruned", { factIds });
 }
 
+export async function listStaleFacts(args: {
+  scopeId?: string;
+  olderThanDays?: number;
+  limit?: number;
+}) {
+  return await query("functions/facts:listStaleFacts", args);
+}
+
+export async function markFactsMerged(args: {
+  sourceFactIds: string[];
+  targetFactId: string;
+}) {
+  return await mutate("functions/facts:markFactsMerged", args);
+}
+
 export async function listAgents() {
   return await query("functions/agents:list", {});
 }
@@ -392,6 +442,72 @@ export async function createTheme(args: {
   importance?: number;
 }) {
   return await mutate("functions/themes:create", args);
+}
+
+export async function deleteTheme(args: { themeId: string; hardDelete?: boolean }) {
+  return await mutate("functions/themes:deleteTheme", args);
+}
+
+// ========================================
+// Config API
+// ========================================
+
+export async function getConfig(key: string) {
+  const hit = configCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
+  const value = await query("functions/config:getConfig", { key });
+  configCache.set(key, { value, expiresAt: Date.now() + CONFIG_TTL_MS });
+  return value;
+}
+
+export async function listConfigs(category?: string) {
+  const cacheKey = `list:${category ?? "*"}`;
+  const hit = configCache.get(cacheKey);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
+  const value = await query("functions/config:listConfigs", { category });
+  configCache.set(cacheKey, { value, expiresAt: Date.now() + CONFIG_TTL_MS });
+  return value;
+}
+
+export async function setConfig(args: {
+  key: string;
+  value: string | number | boolean | null;
+  category: string;
+  description: string;
+  updatedBy: string;
+}) {
+  const result = await mutate("functions/config:setConfig", args);
+  configCache.clear();
+  return result;
+}
+
+export async function setScopePolicy(args: {
+  scopeId: string;
+  policyKey: string;
+  policyValue: string | number | boolean | null;
+  priority?: number;
+  createdBy: string;
+}) {
+  const result = await mutate("functions/config:setScopePolicy", args);
+  configCache.clear();
+  return result;
+}
+
+export async function listScopePolicies(scopeId: string) {
+  return await query("functions/config:listScopePolicies", { scopeId });
+}
+
+// ========================================
+// Events API
+// ========================================
+
+export async function pollEvents(args: {
+  agentId: string;
+  watermark?: number;
+  scopeId?: string;
+  limit?: number;
+}) {
+  return await query("functions/events:poll", args);
 }
 
 // ========================================

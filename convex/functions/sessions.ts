@@ -60,3 +60,23 @@ export const getByAgent = query({
       .take(limit);
   },
 });
+
+export const deleteSession = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    hardDelete: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { sessionId, hardDelete }) => {
+    const session = await ctx.db.get(sessionId);
+    if (!session) throw new Error(`Session ${sessionId} not found`);
+    if (hardDelete) {
+      await ctx.db.delete(sessionId);
+      return { deleted: true, hardDelete: true };
+    }
+    await ctx.db.patch(sessionId, {
+      contextSummary: `[ARCHIVED] ${session.contextSummary}`,
+      lastActivity: Date.now(),
+    });
+    return { deleted: true, hardDelete: false };
+  },
+});

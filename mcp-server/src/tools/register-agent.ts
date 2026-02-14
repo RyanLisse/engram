@@ -6,8 +6,8 @@ import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 
 export const registerAgentSchema = z.object({
-  agentId: z.string().describe("Unique agent identifier"),
-  name: z.string().describe("Human-readable agent name"),
+  agentId: z.string().max(128).describe("Unique agent identifier"),
+  name: z.string().max(256).describe("Human-readable agent name"),
   capabilities: z.array(z.string()).optional().describe("Agent capabilities/skills"),
   defaultScope: z.string().optional().describe("Default scope name (will create if not exists)"),
   telos: z.string().optional().describe("Agent's telos/purpose"),

@@ -213,3 +213,33 @@ export const seedAll = internalMutation({
     };
   },
 });
+
+export const seedSystemConfig = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const rows = [
+      ["default_recall_limit", 10, "tool_defaults", "Default max facts returned by recall"],
+      ["default_token_budget", 4000, "tool_defaults", "Default token budget for get-context"],
+      ["prune_age_threshold_days", 90, "lifecycle", "Default stale age threshold for prune"],
+      ["forget_archive_threshold", 0.7, "lifecycle", "Forget score threshold for archive"],
+    ] as const;
+
+    let inserted = 0;
+    for (const [key, value, category, description] of rows) {
+      const existing = await ctx.db.query("system_config").withIndex("by_key", (q) => q.eq("key", key)).first();
+      if (existing) continue;
+      await ctx.db.insert("system_config", {
+        key,
+        value,
+        category,
+        description,
+        version: 1,
+        updatedAt: now,
+        updatedBy: "system_migration",
+      });
+      inserted += 1;
+    }
+    return { inserted };
+  },
+});

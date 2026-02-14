@@ -7,10 +7,10 @@ import * as convex from "../lib/convex-client.js";
 import { autoLinkEntities } from "../lib/auto-linker.js";
 
 export const storeFactSchema = z.object({
-  content: z.string().describe("The fact content to store"),
+  content: z.string().max(10_000_000).describe("The fact content to store"),
   source: z.string().optional().describe("Source of the fact (e.g., conversation, observation)"),
   entityIds: z.array(z.string()).optional().describe("Entity IDs related to this fact"),
-  tags: z.array(z.string()).optional().describe("Tags for categorization"),
+  tags: z.array(z.string().max(100)).optional().describe("Tags for categorization"),
   factType: z.string().optional().describe("Type of fact (e.g., decision, observation, insight)"),
   scopeId: z.string().optional().describe("Scope ID or name (defaults to agent's private scope)"),
   emotionalContext: z.string().optional().describe("Emotional context or sentiment"),

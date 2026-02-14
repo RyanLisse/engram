@@ -1,11 +1,13 @@
 import { internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { getConfig } from "../lib/configResolver";
 
 export const runDecay = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Decay rates by fact type (differential relevance decay)
-    const decayRates: Record<string, number> = {
+    const decayRates = (await getConfig(ctx, "decay_rates")) as Record<string, number> | undefined;
+    const rates = decayRates ?? {
       decision: 0.998,
       error: 0.995,
       correction: 0.995,
@@ -24,7 +26,7 @@ export const runDecay = internalMutation({
       .take(500);
 
     for (const fact of facts) {
-      const rate = decayRates[fact.factType] ?? 0.99;
+      const rate = rates[fact.factType] ?? 0.99;
       let newRelevance = fact.relevanceScore * rate;
 
       // Emotional weight resists decay

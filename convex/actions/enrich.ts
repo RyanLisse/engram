@@ -9,7 +9,7 @@ import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { generateEmbedding } from "./embed";
-import { calculateImportance } from "./importance";
+import { calculateImportanceWithWeights } from "./importance";
 
 /**
  * Main enrichment pipeline - scheduled by storeFact mutation.
@@ -49,18 +49,45 @@ export const enrichFact = internalAction({
     const embedding = await generateEmbedding(fact.content);
 
     // 4. Calculate refined importance score
-    const importanceScore = calculateImportance({
+    const systemImportance = await ctx.runQuery(internal.functions.config.getConfig, {
+      key: "importance_weights",
+    });
+    const weights =
+      systemImportance && typeof systemImportance.value === "object"
+        ? (systemImportance.value as Record<string, number>)
+        : undefined;
+    const importanceScore = calculateImportanceWithWeights(
+      {
       factType: fact.factType,
       emotionalWeight: fact.emotionalWeight,
       entityIds: fact.entityIds,
       content: fact.content,
-    });
+      },
+      weights ?? {
+        decision: 0.8,
+        error: 0.7,
+        insight: 0.75,
+        correction: 0.7,
+        steering_rule: 0.85,
+        learning: 0.65,
+        session_summary: 0.6,
+        plan: 0.6,
+        observation: 0.5,
+      }
+    );
 
     // 5. Write enrichment results back
     await ctx.runMutation(internal.functions.facts.updateEnrichment, {
       factId,
       embedding,
       importanceScore,
+    });
+    await ctx.runMutation(internal.functions.events.emit, {
+      eventType: "fact.enriched",
+      factId,
+      scopeId: fact.scopeId,
+      agentId: fact.createdBy,
+      payload: { importanceScore },
     });
 
     // 6. Route fact notifications to relevant agents

@@ -156,6 +156,8 @@ export default defineSchema({
     settings: v.optional(v.record(v.string(), metadataValue)), // agent-specific memory config
     isInnerCircle: v.optional(v.boolean()), // Auto-join shared-personal scope
     capabilityEmbedding: v.optional(v.array(v.float64())), // Pre-computed for routing (Phase 2)
+    identityContext: v.optional(v.string()), // Prompt-injected identity blurb
+    promptStyle: v.optional(v.string()), // concise|balanced|verbose
   }).index("by_agent_id", ["agentId"]),
 
   // ─── memory_scopes ───────────────────────────────────────────────────
@@ -266,4 +268,43 @@ export default defineSchema({
   })
     .index("by_recall", ["recallId", "createdAt"])
     .index("by_fact", ["factId"]),
+
+  // ─── system_config ────────────────────────────────────────────────
+  system_config: defineTable({
+    key: v.string(),
+    value: metadataValue,
+    category: v.string(),
+    description: v.string(),
+    version: v.number(),
+    updatedAt: v.number(),
+    updatedBy: v.string(),
+  })
+    .index("by_category", ["category"])
+    .index("by_key", ["key"]),
+
+  // ─── memory_policies ──────────────────────────────────────────────
+  memory_policies: defineTable({
+    scopeId: v.id("memory_scopes"),
+    policyKey: v.string(),
+    policyValue: metadataValue,
+    priority: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+  }).index("by_scope_key", ["scopeId", "policyKey"]),
+
+  // ─── memory_events ────────────────────────────────────────────────
+  memory_events: defineTable({
+    eventType: v.string(),
+    factId: v.optional(v.id("facts")),
+    scopeId: v.optional(v.id("memory_scopes")),
+    agentId: v.optional(v.string()),
+    payload: v.optional(v.record(v.string(), metadataValue)),
+    watermark: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_scope_created", ["scopeId", "createdAt"])
+    .index("by_watermark", ["watermark"])
+    .index("by_agent_watermark", ["agentId", "watermark"])
+    .index("by_scope_watermark", ["scopeId", "watermark"]),
 });

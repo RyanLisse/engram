@@ -215,3 +215,34 @@ export const removeMember = mutation({
     });
   },
 });
+
+export const deleteScope = mutation({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    hardDelete: v.optional(v.boolean()),
+    force: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { scopeId, hardDelete, force }) => {
+    const scope = await ctx.db.get(scopeId);
+    if (!scope) throw new Error(`Scope not found: ${scopeId}`);
+    const facts = await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
+      .take(1);
+
+    if (facts.length > 0 && !force) {
+      throw new Error(`Scope ${scope.name} contains facts. Use force=true to delete.`);
+    }
+
+    if (hardDelete || force) {
+      await ctx.db.delete(scopeId);
+      return { deleted: true, hardDelete: true };
+    }
+
+    await ctx.db.patch(scopeId, {
+      description: `[ARCHIVED] ${scope.description}`,
+      retentionDays: 1,
+    });
+    return { deleted: true, hardDelete: false };
+  },
+});

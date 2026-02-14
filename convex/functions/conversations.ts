@@ -75,3 +75,23 @@ export const getBySession = query({
       .collect();
   },
 });
+
+export const deleteConversation = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    hardDelete: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { conversationId, hardDelete }) => {
+    const conversation = await ctx.db.get(conversationId);
+    if (!conversation) throw new Error(`Conversation ${conversationId} not found`);
+    if (hardDelete) {
+      await ctx.db.delete(conversationId);
+      return { deleted: true, hardDelete: true };
+    }
+    await ctx.db.patch(conversationId, {
+      contextSummary: `[ARCHIVED] ${conversation.contextSummary}`,
+      tags: [...conversation.tags, "archived"],
+    });
+    return { deleted: true, hardDelete: false };
+  },
+});

@@ -7,8 +7,12 @@ import * as convex from "../lib/convex-client.js";
 import { randomUUID } from "crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { generateEmbedding } from "../lib/embeddings.js";
 import { rankCandidates, SearchStrategy } from "../lib/ranking.js";
+import {
+  bumpAccessBatch,
+  recordRecall,
+  vectorSearch,
+} from "./primitive-retrieval.js";
 
 export const recallSchema = z.object({
   query: z.string().describe("Search query for semantic recall"),
@@ -30,6 +34,7 @@ export async function recall(
   agentId: string
 ): Promise<{ facts: any[]; recallId: string } | { isError: true; message: string }> {
   try {
+    console.error("[deprecation] memory_recall is a compatibility wrapper over primitive tools");
     const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
     const indexPath = path.join(vaultRoot, ".index", "vault-index.md");
     let queryText = input.query;
@@ -78,13 +83,11 @@ export async function recall(
             factType: input.factType,
           });
 
-    const queryEmbedding =
-      strategy === "text-only" ? [] : await generateEmbedding(input.query, "search_query");
     const vectorResults =
       strategy === "text-only" || !scopeIds
         ? []
-        : await convex.vectorRecall({
-            embedding: queryEmbedding,
+        : await vectorSearch({
+            query: input.query,
             scopeIds,
             limit: input.limit,
           });
@@ -107,15 +110,13 @@ export async function recall(
     }
 
     // Bump access count on all returned facts
-    for (const fact of results) {
-      await convex.bumpAccess(fact._id).catch((err) => {
-        console.error(`[recall] Failed to bump access for ${fact._id}:`, err);
-      });
-    }
+    await bumpAccessBatch({ factIds: results.map((fact: any) => fact._id) }).catch((err) => {
+      console.error("[recall] Failed to bump access for some facts:", err);
+    });
 
     // Generate recallId for feedback tracking
     const recallId = randomUUID();
-    await convex.recordRecallResult({
+    await recordRecall({
       recallId,
       factIds: results.map((r: any) => r._id),
     });

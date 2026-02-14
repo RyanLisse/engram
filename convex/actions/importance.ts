@@ -12,6 +12,18 @@ interface FactForScoring {
   content: string;
 }
 
+const FACT_TYPE_SCORES: Record<string, number> = {
+  decision: 0.8,
+  error: 0.7,
+  insight: 0.75,
+  correction: 0.7,
+  steering_rule: 0.85,
+  learning: 0.65,
+  session_summary: 0.6,
+  plan: 0.6,
+  observation: 0.5,
+};
+
 /**
  * Calculate importance score based on multiple factors:
  * - factType weight (decisions: 0.8, errors: 0.7, insights: 0.75, etc.)
@@ -20,20 +32,14 @@ interface FactForScoring {
  * - Content length factor (very short or very long content slightly less important)
  */
 export function calculateImportance(fact: FactForScoring): number {
-  // 1. Base score from factType
-  const factTypeScores: Record<string, number> = {
-    decision: 0.8,
-    error: 0.7,
-    insight: 0.75,
-    correction: 0.7,
-    steering_rule: 0.85,
-    learning: 0.65,
-    session_summary: 0.6,
-    plan: 0.6,
-    observation: 0.5,
-  };
+  return calculateImportanceWithWeights(fact, FACT_TYPE_SCORES);
+}
 
-  let score = factTypeScores[fact.factType] ?? 0.5;
+export function calculateImportanceWithWeights(
+  fact: FactForScoring,
+  weights: Record<string, number>
+): number {
+  let score = weights[fact.factType] ?? 0.5;
 
   // 2. Emotional weight boost (up to +0.2)
   if (fact.emotionalWeight !== undefined && fact.emotionalWeight > 0) {

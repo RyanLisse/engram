@@ -73,3 +73,23 @@ export const search = query({
       .take(limit);
   },
 });
+
+export const deleteTheme = mutation({
+  args: {
+    themeId: v.id("themes"),
+    hardDelete: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { themeId, hardDelete }) => {
+    const theme = await ctx.db.get(themeId);
+    if (!theme) throw new Error(`Theme not found: ${themeId}`);
+    if (hardDelete) {
+      await ctx.db.delete(themeId);
+      return { deleted: true, hardDelete: true };
+    }
+    await ctx.db.patch(themeId, {
+      description: `[ARCHIVED] ${theme.description}`,
+      lastUpdated: Date.now(),
+    });
+    return { deleted: true, hardDelete: false };
+  },
+});

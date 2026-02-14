@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 export const create = internalMutation({
   args: {
@@ -9,7 +10,7 @@ export const create = internalMutation({
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("notifications", {
+    const id = await ctx.db.insert("notifications", {
       agentId: args.agentId,
       factId: args.factId,
       reason: args.reason,
@@ -17,6 +18,14 @@ export const create = internalMutation({
       createdAt: Date.now(),
       expiresAt: args.expiresAt ?? Date.now() + 30 * 24 * 60 * 60 * 1000,
     });
+    const fact = await ctx.db.get(args.factId);
+    await ctx.runMutation(internal.functions.events.emit, {
+      eventType: "notification.created",
+      factId: args.factId,
+      scopeId: fact?.scopeId,
+      payload: { agentId: args.agentId, reason: args.reason },
+    });
+    return id;
   },
 });
 

@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { markFactsMerged, searchFactsPrimitive } from "./primitive-retrieval.js";
 
 export const summarizeSchema = z.object({
   topic: z.string().describe("Topic to summarize"),
@@ -24,6 +25,7 @@ export async function summarize(
   | { isError: true; message: string }
 > {
   try {
+    console.error("[deprecation] memory_summarize is a compatibility wrapper over primitive tools");
     // Resolve scope
     let scopeIds: string[] | undefined;
 
@@ -47,11 +49,11 @@ export async function summarize(
       }
     }
 
-    // Search for facts on topic
-    const facts = await convex.searchFacts({
+    // Search for facts on topic via primitive
+    const facts = await searchFactsPrimitive({
       query: input.topic,
       limit: input.maxFacts,
-      scopeIds,
+      scopeIds: scopeIds ?? [],
     });
 
     if (!Array.isArray(facts) || facts.length === 0) {
@@ -85,6 +87,10 @@ export async function summarize(
         message: "Failed to create summary fact",
       };
     }
+    await markFactsMerged({
+      sourceFactIds: (facts as any[]).map((f: any) => f._id),
+      targetFactId: summaryResult.factId,
+    });
 
     return {
       summaryFactId: summaryResult.factId,

@@ -191,3 +191,23 @@ export const rebuildBacklinks = mutation({
     return { rebuilt: true };
   },
 });
+
+export const deleteEntity = mutation({
+  args: {
+    entityId: v.id("entities"),
+    hardDelete: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { entityId, hardDelete }) => {
+    const entity = await ctx.db.get(entityId);
+    if (!entity) throw new Error(`Entity not found: ${entityId}`);
+    if (hardDelete) {
+      await ctx.db.delete(entityId);
+      return { deleted: true, hardDelete: true };
+    }
+    await ctx.db.patch(entityId, {
+      metadata: { ...entity.metadata, archived: true, archivedAt: Date.now() },
+      lastSeen: Date.now(),
+    });
+    return { deleted: true, hardDelete: false };
+  },
+});

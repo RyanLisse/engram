@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { listStaleFacts, markFactsPruned } from "./primitive-retrieval.js";
 
 export const pruneSchema = z.object({
   scopeId: z.string().optional().describe("Scope to prune (defaults to agent's private scope)"),
@@ -30,6 +31,7 @@ export async function prune(
   | { isError: true; message: string }
 > {
   try {
+    console.error("[deprecation] memory_prune is a compatibility wrapper over primitive tools");
     // Resolve scope
     let scopeId = input.scopeId;
 
@@ -63,32 +65,15 @@ export async function prune(
       scopeId = scope._id;
     }
 
-    // Calculate cutoff timestamp
-    const cutoffTime = Date.now() - input.olderThanDays * 24 * 60 * 60 * 1000;
-
-    // Search for old facts in scope
-    const resolvedScopeId = scopeId!;
-    const allFacts = await convex.listFactsByScope({
-      scopeId: resolvedScopeId,
+    const candidates = await listStaleFacts({
+      scopeId: scopeId!,
+      olderThanDays: input.olderThanDays,
       limit: 1000,
     });
 
-    if (!Array.isArray(allFacts)) {
-      return {
-        isError: true,
-        message: "Failed to retrieve facts",
-      };
-    }
-
-    // Filter candidates: old + low importance + low access
-    const candidates = allFacts.filter((fact: any) => {
-      const isOld = fact._creationTime < cutoffTime;
-      const lowImportance = (fact.importanceScore ?? 0.5) < input.maxForgetScore;
-      const lowAccess = (fact.accessCount ?? 0) < 3;
-      return isOld && lowImportance && lowAccess && fact.lifecycleState !== "pruned";
-    });
-
-    const candidateIds = candidates.map((f: any) => f._id);
+    const candidateIds = (candidates as any[])
+      .filter((fact) => (fact.forgetScore ?? 1) <= input.maxForgetScore)
+      .map((f: any) => f._id);
 
     if (input.dryRun) {
       return {
@@ -100,7 +85,7 @@ export async function prune(
 
     // Actually prune: mark facts as pruned via Convex mutation
     if (candidateIds.length > 0) {
-      await convex.markPruned(candidateIds);
+      await markFactsPruned({ factIds: candidateIds });
     }
 
     return {

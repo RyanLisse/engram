@@ -278,6 +278,14 @@ export const storeFact = mutation({
     await ctx.scheduler.runAfter(0, internal.actions.mirrorToVault.mirrorToVault, {
       factId,
     });
+    // 6. Emit memory event for propagation polling
+    await ctx.runMutation(internal.functions.events.emit, {
+      eventType: "fact.stored",
+      factId,
+      scopeId: args.scopeId,
+      agentId: args.createdBy,
+      payload: { factType },
+    });
 
     return { factId, importanceScore };
   },
@@ -463,6 +471,53 @@ export const archiveFact = internalMutation({
   },
 });
 
+export const updateFact = mutation({
+  args: {
+    factId: v.id("facts"),
+    content: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    factType: v.optional(v.string()),
+  },
+  handler: async (ctx, { factId, content, tags, factType }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) throw new Error(`Fact not found: ${factId}`);
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    if (content !== undefined) patch.content = content;
+    if (tags !== undefined) patch.tags = tags;
+    if (factType !== undefined) patch.factType = factType;
+    await ctx.db.patch(factId, patch);
+    return { updated: true };
+  },
+});
+
+export const archiveFactPublic = mutation({
+  args: { factId: v.id("facts") },
+  handler: async (ctx, { factId }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) throw new Error(`Fact not found: ${factId}`);
+    await ctx.db.patch(factId, {
+      lifecycleState: "archived",
+      updatedAt: Date.now(),
+    });
+    return { archived: true };
+  },
+});
+
+export const boostRelevance = mutation({
+  args: {
+    factId: v.id("facts"),
+    boost: v.optional(v.float64()),
+  },
+  handler: async (ctx, { factId, boost }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) throw new Error(`Fact not found: ${factId}`);
+    const delta = boost ?? 0.15;
+    const next = Math.min(2.0, fact.relevanceScore + delta);
+    await ctx.db.patch(factId, { relevanceScore: next, updatedAt: Date.now() });
+    return { relevanceScore: next };
+  },
+});
+
 // ─── Public Mutations (agent-accessible) ────────────────────────────
 
 /** Mark facts as pruned (soft-delete, never true-delete). */
@@ -481,6 +536,44 @@ export const markPruned = mutation({
       }
     }
     return { pruned };
+  },
+});
+
+export const listStaleFacts = query({
+  args: {
+    scopeId: v.optional(v.id("memory_scopes")),
+    olderThanDays: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, olderThanDays, limit }) => {
+    const ageMs = (olderThanDays ?? 90) * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - ageMs;
+    let rows = await ctx.db
+      .query("facts")
+      .withIndex("by_lifecycle", (q) => q.eq("lifecycleState", "active"))
+      .filter((q) => q.lt(q.field("timestamp"), cutoff))
+      .take(limit ?? 200);
+    if (scopeId) rows = rows.filter((r) => r.scopeId === scopeId);
+    return rows;
+  },
+});
+
+export const markFactsMerged = mutation({
+  args: {
+    sourceFactIds: v.array(v.id("facts")),
+    targetFactId: v.id("facts"),
+  },
+  handler: async (ctx, { sourceFactIds, targetFactId }) => {
+    const now = Date.now();
+    for (const factId of sourceFactIds) {
+      if (factId === targetFactId) continue;
+      await ctx.db.patch(factId, {
+        lifecycleState: "merged",
+        mergedInto: targetFactId,
+        updatedAt: now,
+      });
+    }
+    return { merged: sourceFactIds.length };
   },
 });
 
