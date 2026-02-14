@@ -110,6 +110,11 @@ const TOOLS: Tool[] = [
           type: "number",
           description: "Minimum importance score (0-1)",
         },
+        searchStrategy: {
+          type: "string",
+          enum: ["vector-only", "text-only", "hybrid"],
+          description: "Recall strategy",
+        },
       },
       required: ["query"],
     },
@@ -193,6 +198,15 @@ const TOOLS: Tool[] = [
         maxFacts: {
           type: "number",
           description: "Maximum facts to include (default: 20)",
+        },
+        tokenBudget: {
+          type: "number",
+          description: "Token budget for context loading (default: 4000)",
+        },
+        profile: {
+          type: "string",
+          enum: ["default", "planning", "incident", "handoff"],
+          description: "Context profile",
         },
         includeEntities: {
           type: "boolean",

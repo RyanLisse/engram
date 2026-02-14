@@ -63,6 +63,62 @@ export const searchFacts = query({
   },
 });
 
+export const searchFactsMulti = query({
+  args: {
+    query: v.string(),
+    scopeIds: v.array(v.id("memory_scopes")),
+    factType: v.optional(v.string()),
+    createdBy: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    if (args.scopeIds.length === 0) return [];
+    const merged: any[] = [];
+    const perScopeLimit = Math.max(5, Math.ceil((args.limit ?? 20) / args.scopeIds.length));
+
+    for (const scopeId of args.scopeIds) {
+      const rows = await ctx.db
+        .query("facts")
+        .withSearchIndex("search_content", (q) => {
+          let s = q.search("content", args.query).eq("scopeId", scopeId);
+          if (args.factType) s = s.eq("factType", args.factType);
+          if (args.createdBy) s = s.eq("createdBy", args.createdBy);
+          return s;
+        })
+        .take(perScopeLimit);
+      merged.push(...rows);
+    }
+
+    merged.sort((a, b) => (b.importanceScore ?? 0) - (a.importanceScore ?? 0));
+    return merged.slice(0, args.limit ?? 20);
+  },
+});
+
+export const vectorRecall = query({
+  args: {
+    embedding: v.array(v.float64()),
+    scopeIds: v.array(v.id("memory_scopes")),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { embedding, scopeIds, limit }) => {
+    if (scopeIds.length === 0) return [];
+    const all: any[] = [];
+    const perScopeLimit = Math.max(5, Math.ceil((limit ?? 20) / scopeIds.length));
+
+    for (const scopeId of scopeIds) {
+      const rows = await ctx.vectorSearch("facts", "vector_search", {
+        vector: embedding,
+        limit: perScopeLimit,
+        filter: (q) => q.eq("scopeId", scopeId),
+      });
+      all.push(...rows);
+    }
+
+    all.sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
+    return all.slice(0, limit ?? 20);
+  },
+});
+
 /**
  * Get recent session handoff summaries from other agents.
  * Used by memory_get_context to warm-start with cross-agent context.
@@ -425,5 +481,22 @@ export const markPruned = mutation({
       }
     }
     return { pruned };
+  },
+});
+
+export const updateOutcomeFromFeedback = mutation({
+  args: {
+    factId: v.id("facts"),
+    signalValue: v.float64(),
+  },
+  handler: async (ctx, { factId, signalValue }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) throw new Error(`Fact not found: ${factId}`);
+    const current = fact.outcomeScore ?? 0.5;
+    const alpha = 0.25;
+    const normalized = Math.max(0, Math.min(1, signalValue));
+    const next = current * (1 - alpha) + normalized * alpha;
+    await ctx.db.patch(factId, { outcomeScore: next, updatedAt: Date.now() });
+    return { outcomeScore: next };
   },
 });

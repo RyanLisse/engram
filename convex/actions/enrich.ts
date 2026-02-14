@@ -63,6 +63,11 @@ export const enrichFact = internalAction({
       importanceScore,
     });
 
+    // 6. Route fact notifications to relevant agents
+    await ctx.scheduler.runAfter(0, internal.actions.route.routeToAgents, {
+      factId,
+    });
+
     console.log(
       `Enriched fact ${factId}: embedding (${embedding.length}d), ` +
       `importance: ${importanceScore.toFixed(3)}`

@@ -25,6 +25,7 @@ export default defineSchema({
     relevanceScore: v.float64(),
     accessedCount: v.number(),
     importanceScore: v.float64(),
+    mergedContent: v.optional(v.string()), // dedup merged representation
     outcomeScore: v.optional(v.float64()), // MemRL: learned utility from outcomes
     createdBy: v.string(), // agent ID
     contributingAgents: v.optional(v.array(v.string())), // Collaborative Memory provenance
@@ -177,6 +178,7 @@ export default defineSchema({
         autoForget: v.optional(v.boolean()),
         compressionStrategy: v.optional(v.string()), // summarize|prune|merge
         compactionThresholdBytes: v.optional(v.number()),
+        dedupThreshold: v.optional(v.float64()),
       })
     ),
 
@@ -238,4 +240,30 @@ export default defineSchema({
     factsSynced: v.number(),
     status: v.string(), // ok|error|syncing
   }).index("by_node", ["nodeId"]),
+
+  // ─── notifications ───────────────────────────────────────────────────
+  // Agent routing notifications generated from enriched facts.
+  notifications: defineTable({
+    agentId: v.string(),
+    factId: v.id("facts"),
+    reason: v.string(),
+    read: v.boolean(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_agent_read", ["agentId", "read", "createdAt"])
+    .index("by_expires", ["expiresAt"])
+    .index("by_fact", ["factId"]),
+
+  // ─── recall_feedback ────────────────────────────────────────────────
+  // Mapping between recall sessions and fact usage signals.
+  recall_feedback: defineTable({
+    recallId: v.string(),
+    factId: v.id("facts"),
+    used: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_recall", ["recallId", "createdAt"])
+    .index("by_fact", ["factId"]),
 });

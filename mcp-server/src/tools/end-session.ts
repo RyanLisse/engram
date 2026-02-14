@@ -4,6 +4,8 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export const endSessionSchema = z.object({
   summary: z.string().describe("Session summary for handoff to other agents"),
@@ -17,6 +19,9 @@ export async function endSession(
   agentId: string
 ): Promise<{ factId: string; handoffRecorded: boolean } | { isError: true; message: string }> {
   try {
+    const checkpointDir = process.env.CHECKPOINT_DIR || path.resolve(process.cwd(), ".checkpoints");
+    const dirtyFlag = path.join(checkpointDir, "DIRTY_DEATH.flag");
+
     // Get shared-personal scope
     const sharedScope = await convex.getScopeByName("shared-personal");
     if (!sharedScope) {
@@ -59,6 +64,8 @@ export async function endSession(
         // Non-fatal - fact is already stored
       }
     }
+
+    await fs.rm(dirtyFlag, { force: true }).catch(() => {});
 
     return {
       factId: fact.factId,

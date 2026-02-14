@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation, internalQuery } from "../_generated/server";
+import { api } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
@@ -205,6 +206,12 @@ export const removeMember = mutation({
 
     await ctx.db.patch(scopeId, {
       members: scope.members.filter((m: string) => m !== agentId),
+    });
+
+    // Security hardening: remove routed notifications tied to this scope
+    await ctx.runMutation(api.functions.notifications.deleteByAgentAndScope, {
+      agentId,
+      scopeId,
     });
   },
 });

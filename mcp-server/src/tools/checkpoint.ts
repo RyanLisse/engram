@@ -4,6 +4,7 @@ import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 
 const CHECKPOINT_DIR = process.env.CHECKPOINT_DIR || path.resolve(process.cwd(), ".checkpoints");
+const DIRTY_FLAG = path.join(CHECKPOINT_DIR, "DIRTY_DEATH.flag");
 
 export const checkpointSchema = z.object({
   name: z.string().optional(),
@@ -31,6 +32,12 @@ export async function checkpoint(input: CheckpointInput, agentId: string) {
     JSON.stringify({ id, createdAt, agentId, scopeId, summary: input.summary, context }, null, 2),
     "utf8"
   );
+  await fs.writeFile(DIRTY_FLAG, String(createdAt), "utf8");
 
-  return { checkpointId: id, checkpointFile, factCount: Array.isArray(context) ? context.length : 0 };
+  return {
+    checkpointId: id,
+    checkpointFile,
+    factCount: Array.isArray(context) ? context.length : 0,
+    dirtyDeathFlag: DIRTY_FLAG,
+  };
 }

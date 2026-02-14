@@ -65,6 +65,10 @@ export async function registerAgent(
       };
     }
 
+    await convex.embedAgentCapabilities(input.agentId).catch((error) => {
+      console.error("[register-agent] capability embedding failed:", error);
+    });
+
     // Get all permitted scopes
     const scopes = await convex.getPermittedScopes(input.agentId);
 

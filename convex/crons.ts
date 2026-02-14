@@ -3,8 +3,18 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
+// Daily: notification cleanup
+crons.daily(
+  "notification-cleanup",
+  { hourUTC: 1, minuteUTC: 30 },
+  internal.crons.cleanup.cleanExpiredNotifications
+);
+
 // Daily: Garbage collection (earliest, at 2:00 UTC)
 crons.daily("cleanup", { hourUTC: 2, minuteUTC: 0 }, internal.crons.cleanup.runCleanup);
+
+// Daily: cross-agent deduplication in shared scopes
+crons.daily("dedup", { hourUTC: 2, minuteUTC: 30 }, internal.crons.dedup.runDedup);
 
 // Daily: Differential relevance decay
 crons.daily("decay", { hourUTC: 3, minuteUTC: 0 }, internal.crons.decay.runDecay);

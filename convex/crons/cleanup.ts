@@ -1,4 +1,5 @@
 import { internalMutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 export const runCleanup = internalMutation({
   args: {},
@@ -42,5 +43,26 @@ export const runCleanup = internalMutation({
         await ctx.db.delete(log._id);
       }
     }
+  },
+});
+
+export const cleanExpiredNotifications = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const expired = await ctx.db
+      .query("notifications")
+      .withIndex("by_expires", (q) => q.lte("expiresAt", now))
+      .take(500);
+
+    for (const row of expired) {
+      await ctx.db.delete(row._id);
+    }
+
+    if (expired.length === 500) {
+      await ctx.scheduler.runAfter(0, internal.crons.cleanup.cleanExpiredNotifications, {});
+    }
+
+    return { deleted: expired.length };
   },
 });

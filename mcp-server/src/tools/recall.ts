@@ -7,6 +7,8 @@ import * as convex from "../lib/convex-client.js";
 import { randomUUID } from "crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { generateEmbedding } from "../lib/embeddings.js";
+import { rankCandidates, SearchStrategy } from "../lib/ranking.js";
 
 export const recallSchema = z.object({
   query: z.string().describe("Search query for semantic recall"),
@@ -14,6 +16,11 @@ export const recallSchema = z.object({
   scopeId: z.string().optional().describe("Scope ID or name to search within"),
   factType: z.string().optional().describe("Filter by fact type"),
   minImportance: z.number().optional().describe("Minimum importance score (0-1)"),
+  searchStrategy: z
+    .enum(["vector-only", "text-only", "hybrid"])
+    .optional()
+    .default("hybrid")
+    .describe("Recall strategy"),
 });
 
 export type RecallInput = z.infer<typeof recallSchema>;
@@ -60,14 +67,37 @@ export async function recall(
       }
     }
 
-    // Perform search (full-text for now; vector search comes in Phase 3)
-    const results = await convex.searchFacts({
-      query: queryText,
-      limit: input.limit,
-      scopeIds,
-      factType: input.factType,
-      minImportance: input.minImportance,
-    });
+    const strategy = input.searchStrategy as SearchStrategy;
+    const textResults =
+      strategy === "vector-only"
+        ? []
+        : await convex.searchFactsMulti({
+            query: queryText,
+            limit: input.limit,
+            scopeIds: scopeIds ?? [],
+            factType: input.factType,
+          });
+
+    const queryEmbedding =
+      strategy === "text-only" ? [] : await generateEmbedding(input.query, "search_query");
+    const vectorResults =
+      strategy === "text-only" || !scopeIds
+        ? []
+        : await convex.vectorRecall({
+            embedding: queryEmbedding,
+            scopeIds,
+            limit: input.limit,
+          });
+
+    const byId = new Map<string, any>();
+    for (const row of textResults as any[]) byId.set(row._id, { ...row, lexicalScore: 1 });
+    for (const row of vectorResults as any[]) {
+      const id = row._id;
+      const merged = byId.get(id);
+      if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
+      else byId.set(id, row);
+    }
+    const results = rankCandidates(input.query, [...byId.values()]).slice(0, input.limit);
 
     if (!results || !Array.isArray(results)) {
       return {
@@ -77,16 +107,18 @@ export async function recall(
     }
 
     // Bump access count on all returned facts
-    await Promise.all(
-      results.map((fact: any) =>
-        convex.bumpAccess(fact._id).catch((err) => {
-          console.error(`[recall] Failed to bump access for ${fact._id}:`, err);
-        })
-      )
-    );
+    for (const fact of results) {
+      await convex.bumpAccess(fact._id).catch((err) => {
+        console.error(`[recall] Failed to bump access for ${fact._id}:`, err);
+      });
+    }
 
     // Generate recallId for feedback tracking
     const recallId = randomUUID();
+    await convex.recordRecallResult({
+      recallId,
+      factIds: results.map((r: any) => r._id),
+    });
 
     const prioritized = [...results].sort((a: any, b: any) => {
       const tierWeight = (tier?: string) =>

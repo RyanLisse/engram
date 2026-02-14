@@ -59,6 +59,11 @@ export const runRerank = internalMutation({
       const entityBoost = Math.min(fact.entityIds.length * 0.05, 0.2);
       newImportance += entityBoost;
 
+      // Outcome utility boost/penalty from feedback loop (centered around 0.5)
+      if (fact.outcomeScore !== undefined) {
+        newImportance += (fact.outcomeScore - 0.5) * 0.25;
+      }
+
       // Cap at 1.0
       newImportance = Math.min(newImportance, 1.0);
 

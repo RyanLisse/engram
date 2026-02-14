@@ -122,6 +122,24 @@ export async function searchFacts(args: {
   return await query("functions/facts:searchFacts", convexArgs);
 }
 
+export async function searchFactsMulti(args: {
+  query: string;
+  scopeIds: string[];
+  factType?: string;
+  createdBy?: string;
+  limit?: number;
+}) {
+  return await query("functions/facts:searchFactsMulti", args);
+}
+
+export async function vectorRecall(args: {
+  embedding: number[];
+  scopeIds: string[];
+  limit?: number;
+}) {
+  return await query("functions/facts:vectorRecall", args);
+}
+
 export async function listFactsByScope(args: {
   scopeId: string;
   limit?: number;
@@ -203,6 +221,10 @@ export async function registerAgent(args: {
   isInnerCircle?: boolean;
 }) {
   return await mutate("functions/agents:register", args);
+}
+
+export async function embedAgentCapabilities(agentId: string) {
+  return await action("actions/embedAgentCapabilities:embedAgentCapabilities", { agentId });
 }
 
 export async function getAgentByAgentId(agentId: string) {
@@ -313,6 +335,28 @@ export async function recordSignal(args: {
   context?: string;
 }) {
   return await mutate("functions/signals:recordSignal", args);
+}
+
+export async function getUnreadNotifications(args: { agentId: string; limit?: number }) {
+  return await query("functions/notifications:getUnreadByAgent", args);
+}
+
+export async function markNotificationsRead(notificationIds: string[]) {
+  for (const notificationId of notificationIds) {
+    await mutate("functions/notifications:markRead", { notificationId });
+  }
+}
+
+export async function recordRecallResult(args: { recallId: string; factIds: string[] }) {
+  return await mutate("functions/recallFeedback:recordRecall", args);
+}
+
+export async function recordRecallUsage(args: {
+  recallId: string;
+  usedFactIds: string[];
+  unusedFactIds?: string[];
+}) {
+  return await mutate("functions/recallFeedback:recordUsage", args);
 }
 
 export async function markPruned(factIds: string[]) {

@@ -18,6 +18,12 @@ export async function recordFeedback(
   agentId: string
 ): Promise<{ ack: true } | { isError: true; message: string }> {
   try {
+    await convex.recordRecallUsage({
+      recallId: input.recallId,
+      usedFactIds: input.usedFactIds,
+      unusedFactIds: input.unusedFactIds,
+    });
+
     // Record positive signals for used facts
     await Promise.all(
       input.usedFactIds.map((factId) =>

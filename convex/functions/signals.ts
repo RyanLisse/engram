@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "../_generated/server";
+import { api } from "../_generated/api";
 
 export const recordSignal = mutation({
   args: {
@@ -18,7 +19,7 @@ export const recordSignal = mutation({
     context: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("signals", {
+    const signalId = await ctx.db.insert("signals", {
       factId: args.factId,
       sessionId: args.sessionId,
       agentId: args.agentId,
@@ -29,6 +30,16 @@ export const recordSignal = mutation({
       context: args.context,
       timestamp: Date.now(),
     });
+
+    if (args.factId && (args.signalType === "usefulness" || args.signalType === "explicit_rating")) {
+      const normalized = args.signalType === "explicit_rating" ? args.value / 10 : (args.value + 1) / 2;
+      await ctx.runMutation(api.functions.facts.updateOutcomeFromFeedback, {
+        factId: args.factId,
+        signalValue: normalized,
+      });
+    }
+
+    return signalId;
   },
 });
 

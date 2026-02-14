@@ -139,3 +139,18 @@ export const updateLastSeen = mutation({
     await ctx.db.patch(agentId, patch);
   },
 });
+
+export const updateCapabilityEmbedding = mutation({
+  args: {
+    agentId: v.id("agents"),
+    capabilityEmbedding: v.array(v.float64()),
+  },
+  handler: async (ctx, { agentId, capabilityEmbedding }) => {
+    const agent = await ctx.db.get(agentId);
+    if (!agent) throw new Error(`Agent not found: ${agentId}`);
+    await ctx.db.patch(agentId, {
+      capabilityEmbedding,
+      lastSeen: Date.now(),
+    });
+  },
+});
