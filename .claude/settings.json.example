@@ -1,0 +1,107 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx mcporter call engram.memory_get_agent_context | jq -r '.result.systemPromptBlock // \"\"'",
+            "description": "Load agent context at session start"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx mcporter call engram.memory_recall query='current work session goals and blockers' limit=5 | jq -r '.result.facts[] | \"- \" + .content' | head -10",
+            "description": "Restore context after compaction"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '{observation: (\"Edited \" + .tool_input.file_path), scopeId: \"private-\" + env.ENGRAM_AGENT_ID}' | npx mcporter call engram.memory_observe --json",
+            "description": "Auto-store file edit observations"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "memory_delete_.*|memory_prune|memory_mark_facts_pruned",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-memory-ops.sh",
+            "description": "Warn about destructive memory operations"
+          }
+        ]
+      },
+      {
+        "matcher": "memory_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-scope-permission.sh",
+            "description": "Validate scope permissions"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "Check if any important facts from this work session should be stored in engram memory. If critical information wasn't persisted, respond with {\"ok\": false, \"reason\": \"Store [specific facts] in memory first\"}. Otherwise {\"ok\": true}.",
+            "timeout": 30,
+            "description": "Verify memory persistence before stopping"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"name\":\"session-end-'$(date +%s)'\",\"summary\":\"Auto-checkpoint at session end\"}' | npx mcporter call engram.memory_checkpoint --json",
+            "description": "Auto-checkpoint session state"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Engram memory system needs attention\" with title \"Engram\"'",
+            "description": "Desktop notifications (macOS)"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '{content: (\"Completed task: \" + .task.subject + \" - \" + .task.description), factType: \"decision\", tags: [\"task-completion\"], scopeId: \"private-\" + env.ENGRAM_AGENT_ID}' | npx mcporter call engram.memory_store_fact --json",
+            "description": "Store completed tasks as facts"
+          }
+        ]
+      }
+    ]
+  }
+}
