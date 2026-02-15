@@ -166,6 +166,54 @@ export async function vectorSearch(args: {
   return await query("functions/facts:vectorRecall", args);
 }
 
+async function generateQueryEmbedding(text: string): Promise<number[]> {
+  const apiKey = process.env.COHERE_API_KEY;
+  if (!apiKey) {
+    throw new Error("COHERE_API_KEY not set. Required for vector-search.");
+  }
+
+  const response = await fetch("https://api.cohere.com/v2/embed", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      texts: [text],
+      model: "embed-v4.0",
+      input_type: "search_query",
+      embedding_types: ["float"],
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Embedding request failed (${response.status}): ${details}`);
+  }
+
+  const data = (await response.json()) as { embeddings?: { float?: number[][] } };
+  const embedding = data.embeddings?.float?.[0];
+  if (!embedding) {
+    throw new Error("Embedding response missing vector payload");
+  }
+  return embedding;
+}
+
+export async function vectorSearchByText(args: {
+  query: string;
+  scopeIds: string[];
+  factType?: string;
+  limit?: number;
+}) {
+  const embedding = await generateQueryEmbedding(args.query);
+  const rows = await vectorSearch({ embedding, scopeIds: args.scopeIds, limit: args.limit });
+  const values = Array.isArray(rows) ? rows.map((row: any) => row._value ?? row) : [];
+  if (!args.factType) {
+    return values;
+  }
+  return values.filter((fact: any) => fact.factType === args.factType);
+}
+
 // ── Signals ────────────────────────────────────────────
 
 export async function recordSignal(args: {

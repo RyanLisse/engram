@@ -4,85 +4,93 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Engram is a unified multi-agent memory system for OpenClaw agents. It provides a shared memory layer where agents store atomic facts, recall context via semantic search, and share knowledge across devices and sessions. Local-first via LanceDB, cloud-synced through Convex. Multimodal embeddings via Cohere Embed 4.
+Engram is a unified multi-agent memory system. It provides a shared memory layer where agents store atomic facts, recall context via semantic search, and share knowledge across devices and sessions. Cloud-synced through Convex. Multimodal embeddings via Cohere Embed 4.
 
-**Status:** Phases 1-6 complete. Core system operational (Convex backend + MCP server + crons + LanceDB sync daemon). See PLAN.md for the build checklist and `docs/research/` for architecture research.
+**Architecture:** Agent-native — tools are atomic primitives, not workflow wrappers. See `docs/plans/2026-02-14-refactor-mcp-tools-agent-native-architecture-plan.md`.
 
 ## Tech Stack
 
 - **Convex** — Cloud backend (schema, CRUD, vector search, scheduled functions)
-- **LanceDB** — Local vector database for sub-10ms offline search
-- **TypeScript** — All code (MCP server + Convex functions)
+- **TypeScript** — All code (MCP server + Convex functions + CLI + plugins)
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim, text + images + code)
-- **MCP (Model Context Protocol)** — Agent-facing interface (12 tools)
+- **MCP (Model Context Protocol)** — Agent-facing interface (52 tools)
+- **Commander.js** — CLI framework
 
 ## Architecture
 
-Three-tier system: Convex cloud backend → MCP server per agent → local LanceDB cache.
+Three-tier system: Convex cloud backend → MCP server per agent → CLI/plugins.
 
-Key architectural patterns:
-- **Async enrichment pipeline**: Facts stored immediately (<50ms), compression/embeddings/entity extraction/synthesis/importance scoring run asynchronously via Convex actions. Agents never block on enrichment.
-- **Scope-based access control**: Memory scoped to private/team/project/public — not per-fact ACLs. Agents query across all permitted scopes.
-- **Differential memory decay**: Decay rate varies by fact type (decisions slow, notes fast). Emotional weight further resists decay. Never delete, always archive.
-- **Memory lifecycle**: 5-state machine — active → dormant → merged → archived → pruned. Merge before delete.
-- **Importance scoring**: Multi-factor formula + outcome-based learned utility (MemRL pattern).
-- **Memory consolidation**: Related facts automatically merge into themes over time (SimpleMem/EverMemOS pattern).
+Agent-Native Principles:
+1. **Tools as Primitives** — Each tool is a single atomic operation. Agents compose them.
+2. **Prompt-Native Config** — All weights, rates, thresholds tunable via `memory_set_config` without code.
+3. **Action Parity** — Full CRUD on all 7 entity types. Agents can do everything users can.
+4. **Agent Identity Context** — `memory_get_agent_context` returns capabilities, scopes, health for system prompt injection.
+5. **Real-Time Events** — `memory_poll_events` for watermark-based incremental state awareness.
 
-## Schema (10 Convex tables)
+Key patterns:
+- **Async enrichment pipeline**: Facts stored immediately (<50ms), enrichment runs async.
+- **Scope-based access control**: Memory scoped to private/team/project/public.
+- **Differential memory decay**: Decay rate varies by fact type (decisions slow, notes fast).
+- **Memory lifecycle**: 5-state machine — active → dormant → merged → archived → pruned.
 
-The full schema definitions with indices are in PLAN.md. Key tables:
-- `facts` — Atomic memory units with 1024-dim Cohere embeddings, importance scores, lifecycle state, emotional context, temporal links, and scope.
-- `entities` — Named concepts (person/project/company/concept/tool) with relationship graph.
-- `conversations` — Thread facts together with participant tracking and agent handoff context.
-- `memory_scopes` — Access control groups with read/write policies, per-scope memory policies, and optional ISC criteria.
-- `signals` — Feedback loop: explicit ratings + implicit sentiment capture (PAI pattern).
-- `themes` — Thematic fact clusters for hierarchical memory (EverMemOS MemScenes pattern).
-- `sync_log` — Tracks per-node LanceDB sync status.
+## MCP Tools (52 primitives)
 
-## MCP Tools (12 primitives)
+All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
 
-The MCP server exposes these tools to agents:
-1. `memory_store_fact` — Store atomic fact, triggers async enrichment pipeline
-2. `memory_recall` — Semantic vector search (primary retrieval), bumps access count, returns recallId
-3. `memory_search` — Full-text + structured filters for precise lookups
-4. `memory_link_entity` — Create/update entities and relationships
-5. `memory_get_context` — Warm start with token-aware injection: facts + entities + themes + steering rules
-6. `memory_observe` — Fire-and-forget passive observation storage
-7. `memory_register_agent` — Agent self-registration with capabilities, scope, and telos
-8. `memory_query_raw` — Escape hatch for direct Convex queries (read-only)
-9. `memory_record_signal` — Record ratings/sentiment feedback on facts (PAI)
-10. `memory_record_feedback` — Post-recall usefulness tracking (ALMA)
-11. `memory_summarize` — Consolidate facts on a topic (AgeMem SUMMARY)
-12. `memory_prune` — Agent-initiated cleanup of stale facts (AgeMem FILTER)
+### Core (6): store_fact, recall, search, observe, link_entity, get_context
+### Fact Lifecycle (6): update_fact, archive_fact, boost_relevance, list_stale_facts, mark_facts_merged, mark_facts_pruned
+### Signals (3): record_signal, record_feedback, record_recall
+### Agent (5): register_agent, end_session, get_agent_info, get_agent_context, get_system_prompt
+### Events (3): poll_events, get_notifications, mark_notifications_read
+### Config (4): get_config, list_configs, set_config, set_scope_policy
+### Retrieval (10): vector_search, text_search, bump_access, get_observations, get_entities, get_themes, get_handoffs, search_facts, search_entities, search_themes
+### Delete (5): delete_entity, delete_scope, delete_conversation, delete_session, delete_theme
+### Composition (4): summarize, prune, create_theme, query_raw
+### Vault (5): vault_sync, query_vault, export_graph, checkpoint, wake
+### Health (1): health
 
 ## Directory Structure
 
 ```
-convex/           # Convex backend
-  schema.ts       # 10 table definitions with indexes
-  functions/      # CRUD + search (facts, entities, conversations, sessions, agents, scopes, signals, themes, sync, seed)
-  actions/        # Async: enrich, embed (Cohere Embed 4), importance, vectorSearch
-  crons.ts        # 7 cron job configuration
-  crons/          # Cron implementations: decay, forget, compact, consolidate, rerank, rules, cleanup
-mcp-server/src/   # MCP server
-  index.ts        # Entry point (12 tools, stdio transport)
-  tools/          # 12 MCP tool implementations
-  lib/            # convex-client (string-based paths), lance-sync daemon, embeddings (Cohere Embed 4)
-skill/            # OpenClaw skill package (SKILL.md + install.sh)
+convex/               # Convex backend
+  schema.ts           # 14 table definitions with indexes
+  functions/          # CRUD + search
+  actions/            # Async: enrich, embed, importance, vectorSearch
+  crons.ts            # Cron job configuration
+  crons/              # Cron implementations
+mcp-server/src/       # MCP server (v2 agent-native)
+  index.ts            # Entry point (113 lines — transport + rate limiter only)
+  lib/
+    tool-registry.ts  # ★ Single source of truth for all 52 tools
+    convex-client.ts  # Convex HTTP client (string-based paths)
+    embeddings.ts     # Cohere Embed 4 client
+  tools/              # 21 tool handler modules
+cli/src/              # Interactive CLI (commander.js)
+  commands/           # 15 command modules (store, facts, signal, events, config, etc.)
+  lib/client.ts       # CLI Convex HTTP client (47 functions)
+plugins/
+  claude-code/        # Claude Code plugin (.mcp.json + setup.sh)
+  openclaw/           # OpenClaw native extension (imports tool-registry)
+skill/                # OpenClaw skill package (SKILL.md + install.sh)
 ```
 
 ## Key Implementation Details
 
-### Convex Integration from MCP Server
-The MCP server is a separate TypeScript package that cannot import Convex generated types. All Convex calls use string-based function paths (e.g., `"functions/facts:storeFact"`) wrapped in typed helper functions in `mcp-server/src/lib/convex-client.ts`. The `as any` cast is isolated to that one file.
+### Tool Registry (Single Source of Truth)
+`mcp-server/src/lib/tool-registry.ts` defines all 52 tools declaratively:
+- `TOOL_REGISTRY` — array of `{ tool, zodSchema, handler }` entries
+- `routeToolCall(name, args, agentId)` — validates + dispatches any tool
+- `getToolDefinitions()` — returns MCP `Tool[]` for ListTools
+Both the MCP server and OpenClaw plugin import from this file.
 
-### Scope Resolution Convention
-Scope names follow the pattern `private-{agentId}` (e.g., `private-indy`). Tools resolve scope names to Convex document IDs via `getScopeByName()`. The agent's `defaultScope` field stores the scope name, not the ID.
+### Convex Integration
+The MCP server uses string-based function paths (`"functions/facts:storeFact"`) in `mcp-server/src/lib/convex-client.ts`. The `as any` cast is isolated there.
+
+### Scope Resolution
+Scope names: `private-{agentId}`. Tools resolve names to IDs via `getScopeByName()`.
 
 ### Embedding Model
-Cohere Embed 4 (`embed-v4.0`, 1024 dimensions) is used in both:
-- `convex/actions/embed.ts` — Enrichment pipeline (runs in Convex Node.js runtime)
-- `mcp-server/src/lib/embeddings.ts` — MCP server client (for future local use)
+Cohere Embed 4 (`embed-v4.0`, 1024 dimensions).
 
 ## Design Principles
 
