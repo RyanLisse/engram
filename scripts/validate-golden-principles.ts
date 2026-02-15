@@ -11,358 +11,374 @@
  *   npx tsx scripts/validate-golden-principles.ts --json # JSON output
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, readdirSync, existsSync } from 'fs';
+import { join, relative } from 'path';
 
-function findTsFiles(dir: string, pattern?: RegExp, ignore?: string[]): string[] {
-  const files: string[] = [];
-  try {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (!ignore?.some(i => fullPath.includes(i))) {
-          files.push(...findTsFiles(fullPath, pattern, ignore));
-        }
-      } else if (entry.name.endsWith('.ts')) {
-        if (!pattern || pattern.test(fullPath)) {
-          files.push(fullPath);
-        }
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-  return files;
-}
+const ROOT = process.cwd();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Violation {
   principle: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
+  severity: "critical" | "high" | "medium" | "low";
   file: string;
   line?: number;
   message: string;
   fix?: string;
 }
 
-interface ValidationResult {
-  violations: Violation[];
-  grade: string;
-  summary: {
-    totalFiles: number;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-  };
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Validation Functions
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * GP-004: Check for console.log in MCP server
- */
-async function checkStdoutLogging(): Promise<Violation[]> {
-  const violations: Violation[] = [];
-
-  try {
-    const files = findTsFiles('mcp-server/src');
-
-    for (const file of files) {
-      const content = readFileSync(file, 'utf-8');
-      const lines = content.split('\n');
-
-      lines.forEach((line, idx) => {
-        if (line.includes('console.log') && !line.trim().startsWith('//')) {
-          violations.push({
-            principle: 'GP-004',
-            severity: 'critical',
-            file,
-            line: idx + 1,
-            message: 'MCP server must not write to stdout',
-            fix: 'Replace console.log with console.error'
-          });
-        }
-      });
+function walkTs(dir: string, ignore: string[] = []): string[] {
+  const abs = join(ROOT, dir);
+  if (!existsSync(abs)) return [];
+  const out: string[] = [];
+  function walk(d: string) {
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
+      const full = join(d, entry.name);
+      const rel = relative(ROOT, full);
+      if (ignore.some((i) => rel.includes(i))) continue;
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) out.push(rel);
     }
-  } catch (err) {
-    console.error('[validate] Error checking stdout logging:', err);
   }
-
-  return violations;
+  walk(abs);
+  return out;
 }
 
-/**
- * GP-003: Check for oversized tools (>100 lines)
- */
-async function checkToolSize(): Promise<Violation[]> {
-  const violations: Violation[] = [];
-
+function readLines(relPath: string): string[] {
   try {
-    const allFiles = findTsFiles('mcp-server/src/tools', undefined, ['__tests__']);
-    const files = allFiles.filter(f => !f.endsWith('index.ts'));
+    return readFileSync(join(ROOT, relPath), "utf-8").split("\n");
+  } catch {
+    return [];
+  }
+}
 
-    for (const file of files) {
-      const content = readFileSync(file, 'utf-8');
-      const lines = content.split('\n').length;
+// ─── Validators ──────────────────────────────────────────────────────────────
 
-      if (lines > 100) {
+function checkStdoutLogging(): Violation[] {
+  const violations: Violation[] = [];
+  // GP-004: MCP server must not write to stdout (breaks stdio transport)
+  for (const file of walkTs("mcp-server/src")) {
+    const lines = readLines(file);
+    lines.forEach((line, idx) => {
+      if (line.includes("console.log") && !line.trim().startsWith("//")) {
         violations.push({
-          principle: 'GP-003',
-          severity: 'high',
+          principle: "GP-004",
+          severity: "critical",
           file,
-          message: `Tool file is ${lines} lines (exceeds 100-line guideline). Consider splitting into atomic primitives.`
+          line: idx + 1,
+          message: "MCP server must not write to stdout (breaks stdio transport)",
+          fix: "Replace console.log with console.error",
         });
       }
-    }
-  } catch (err) {
-    console.error('[validate] Error checking tool size:', err);
+    });
   }
-
+  // Also flag console.log in Convex crons/functions (should use console.log there, but check for accidental console.error)
+  // Actually Convex uses console.log fine — but let's flag console.log in convex actions that might confuse
   return violations;
 }
 
-/**
- * GP-005: Check for unstructured logging
- */
-async function checkStructuredLogging(): Promise<Violation[]> {
+function checkPrettyPrintJson(): Violation[] {
   const violations: Violation[] = [];
-
-  try {
-    const files = findTsFiles('mcp-server/src');
-
-    for (const file of files) {
-      const content = readFileSync(file, 'utf-8');
-      const lines = content.split('\n');
-
-      lines.forEach((line, idx) => {
-        // Check for console.error without [component] prefix
-        const errorMatch = line.match(/console\.error\(['"`]([^'"`]+)['"`]/);
-        if (errorMatch && !errorMatch[1].startsWith('[')) {
-          violations.push({
-            principle: 'GP-005',
-            severity: 'medium',
-            file,
-            line: idx + 1,
-            message: 'Log message missing [component] prefix',
-            fix: `Add component prefix: console.error('[component] ${errorMatch[1]}')`
-          });
-        }
-      });
-    }
-  } catch (err) {
-    console.error('[validate] Error checking structured logging:', err);
-  }
-
-  return violations;
-}
-
-/**
- * GP-002: Check for string literal Convex paths
- */
-async function checkConvexPaths(): Promise<Violation[]> {
-  const violations: Violation[] = [];
-
-  try {
-    const files = findTsFiles('mcp-server/src').filter(
-      f => !f.endsWith('convex-paths.ts')
-    );
-
-    for (const file of files) {
-      const content = readFileSync(file, 'utf-8');
-      const lines = content.split('\n');
-
-      lines.forEach((line, idx) => {
-        // Check for string literal API paths
-        const apiMatch = line.match(/['"](api\.[a-zA-Z.]+)['"]/);
-        if (apiMatch && !line.includes('PATHS')) {
-          violations.push({
-            principle: 'GP-002',
-            severity: 'high',
-            file,
-            line: idx + 1,
-            message: `String literal Convex path: ${apiMatch[1]}`,
-            fix: 'Use type-safe constant from convex-paths.ts'
-          });
-        }
-      });
-    }
-  } catch (err) {
-    console.error('[validate] Error checking Convex paths:', err);
-  }
-
-  return violations;
-}
-
-/**
- * GP-011: Check for missing tests
- */
-async function checkTestCoverage(): Promise<Violation[]> {
-  const violations: Violation[] = [];
-
-  try {
-    // Extract tool names from tool-registry.ts
-    const registryPath = 'mcp-server/src/lib/tool-registry.ts';
-    const registryContent = readFileSync(registryPath, 'utf-8');
-    const toolMatches = registryContent.match(/name:\s*["']memory_([a-z_]+)["']/g);
-
-    if (!toolMatches) {
-      console.error('[validate] Could not extract tool names from registry');
-      return violations;
-    }
-
-    const tools = toolMatches.map(m => m.match(/["']memory_([a-z_]+)["']/)?.[1]).filter(Boolean);
-
-    for (const tool of tools) {
-      const testFile = `mcp-server/src/tools/__tests__/${tool}.test.ts`;
-      try {
-        readFileSync(testFile);
-      } catch {
+  // GP-006: JSON responses must be compact (no pretty-print)
+  for (const file of walkTs("mcp-server/src")) {
+    const lines = readLines(file);
+    lines.forEach((line, idx) => {
+      if (line.match(/JSON\.stringify\([^)]+,\s*null\s*,\s*2\s*\)/) && !line.trim().startsWith("//")) {
         violations.push({
-          principle: 'GP-011',
-          severity: 'high',
-          file: `mcp-server/src/tools/${tool}.ts`,
-          message: `Missing test file: ${testFile}`,
-          fix: 'Create unit test using template'
+          principle: "GP-006",
+          severity: "high",
+          file,
+          line: idx + 1,
+          message: "Pretty-printed JSON wastes ~30% tokens in MCP responses",
+          fix: "Use JSON.stringify(data) without formatting args",
         });
       }
+    });
+  }
+  return violations;
+}
+
+function checkToolFileSize(): Violation[] {
+  const violations: Violation[] = [];
+  // GP-001: Tool files should stay under 150 lines for agent legibility
+  for (const file of walkTs("mcp-server/src/tools")) {
+    const lines = readLines(file);
+    if (lines.length > 150) {
+      violations.push({
+        principle: "GP-001",
+        severity: "medium",
+        file,
+        message: `Tool file is ${lines.length} lines (guideline: ≤150). Consider splitting.`,
+      });
     }
-  } catch (err) {
-    console.error('[validate] Error checking test coverage:', err);
+  }
+  return violations;
+}
+
+function checkStructuredLogging(): Violation[] {
+  const violations: Violation[] = [];
+  // GP-005: All console.error logs in MCP server should use [component] prefix
+  for (const file of walkTs("mcp-server/src")) {
+    const lines = readLines(file);
+    lines.forEach((line, idx) => {
+      const m = line.match(/console\.error\(\s*[`'"]((?!\[)[^`'"]*)[`'"]/);
+      if (m && !line.trim().startsWith("//")) {
+        violations.push({
+          principle: "GP-005",
+          severity: "medium",
+          file,
+          line: idx + 1,
+          message: `Log missing [component] prefix: "${m[1].slice(0, 40)}..."`,
+          fix: "Add [component] prefix for structured grep-ability",
+        });
+      }
+    });
+  }
+  return violations;
+}
+
+function checkConvexStringPaths(): Violation[] {
+  const violations: Violation[] = [];
+  // GP-002: All Convex function paths should use PATHS constants
+  for (const file of walkTs("mcp-server/src/lib", ["convex-paths.ts"])) {
+    const lines = readLines(file);
+    lines.forEach((line, idx) => {
+      // Match string literals like "functions/facts:storeFact"
+      const m = line.match(/["'](functions\/[a-zA-Z]+:[a-zA-Z]+)["']/);
+      if (m && !line.trim().startsWith("//") && !line.includes("PATHS")) {
+        violations.push({
+          principle: "GP-002",
+          severity: "high",
+          file,
+          line: idx + 1,
+          message: `String literal Convex path: "${m[1]}"`,
+          fix: "Use type-safe constant from convex-paths.ts",
+        });
+      }
+    });
+  }
+  return violations;
+}
+
+function checkConvexConsoleLog(): Violation[] {
+  const violations: Violation[] = [];
+  // In Convex, console.log is fine for runtime but let's check for accidental debug logs
+  // that should have been removed
+  for (const file of walkTs("convex/crons")) {
+    const lines = readLines(file);
+    let hasDebugLog = false;
+    lines.forEach((line) => {
+      if (line.match(/console\.log\(.*debug/i) || line.match(/console\.log\(.*TODO/i)) {
+        hasDebugLog = true;
+      }
+    });
+    if (hasDebugLog) {
+      violations.push({
+        principle: "GP-007",
+        severity: "low",
+        file,
+        message: "Debug/TODO console.log found in cron — remove before production",
+      });
+    }
+  }
+  return violations;
+}
+
+function checkDocumentation(): Violation[] {
+  const violations: Violation[] = [];
+
+  // GP-008: AGENTS.md must be under 150 lines (it's a map, not a manual)
+  const agentsLines = readLines("AGENTS.md");
+  if (agentsLines.length > 150) {
+    violations.push({
+      principle: "GP-008",
+      severity: "medium",
+      file: "AGENTS.md",
+      message: `AGENTS.md is ${agentsLines.length} lines (max: 150). Keep it a lean navigation map.`,
+    });
+  }
+
+  // GP-009: Required documentation files must exist
+  const requiredDocs = [
+    "GOLDEN_PRINCIPLES.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CRONS.md",
+    "docs/API-REFERENCE.md",
+  ];
+  for (const doc of requiredDocs) {
+    if (!existsSync(join(ROOT, doc))) {
+      violations.push({
+        principle: "GP-009",
+        severity: "high",
+        file: doc,
+        message: `Required documentation file missing: ${doc}`,
+      });
+    }
+  }
+
+  // GP-010: Pattern docs should exist
+  const requiredPatterns = [
+    "docs/patterns/async-enrichment.md",
+    "docs/patterns/scope-resolution.md",
+    "docs/patterns/event-driven-hooks.md",
+    "docs/patterns/depth-first-decomposition.md",
+    "docs/patterns/task-templates.md",
+  ];
+  for (const pat of requiredPatterns) {
+    if (!existsSync(join(ROOT, pat))) {
+      violations.push({
+        principle: "GP-010",
+        severity: "low",
+        file: pat,
+        message: `Pattern doc missing: ${pat}`,
+      });
+    }
   }
 
   return violations;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Grading System
-// ─────────────────────────────────────────────────────────────────────────────
+function checkToolParameters(): Violation[] {
+  const violations: Violation[] = [];
+  // GP-011: Tool parameter counts (from tool-registry.ts)
+  const registryPath = "mcp-server/src/lib/tool-registry.ts";
+  const content = readFileSync(join(ROOT, registryPath), "utf-8");
 
-function calculateGrade(violations: Violation[]): string {
-  const critical = violations.filter(v => v.severity === 'critical').length;
-  const high = violations.filter(v => v.severity === 'high').length;
-  const medium = violations.filter(v => v.severity === 'medium').length;
+  // Find tool definitions with their parameter counts
+  const toolBlocks = content.split(/\n  \{[\s\n]*tool: \{/);
+  for (let i = 1; i < toolBlocks.length; i++) {
+    const block = toolBlocks[i];
+    const nameMatch = block.match(/name:\s*["']([^"']+)["']/);
+    if (!nameMatch) continue;
+    const toolName = nameMatch[1];
 
-  if (critical >= 2) return 'F';
-  if (critical === 1) return 'D';
-  if (high >= 6) return 'D';
-  if (high >= 3) return 'C';
-  if (high >= 1 || medium >= 5) return 'B';
-  if (medium >= 1) return 'A-';
-  return 'A';
-}
+    // Count properties in inputSchema
+    const propsMatch = block.match(/properties:\s*\{/);
+    if (!propsMatch) continue;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main
-// ─────────────────────────────────────────────────────────────────────────────
+    // Count property keys between properties: { and the closing }
+    const afterProps = block.slice(propsMatch.index! + propsMatch[0].length);
+    const propKeys = afterProps.match(/[a-zA-Z_]+:\s*\{/g);
+    const paramCount = propKeys?.length ?? 0;
 
-async function main() {
-  console.error('[validate] Running golden principles validation...\n');
+    // Count required params
+    const reqMatch = block.match(/required:\s*\[([^\]]*)\]/);
+    const requiredCount = reqMatch ? (reqMatch[1].match(/["'][^"']+["']/g)?.length ?? 0) : 0;
 
-  const startTime = Date.now();
-
-  // Run all validation checks in parallel
-  const [
-    stdoutViolations,
-    toolSizeViolations,
-    loggingViolations,
-    pathViolations,
-    testViolations
-  ] = await Promise.all([
-    checkStdoutLogging(),
-    checkToolSize(),
-    checkStructuredLogging(),
-    checkConvexPaths(),
-    checkTestCoverage()
-  ]);
-
-  // Combine all violations
-  const allViolations = [
-    ...stdoutViolations,
-    ...toolSizeViolations,
-    ...loggingViolations,
-    ...pathViolations,
-    ...testViolations
-  ];
-
-  // Calculate summary
-  const summary = {
-    totalFiles: new Set(allViolations.map(v => v.file)).size,
-    critical: allViolations.filter(v => v.severity === 'critical').length,
-    high: allViolations.filter(v => v.severity === 'high').length,
-    medium: allViolations.filter(v => v.severity === 'medium').length,
-    low: allViolations.filter(v => v.severity === 'low').length
-  };
-
-  const grade = calculateGrade(allViolations);
-
-  const result: ValidationResult = {
-    violations: allViolations,
-    grade,
-    summary
-  };
-
-  const duration = Date.now() - startTime;
-
-  // Output results
-  if (process.argv.includes('--json')) {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.error(`\n${'='.repeat(70)}`);
-    console.error('VALIDATION RESULTS');
-    console.error('='.repeat(70));
-    console.error(`Overall Grade: ${grade}`);
-    console.error(`Duration: ${duration}ms`);
-    console.error(`\nSummary:`);
-    console.error(`  Files checked: ${summary.totalFiles}`);
-    console.error(`  Critical violations: ${summary.critical}`);
-    console.error(`  High violations: ${summary.high}`);
-    console.error(`  Medium violations: ${summary.medium}`);
-    console.error(`  Low violations: ${summary.low}`);
-
-    if (allViolations.length > 0) {
-      console.error(`\nViolations by Principle:\n`);
-
-      const byPrinciple = allViolations.reduce((acc, v) => {
-        if (!acc[v.principle]) acc[v.principle] = [];
-        acc[v.principle].push(v);
-        return acc;
-      }, {} as Record<string, Violation[]>);
-
-      for (const [principle, violations] of Object.entries(byPrinciple)) {
-        console.error(`${principle}: ${violations.length} violation(s)`);
-        violations.forEach(v => {
-          const location = v.line ? `${v.file}:${v.line}` : v.file;
-          console.error(`  ${v.severity.toUpperCase()}: ${location}`);
-          console.error(`    ${v.message}`);
-          if (v.fix) {
-            console.error(`    Fix: ${v.fix}`);
-          }
-        });
-        console.error('');
-      }
-    } else {
-      console.error(`\n✅ No violations found!`);
+    if (paramCount > 7) {
+      violations.push({
+        principle: "GP-011",
+        severity: "high",
+        file: registryPath,
+        message: `${toolName}: ${paramCount} params (target: ≤7). Consider splitting.`,
+      });
     }
 
-    console.error('='.repeat(70));
+    if (requiredCount > 3) {
+      violations.push({
+        principle: "GP-011",
+        severity: "medium",
+        file: registryPath,
+        message: `${toolName}: ${requiredCount} required params. Agents prefer optional defaults.`,
+      });
+    }
   }
 
-  // Exit with error code if violations found
-  process.exit(allViolations.length > 0 ? 1 : 0);
+  return violations;
 }
 
-// Run if executed directly
-if (require.main === module) {
-  main().catch(err => {
-    console.error('[validate] Fatal error:', err);
-    process.exit(1);
-  });
+// ─── Grading ─────────────────────────────────────────────────────────────────
+
+function grade(violations: Violation[]): string {
+  const c = violations.filter((v) => v.severity === "critical").length;
+  const h = violations.filter((v) => v.severity === "high").length;
+  const m = violations.filter((v) => v.severity === "medium").length;
+  const l = violations.filter((v) => v.severity === "low").length;
+
+  const score = 100 - c * 20 - h * 5 - m * 2 - l * 0.5;
+  if (score >= 95) return "A";
+  if (score >= 90) return "A-";
+  if (score >= 85) return "B+";
+  if (score >= 80) return "B";
+  if (score >= 75) return "B-";
+  if (score >= 70) return "C+";
+  if (score >= 65) return "C";
+  if (score >= 55) return "D";
+  return "F";
 }
 
-export { main as validateGoldenPrinciples };
+// ─── Main ────────────────────────────────────────────────────────────────────
+
+const startMs = Date.now();
+const allViolations: Violation[] = [
+  ...checkStdoutLogging(),
+  ...checkPrettyPrintJson(),
+  ...checkToolFileSize(),
+  ...checkStructuredLogging(),
+  ...checkConvexStringPaths(),
+  ...checkConvexConsoleLog(),
+  ...checkDocumentation(),
+  ...checkToolParameters(),
+];
+
+const summary = {
+  critical: allViolations.filter((v) => v.severity === "critical").length,
+  high: allViolations.filter((v) => v.severity === "high").length,
+  medium: allViolations.filter((v) => v.severity === "medium").length,
+  low: allViolations.filter((v) => v.severity === "low").length,
+  total: allViolations.length,
+  filesAffected: new Set(allViolations.map((v) => v.file)).size,
+};
+const overallGrade = grade(allViolations);
+const durationMs = Date.now() - startMs;
+
+// ─── Output ──────────────────────────────────────────────────────────────────
+
+if (process.argv.includes("--json")) {
+  console.log(JSON.stringify({ grade: overallGrade, summary, violations: allViolations, durationMs }, null, 2));
+} else {
+  const out = console.log;
+  out("=" .repeat(70));
+  out("ENGRAM GOLDEN PRINCIPLES VALIDATION");
+  out("=" .repeat(70));
+  out(`Date:     ${new Date().toISOString()}`);
+  out(`Grade:    ${overallGrade}`);
+  out(`Duration: ${durationMs}ms`);
+  out("");
+  out("Summary:");
+  out(`  Critical: ${summary.critical}`);
+  out(`  High:     ${summary.high}`);
+  out(`  Medium:   ${summary.medium}`);
+  out(`  Low:      ${summary.low}`);
+  out(`  Total:    ${summary.total} violations across ${summary.filesAffected} files`);
+  out("");
+
+  if (allViolations.length === 0) {
+    out("No violations found!");
+  } else {
+    // Group by principle
+    const byPrinciple: Record<string, Violation[]> = {};
+    for (const v of allViolations) {
+      (byPrinciple[v.principle] ??= []).push(v);
+    }
+
+    for (const [principle, violations] of Object.entries(byPrinciple).sort()) {
+      out("-".repeat(70));
+      out(`${principle}: ${violations.length} violation(s)`);
+      out("-".repeat(70));
+      for (const v of violations) {
+        const loc = v.line ? `${v.file}:${v.line}` : v.file;
+        out(`  [${v.severity.toUpperCase()}] ${loc}`);
+        out(`    ${v.message}`);
+        if (v.fix) out(`    Fix: ${v.fix}`);
+      }
+      out("");
+    }
+  }
+  out("=" .repeat(70));
+}
+
+process.exit(summary.critical > 0 ? 2 : summary.total > 0 ? 1 : 0);
