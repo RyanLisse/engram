@@ -16,6 +16,8 @@ These run inside Convex — no external cron needed, no model costs.
 | `cleanup:archive` | Weekly Sun 3:00 AM | Move conversations > 90 days to archive table |
 | `backfill:embeddings` | Daily 3:00 AM | Find facts missing embeddings, generate via OpenAI action |
 | `stats:daily` | Daily 11:59 PM | Snapshot: total facts, entities, active agents, sync health |
+| `quality-scan` | Daily 4:30 AM | Golden principles enforcement: embedding coverage, scope bloat, stale agents, theme freshness |
+| `learning-synthesis` | Weekly Sun 7:30 AM | Aggregate recall feedback, boost high-value facts, generate weekly learning report |
 
 ---
 
@@ -159,3 +161,5 @@ Find and merge duplicate facts:
 | Duplicate Detector | daily | none | Merge duplicate facts |
 | Archive Old Convos | weekly | none | Move old conversations to cold storage |
 | Daily Stats | daily | none | Snapshot metrics |
+| Quality Scan | daily | none | Golden principles enforcement |
+| Learning Synthesis | weekly | none | Feedback aggregation + fact boosting |

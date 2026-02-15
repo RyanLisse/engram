@@ -65,4 +65,18 @@ crons.daily(
   internal.crons.usageAnalytics.runUsageAnalytics
 );
 
+// Daily: Golden principles quality scan
+crons.daily(
+  "quality-scan",
+  { hourUTC: 4, minuteUTC: 30 },
+  internal.crons.qualityScan.runQualityScan
+);
+
+// Weekly: Learning synthesis from feedback signals (Sunday at 7:30 UTC)
+crons.weekly(
+  "learning-synthesis",
+  { dayOfWeek: "sunday", hourUTC: 7, minuteUTC: 30 },
+  internal.crons.learningSynthesis.runLearningSynthesis
+);
+
 export default crons;

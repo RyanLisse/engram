@@ -88,6 +88,7 @@ export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsS
     facts,
     usedTokens: budgeted.usedTokens,
     tokenBudget: budgeted.tokenBudget,
+    strategy: budgeted.strategy,
     queryIntent: detectQueryIntent(input.query),
     profile: input.profile,
     count: facts.length,

@@ -20,6 +20,7 @@ import { getToolDefinitions, routeToolCall } from "./lib/tool-registry.js";
 import { eventBus } from "./lib/event-bus.js";
 import { startSSEServer } from "./lib/sse-server.js";
 import * as convex from "./lib/convex-client.js";
+import { metrics } from "./lib/metrics.js";
 
 // Get agent ID from env (defaults to "indy")
 const AGENT_ID = process.env.ENGRAM_AGENT_ID || "indy";
@@ -117,6 +118,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const result = await routeToolCall(name, args, AGENT_ID);
     const durationMs = Date.now() - startMs;
+    metrics.record(name, durationMs, false);
     console.error(`[engram-mcp] #${reqId} ${name} OK ${durationMs}ms`);
     // Compact JSON (no pretty-printing) — saves ~30% tokens per response
     return {
@@ -124,6 +126,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   } catch (error: any) {
     const durationMs = Date.now() - startMs;
+    metrics.record(name, durationMs, true);
     console.error(`[engram-mcp] #${reqId} ${name} ERR ${durationMs}ms:`, error.message);
     return {
       content: [
