@@ -223,6 +223,10 @@ export async function deleteConversation(args: { conversationId: string; hardDel
   return await mutate("functions/conversations:deleteConversation", args);
 }
 
+export async function getConversationsBySession(sessionId: string) {
+  return await query("functions/conversations:getBySession", { sessionId });
+}
+
 export async function deleteTheme(args: { themeId: string; hardDelete?: boolean }) {
   return await mutate("functions/themes:deleteTheme", args);
 }
@@ -279,6 +283,10 @@ export async function markNotificationsRead(notificationIds: string[]) {
   for (const notificationId of notificationIds) {
     await mutate("functions/notifications:markRead", { notificationId });
   }
+}
+
+export async function markAllNotificationsRead(agentId: string) {
+  return await mutate("functions/notifications:markAllRead", { agentId });
 }
 
 // ── Recall Feedback ───────────────────────────────────
