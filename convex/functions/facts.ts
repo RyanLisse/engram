@@ -106,12 +106,18 @@ export const vectorRecall = query({
     const perScopeLimit = Math.max(5, Math.ceil((limit ?? 20) / scopeIds.length));
 
     for (const scopeId of scopeIds) {
-      const rows = await ctx.vectorSearch("facts", "vector_search", {
-        vector: embedding,
-        limit: perScopeLimit,
-        filter: (q) => q.eq("scopeId", scopeId),
-      });
-      all.push(...rows);
+      try {
+        const rows = await (ctx as any).vectorSearch("facts", "vector_search", {
+          vector: embedding,
+          limit: perScopeLimit,
+          filter: (q: any) => q.eq("scopeId", scopeId),
+        });
+        all.push(...rows);
+      } catch (err) {
+        // Older/limited runtimes may not expose vectorSearch in query context.
+        // Degrade gracefully so callers can still combine with lexical search.
+        console.error("[facts.vectorRecall] vectorSearch unavailable, returning partial results:", err);
+      }
     }
 
     all.sort((a, b) => (b._score ?? 0) - (a._score ?? 0));

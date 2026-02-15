@@ -5,7 +5,11 @@
   "type": "module",
   "main": "dist/index.js",
   "openclaw": {
-    "extensions": ["dist/index.js"]
+    "extensions": ["dist/index.js"],
+    "hooks": [
+      "hooks/engram-session-register",
+      "hooks/engram-command-memory"
+    ]
   },
   "scripts": {
     "build": "tsc",
@@ -13,14 +17,12 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "openclaw": "^2026.2.14",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
-  },
-  "peerDependencies": {
-    "@engram/mcp-server": "workspace:*"
   }
 }

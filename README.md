@@ -30,7 +30,20 @@ export COHERE_API_KEY="your-cohere-key"  # Optional: enables real embeddings
 node mcp-server/dist/index.js
 ```
 
-### Claude Code / MCP Client Configuration
+### Supported AI Editors
+
+Engram provides automated setup for multiple AI code editors. **[Full integration guide →](docs/EDITOR-INTEGRATIONS.md)**
+
+| Editor | Setup | Features |
+|--------|-------|----------|
+| **Claude Code** | `cp plugins/claude-code/.mcp.json ~/.claude/settings.json` | 8 lifecycle hooks, auto-recall, session checkpoints |
+| **Windsurf** | `./plugins/windsurf/setup.sh` | Full MCP access (69 tools), real-time events |
+| **OpenClaw** | Native integration | Zero-overhead TypeScript imports |
+| **Any MCP Client** | Manual config below | Standard MCP protocol support |
+
+**→ See [docs/EDITOR-INTEGRATIONS.md](docs/EDITOR-INTEGRATIONS.md) for detailed setup guides, troubleshooting, and feature comparisons.**
+
+#### Claude Code Configuration
 
 ```json
 {
@@ -47,6 +60,17 @@ node mcp-server/dist/index.js
   }
 }
 ```
+
+#### Windsurf Configuration
+
+**Quick Setup:**
+```bash
+./plugins/windsurf/setup.sh
+```
+
+**Manual Setup:** See [plugins/windsurf/README.md](plugins/windsurf/README.md) for detailed instructions.
+
+**Config Location:** `~/.codeium/windsurf/mcp_config.json`
 
 ### MCPorter CLI
 
@@ -89,7 +113,9 @@ See [docs/MCPORTER-CLI.md](docs/MCPORTER-CLI.md) for full usage.
 
 ![Agent Lifecycle](docs/diagrams/light/agent-lifecycle.svg)
 
-## Claude Code Hooks (8 Lifecycle Events)
+## Editor Integration
+
+### Claude Code Hooks (8 Lifecycle Events)
 
 Engram integrates with Claude Code's lifecycle via hooks for automated memory operations:
 

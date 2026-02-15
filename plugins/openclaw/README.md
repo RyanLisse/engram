@@ -38,6 +38,26 @@ npm install
 npm run build
 ```
 
+### Plugin Hooks (OpenClaw hook packs)
+
+This package now ships plugin hook packs using OpenClaw's `HOOK.md` + `handler.ts` format.
+
+Install them with:
+
+```bash
+openclaw hooks install plugins/openclaw
+```
+
+Or from repo root:
+
+```bash
+make hooks-install-openclaw OPENCLAW_PLUGIN_DIR=plugins/openclaw
+```
+
+Included hooks:
+- `engram-session-register`: registers agent identity into Engram on startup
+- `engram-command-memory`: records `/new`, `/compact`, `/stop`, `/reset` usage as passive memory observations
+
 ## Programmatic Usage
 
 ```ts

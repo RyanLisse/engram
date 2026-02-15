@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/Users/cortex-air/Tools/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "${CONVEX_URL}",
+        "ENGRAM_AGENT_ID": "windsurf",
+        "COHERE_API_KEY": "${COHERE_API_KEY}",
+        "ENGRAM_API_KEY": "",
+        "ENGRAM_CLIENT_KEY": ""
+      }
+    }
+  }
+}

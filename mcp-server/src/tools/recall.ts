@@ -66,14 +66,18 @@ export async function recall(
             factType: input.factType,
           });
 
-    const vectorResults =
-      strategy === "text-only" || scopeIds.length === 0
-        ? []
-        : await vectorSearch({
-            query: input.query,
-            scopeIds,
-            limit: input.limit,
-          });
+    let vectorResults: any[] = [];
+    if (!(strategy === "text-only" || scopeIds.length === 0)) {
+      try {
+        vectorResults = (await vectorSearch({
+          query: input.query,
+          scopeIds,
+          limit: input.limit,
+        })) as any[];
+      } catch (err: any) {
+        console.error("[recall] Vector search unavailable, falling back to text/hybrid ranking:", err?.message ?? err);
+      }
+    }
 
     const byId = new Map<string, any>();
     for (const row of textResults as any[]) byId.set(row._id, { ...row, lexicalScore: 1 });

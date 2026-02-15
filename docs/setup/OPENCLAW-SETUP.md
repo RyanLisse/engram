@@ -43,6 +43,13 @@ bun run build
 
 3. Restart OpenClaw and verify tools are discoverable.
 
+4. (Optional) Install bundled plugin hooks:
+
+```bash
+cd /Users/cortex-air/Tools/engram
+make hooks-install-openclaw OPENCLAW_PLUGIN_DIR=plugins/openclaw
+```
+
 ## Mode B: Native OpenClaw plugin packaging (gap)
 
 Per OpenClaw plugin docs (`https://docs.openclaw.ai/tools/plugin`), native distribution expects:
