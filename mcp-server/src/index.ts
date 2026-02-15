@@ -3,11 +3,11 @@
 /**
  * Engram MCP Server — Agent-Native Architecture
  *
- * 52 memory tools: primitives for facts, entities, scopes, sessions,
+ * 65 memory tools: primitives for facts, entities, scopes, sessions,
  * conversations, signals, events, config, agent identity, vault, and health.
  *
  * All tool definitions and routing live in lib/tool-registry.ts.
- * This file is only the stdio transport + rate limiter.
+ * This file: stdio transport + rate limiter + optional SSE server + event bus.
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -17,6 +17,9 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { getToolDefinitions, routeToolCall } from "./lib/tool-registry.js";
+import { eventBus } from "./lib/event-bus.js";
+import { startSSEServer } from "./lib/sse-server.js";
+import * as convex from "./lib/convex-client.js";
 
 // Get agent ID from env (defaults to "indy")
 const AGENT_ID = process.env.ENGRAM_AGENT_ID || "indy";
@@ -37,6 +40,24 @@ if (MCP_API_KEY && process.env.ENGRAM_CLIENT_KEY !== MCP_API_KEY) {
 console.error("[engram-mcp] Starting Engram MCP Server (v2 agent-native)...");
 console.error(`[engram-mcp] Agent ID: ${AGENT_ID}`);
 console.error(`[engram-mcp] Convex URL: ${process.env.CONVEX_URL}`);
+
+// Start event bus polling from Convex
+eventBus.startPolling(async (watermark) => {
+  const result = await convex.pollEvents({ agentId: AGENT_ID, watermark, limit: 50 });
+  return (result?.events ?? []).map((e: any) => ({
+    type: e.type ?? "unknown",
+    agentId: e.agentId ?? AGENT_ID,
+    scopeId: e.scopeId,
+    payload: e,
+    timestamp: e.createdAt ?? Date.now(),
+  }));
+}, 2000);
+
+// Optionally start SSE HTTP server for real-time streaming
+const SSE_PORT = process.env.ENGRAM_SSE_PORT ? parseInt(process.env.ENGRAM_SSE_PORT, 10) : undefined;
+if (SSE_PORT) {
+  startSSEServer(SSE_PORT);
+}
 
 // Create server instance
 const server = new Server(

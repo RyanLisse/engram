@@ -61,7 +61,7 @@ Add to your Claude Code MCP settings (`.mcp.json`):
 }
 ```
 
-## MCP Tools (65)
+## MCP Tools (69)
 
 ### Core (6)
 `memory_store_fact` · `memory_recall` · `memory_search` · `memory_observe` · `memory_link_entity` · `memory_get_context`
@@ -83,6 +83,9 @@ Add to your Claude Code MCP settings (`.mcp.json`):
 
 ### Events (3)
 `memory_poll_events` · `memory_get_notifications` · `memory_mark_notifications_read`
+
+### Subscriptions (4)
+`memory_subscribe` · `memory_unsubscribe` · `memory_list_subscriptions` · `memory_poll_subscription`
 
 ### Config (4)
 `memory_get_config` · `memory_list_configs` · `memory_set_config` · `memory_set_scope_policy`
@@ -109,13 +112,16 @@ Add to your Claude Code MCP settings (`.mcp.json`):
 5. Get context               →  memory_get_context (wrapper) or compose: resolve_scopes + load_budgeted_facts + get_entities + get_themes
 6. Provide feedback          →  memory_record_signal / memory_record_feedback
 7. Check workspace           →  memory_get_workspace_info / memory_get_activity_stats
-8. Discover tools            →  memory_list_capabilities
+8. Subscribe to events       →  memory_subscribe + memory_poll_subscription
+9. Discover tools            →  memory_list_capabilities
 ```
 
 ## Architecture
 
 - **Convex Cloud** — 14 tables, native vector search, 11 cron jobs, async enrichment
-- **MCP Server** — 65 tools over stdio, TypeScript, Convex HTTP client
+- **MCP Server** — 69 tools over stdio + optional SSE, TypeScript, Convex HTTP client
+- **SSE Server** — Real-time event streaming via `ENGRAM_SSE_PORT` (webhooks + SSE)
+- **Dashboard** — Next.js agent monitoring UI (`dashboard/`)
 - **Tool Registry** — Single source of truth: `mcp-server/src/lib/tool-registry.ts`
 - **Cohere Embed 4** — 1024-dim multimodal embeddings (text + images + code)
 - **Async Pipeline** — Facts stored in <50ms, enrichment runs asynchronously

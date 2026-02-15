@@ -13,7 +13,9 @@ Engram is a unified multi-agent memory system. It provides a shared memory layer
 - **Convex** — Cloud backend (schema, CRUD, vector search, scheduled functions)
 - **TypeScript** — All code (MCP server + Convex functions + CLI + plugins)
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim, text + images + code)
-- **MCP (Model Context Protocol)** — Agent-facing interface (65 tools)
+- **MCP (Model Context Protocol)** — Agent-facing interface (69 tools)
+- **SSE HTTP Server** — Real-time event streaming (optional, via `ENGRAM_SSE_PORT`)
+- **Next.js** — Agent dashboard (real-time monitoring)
 - **Commander.js** — CLI framework
 
 ## Architecture
@@ -25,7 +27,8 @@ Agent-Native Principles:
 2. **Prompt-Native Config** — All weights, rates, thresholds tunable via `memory_set_config` without code.
 3. **Action Parity** — Full CRUD on all 7 entity types. Agents can do everything users can.
 4. **Agent Identity Context** — `memory_get_agent_context` returns capabilities, scopes, health for system prompt injection.
-5. **Real-Time Events** — `memory_poll_events` for watermark-based incremental state awareness.
+5. **Real-Time Events** — Event bus + SSE streaming + subscription tools for push-based notifications.
+6. **Self-Discovery** — `memory_list_capabilities` for runtime tool introspection.
 
 Key patterns:
 - **Async enrichment pipeline**: Facts stored immediately (<50ms), enrichment runs async.
@@ -33,15 +36,17 @@ Key patterns:
 - **Differential memory decay**: Decay rate varies by fact type (decisions slow, notes fast).
 - **Memory lifecycle**: 5-state machine — active → dormant → merged → archived → pruned.
 
-## MCP Tools (65 primitives)
+## MCP Tools (69 primitives)
 
 All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
+Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/generate-api-reference.ts`).
 
 ### Core (6): store_fact, recall, search, observe, link_entity, get_context
 ### Fact Lifecycle (6): update_fact, archive_fact, boost_relevance, list_stale_facts, mark_facts_merged, mark_facts_pruned
 ### Signals (3): record_signal, record_feedback, record_recall
 ### Agent (5): register_agent, end_session, get_agent_info, get_agent_context, get_system_prompt
 ### Events (3): poll_events, get_notifications, mark_notifications_read
+### Subscriptions (4): subscribe, unsubscribe, list_subscriptions, poll_subscription
 ### Config (4): get_config, list_configs, set_config, set_scope_policy
 ### Retrieval (11): vector_search, text_search, rank_candidates, bump_access, get_observations, get_entities, get_themes, get_handoffs, search_facts, search_entities, search_themes
 ### Context (7): resolve_scopes, load_budgeted_facts, search_daily_notes, get_graph_neighbors, get_activity_stats, get_workspace_info, build_system_prompt
@@ -61,25 +66,36 @@ convex/               # Convex backend
   crons.ts            # Cron job configuration
   crons/              # Cron implementations
 mcp-server/src/       # MCP server (v2 agent-native)
-  index.ts            # Entry point (113 lines — transport + rate limiter only)
+  index.ts            # Entry point — stdio + event bus + optional SSE
   lib/
-    tool-registry.ts  # ★ Single source of truth for all 52 tools
+    tool-registry.ts  # ★ Single source of truth for all 69 tools
     convex-client.ts  # Convex HTTP client (string-based paths)
     embeddings.ts     # Cohere Embed 4 client
-  tools/              # 21 tool handler modules
+    event-bus.ts      # Internal pub/sub event bus
+    subscription-manager.ts  # Agent subscription tracking
+    sse-server.ts     # SSE HTTP server + webhook endpoints
+  tools/              # Tool handler modules
+    context-primitives.ts   # Decomposed from get_context
+    vault-primitives.ts     # Decomposed from vault_sync
+    rank-candidates.ts      # Exposed ranking algorithm
+    subscriptions.ts        # Real-time subscription tools
+    system-prompt-builder.ts # Full system prompt aggregator
 cli/src/              # Interactive CLI (commander.js)
-  commands/           # 15 command modules (store, facts, signal, events, config, etc.)
-  lib/client.ts       # CLI Convex HTTP client (47 functions)
 plugins/
   claude-code/        # Claude Code plugin (.mcp.json + setup.sh)
   openclaw/           # OpenClaw native extension (imports tool-registry)
 skill/                # OpenClaw skill package (SKILL.md + install.sh)
+dashboard/            # Next.js agent dashboard (real-time monitoring)
+scripts/
+  generate-api-reference.ts  # Auto-gen docs/API-REFERENCE.md from registry
+docs/
+  API-REFERENCE.md    # Auto-generated full API reference
 ```
 
 ## Key Implementation Details
 
 ### Tool Registry (Single Source of Truth)
-`mcp-server/src/lib/tool-registry.ts` defines all 52 tools declaratively:
+`mcp-server/src/lib/tool-registry.ts` defines all 69 tools declaratively:
 - `TOOL_REGISTRY` — array of `{ tool, zodSchema, handler }` entries
 - `routeToolCall(name, args, agentId)` — validates + dispatches any tool
 - `getToolDefinitions()` — returns MCP `Tool[]` for ListTools

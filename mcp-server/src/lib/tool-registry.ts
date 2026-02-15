@@ -76,6 +76,13 @@ import {
 import { buildFullSystemPrompt, buildFullSystemPromptSchema } from "../tools/system-prompt-builder.js";
 
 import {
+  subscribe, subscribeSchema,
+  unsubscribe, unsubscribeSchema,
+  listSubscriptions, listSubscriptionsSchema,
+  pollSubscription, pollSubscriptionSchema,
+} from "../tools/subscriptions.js";
+
+import {
   bumpAccessBatch, bumpAccessSchema,
   getEntitiesPrimitive, getEntitiesPrimitiveSchema,
   getHandoffs, getHandoffsSchema,
@@ -931,6 +938,70 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     handler: (args, agentId) => buildFullSystemPrompt(args, agentId),
   },
 
+  // ── Real-Time Subscriptions (Week 5-6) ─────────────
+  {
+    tool: {
+      name: "memory_subscribe",
+      description: "Subscribe to real-time events. Returns subscriptionId for polling or SSE streaming.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          eventTypes: { type: "array", items: { type: "string" }, description: "Event types to watch (e.g., fact_stored, recall, signal_recorded)" },
+          scopeIds: { type: "array", items: { type: "string" }, description: "Scope IDs to watch" },
+          bufferSize: { type: "number", description: "Max events to buffer (default: 50)" },
+        },
+      },
+    },
+    zodSchema: subscribeSchema,
+    handler: (args, agentId) => subscribe(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_unsubscribe",
+      description: "Remove a real-time event subscription.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          subscriptionId: { type: "string", description: "Subscription ID to remove" },
+        },
+        required: ["subscriptionId"],
+      },
+    },
+    zodSchema: unsubscribeSchema,
+    handler: (args) => unsubscribe(args),
+  },
+  {
+    tool: {
+      name: "memory_list_subscriptions",
+      description: "List active event subscriptions and their buffered event counts.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agentId: { type: "string", description: "Filter by agent ID" },
+        },
+      },
+    },
+    zodSchema: listSubscriptionsSchema,
+    handler: (args, agentId) => listSubscriptions(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_poll_subscription",
+      description: "Poll buffered events from a subscription. Use memory_subscribe first to create one.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          subscriptionId: { type: "string", description: "Subscription ID to poll" },
+          limit: { type: "number", description: "Max events to return (default: 20)" },
+          flush: { type: "boolean", description: "Clear returned events from buffer (default: true)" },
+        },
+        required: ["subscriptionId"],
+      },
+    },
+    zodSchema: pollSubscriptionSchema,
+    handler: (args) => pollSubscription(args),
+  },
+
   // ── Discovery ─────────────────────────────────────
   {
     tool: {
@@ -955,6 +1026,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         signals: ["memory_record_signal", "memory_record_feedback", "memory_record_recall"],
         agent: ["memory_register_agent", "memory_end_session", "memory_get_agent_info", "memory_get_agent_context", "memory_get_system_prompt"],
         events: ["memory_poll_events", "memory_get_notifications", "memory_mark_notifications_read"],
+        subscriptions: ["memory_subscribe", "memory_unsubscribe", "memory_list_subscriptions", "memory_poll_subscription"],
         config: ["memory_get_config", "memory_list_configs", "memory_set_config", "memory_set_scope_policy"],
         retrieval: ["memory_vector_search", "memory_text_search", "memory_rank_candidates", "memory_bump_access", "memory_get_observations", "memory_get_entities", "memory_get_themes", "memory_get_handoffs", "memory_search_facts", "memory_search_entities", "memory_search_themes"],
         delete: ["memory_delete_entity", "memory_delete_scope", "memory_delete_conversation", "memory_delete_session", "memory_delete_theme"],
