@@ -1,0 +1,32 @@
+---
+title: Cursor Setup
+description: Configure Engram MCP in Cursor using a dedicated agent identity.
+---
+
+## 1) Open Cursor MCP config
+
+File: `~/.cursor/mcp.json` (or project-level `.cursor/mcp.json`)
+
+## 2) Add Engram MCP server
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/Users/cortex-air/Tools/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://your-deployment.convex.cloud",
+        "ENGRAM_AGENT_ID": "cursor",
+        "COHERE_API_KEY": "<optional>"
+      }
+    }
+  }
+}
+```
+
+## 3) Verify
+
+- Restart Cursor
+- Ensure `engram` appears in MCP servers
+- Execute one read tool (for example, health/context)

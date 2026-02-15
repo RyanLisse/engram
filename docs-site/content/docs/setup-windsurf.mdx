@@ -1,0 +1,41 @@
+---
+title: Windsurf Setup
+description: Configure Engram MCP in Windsurf with a stable agent identity.
+---
+
+## 1) Open Windsurf MCP config
+
+File: `~/.codeium/windsurf/mcp_config.json`
+
+## 2) Add/verify Engram server
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/Users/cortex-air/Tools/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://your-deployment.convex.cloud",
+        "ENGRAM_AGENT_ID": "windsurf",
+        "COHERE_API_KEY": "<optional>"
+      },
+      "disabled": false
+    }
+  }
+}
+```
+
+## 3) Recommended identity
+
+Use a stable per-platform agent ID:
+
+- `windsurf` for Windsurf
+- `claude-code` for Claude Code
+- `openclaw-agent` for OpenClaw
+
+## 4) Verify
+
+- Restart Windsurf
+- Run a simple Engram tool call from MCP panel
+- Confirm memory health/response without errors

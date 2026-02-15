@@ -1,0 +1,32 @@
+---
+title: Zed Setup
+description: Configure Engram as a context server in Zed.
+---
+
+## 1) Edit Zed settings
+
+Add Engram under `context_servers` in Zed `settings.json`.
+
+## 2) Example
+
+```json
+{
+  "context_servers": {
+    "engram": {
+      "command": "node",
+      "args": ["/Users/cortex-air/Tools/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://your-deployment.convex.cloud",
+        "ENGRAM_AGENT_ID": "zed",
+        "COHERE_API_KEY": "<optional>"
+      }
+    }
+  }
+}
+```
+
+## 3) Verify
+
+- Restart Zed
+- Confirm server starts and tools are discoverable
+- Run one lightweight Engram call

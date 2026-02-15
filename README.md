@@ -89,9 +89,31 @@ See [docs/MCPORTER-CLI.md](docs/MCPORTER-CLI.md) for full usage.
 
 ![Agent Lifecycle](docs/diagrams/light/agent-lifecycle.svg)
 
-## MCP Tools (52)
+## Claude Code Hooks (8 Lifecycle Events)
 
-Engram currently registers 52 `memory_*` tools (workflow-compatible wrappers + atomic primitives + admin/health/event tools).
+Engram integrates with Claude Code's lifecycle via hooks for automated memory operations:
+
+| Hook Event | Script | Purpose | Performance |
+|------------|--------|---------|-------------|
+| **SessionStart** | `session-start.sh` | Auto-inject agent context at session boundary | ~50-200ms |
+| **UserPromptSubmit** | `auto-recall.sh` | Auto-recall top-3 relevant memories per prompt | ~100-500ms |
+| **PostToolUse** | `post-tool-observe.sh` | Record file edit observations (async) | ~10-50ms |
+| **Notification** | `notification-alert.sh` | Desktop alerts when memory needs attention | <10ms |
+| **PreToolUse** | `validate-memory-ops.sh` | Warn about destructive operations | <5ms |
+| **Stop** | `auto-handoff.sh` | Record turn completion events (async) | ~50-100ms |
+| **PreCompact** | `pre-compact-checkpoint.sh` | Checkpoint state before context compaction | ~100-500ms |
+| **SessionEnd** | `session-end.sh` | Auto-end session with handoff summary | ~100-500ms |
+
+**Setup:** `cp .claude/settings.json.example .claude/settings.json && export ENGRAM_AGENT_ID="your-name"`
+
+**Documentation:**
+- Strategy guide: `/docs/HOOKS-AND-AUTOMATION-STRATEGY.md` (21KB)
+- Setup guide: `/docs/SETUP-HOOKS.md` (7KB)
+- Quick reference: `/docs/HOOKS-QUICK-REFERENCE.md` (6.5KB)
+
+## MCP Tools (69)
+
+Engram currently registers 69 `memory_*` tools (workflow-compatible wrappers + atomic primitives + admin/health/event tools).
 For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFERENCE.md`.
 
 | Tool | Description |
@@ -118,7 +140,7 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim: `embed-v4.0`)
 - **MCP SDK** — `@modelcontextprotocol/sdk` v1.x (stdio transport)
 
-## Convex Schema (15 Tables)
+## Convex Schema (14 Tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -137,20 +159,24 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 | `memory_policies` | Scope-level policy overrides |
 | `memory_events` | Watermark-ordered event stream |
 
-## Cron Jobs (10 Scheduled)
+## Cron Jobs (14 Scheduled)
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| Decay | Daily | Differential relevance decay by fact type |
-| Forget | Daily | Archive facts with high forget score |
-| Compact | Daily | Conversation compaction |
-| Consolidate | Weekly | Merge related facts into themes |
-| Rerank | Weekly | Recalculate importance scores |
-| Rules | Monthly | Extract steering rules from patterns |
-| Dedup | Daily | Remove duplicate facts |
-| Cleanup | Daily | Garbage collection + sync log cleanup |
-| Sync | Every 5 min | Vault sync heartbeat |
-| Regenerate Indices | Every 5 min | Trigger index regeneration |
+| usage-analytics | Daily 0:30 UTC | Per-agent daily stats rollup |
+| notification-cleanup | Daily 1:30 UTC | Clean expired notifications |
+| cleanup | Daily 2:00 UTC | Garbage collection + sync log cleanup |
+| dedup | Daily 2:30 UTC | Cross-agent deduplication |
+| decay | Daily 3:00 UTC | Differential relevance decay by fact type |
+| forget | Daily 3:30 UTC | Archive facts with high forget score |
+| compact | Daily 4:00 UTC | Conversation compaction |
+| rules | Daily 7:00 UTC | Extract steering rules from patterns (monthly exec) |
+| consolidate | Weekly Sun 5:00 UTC | Merge related facts into themes |
+| rerank | Weekly Sun 6:00 UTC | Recalculate importance scores |
+| vault-sync-heartbeat | Every 5 min | Vault mirror sync heartbeat |
+| vault-regenerate-indices | Every 5 min | Trigger vault index regeneration |
+| embedding-backfill | Every 15 min | Re-embed failed facts |
+| agent-health | Every 30 min | Stale agent detection + notifications |
 
 ## Agent-Native Principles
 
@@ -204,6 +230,7 @@ Phases 1-6 complete. Core system operational. See [PLAN.md](./PLAN.md) for detai
 
 - OpenClaw setup guide: `/Users/cortex-air/Tools/engram/docs/setup/OPENCLAW-SETUP.md`
 - Claude Code setup guide: `/Users/cortex-air/Tools/engram/docs/setup/CLAUDE-CODE-SETUP.md`
+- Shared agent ID pattern: `/Users/cortex-air/Tools/engram/docs/setup/SHARED-AGENT-ID-PATTERN.md`
 
 ## License
 

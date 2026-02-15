@@ -51,6 +51,28 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "memory_delete_.*|memory_prune|memory_mark_facts_pruned",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validate-memory-ops.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "memory_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-scope-permission.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

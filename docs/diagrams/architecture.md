@@ -5,8 +5,8 @@ flowchart LR
     Agent1[Agent 1] --> MCP[MCP Server]
     Agent2[Agent 2] --> MCP
     Agent3[Agent N] --> MCP
-    OpenClaw[OpenClaw Runtime] -.native plugin path.- Plugin[Future Native Plugin Package]
-    Plugin -.bridge/compat.- MCP
+    OpenClaw[OpenClaw Runtime] -.native plugin path.- Plugin[OpenClaw Native Plugin]
+    Plugin -.shared tool registry.- MCP
     MCP --> Convex[Convex Cloud]
     MCP --> Lance[LanceDB Local]
     Convex --> VI[Vector Index]

@@ -7,7 +7,11 @@
  * Install: openclaw plugins install @engram/openclaw-plugin
  */
 
-import { TOOL_REGISTRY, routeToolCall } from "../../mcp-server/src/lib/tool-registry.js";
+import { TOOL_REGISTRY, routeToolCall } from "../../../mcp-server/src/lib/tool-registry.js";
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
 
 const AGENT_ID = process.env.ENGRAM_AGENT_ID || "openclaw-agent";
 
@@ -55,8 +59,8 @@ export async function callTool(toolName: string, args: unknown) {
 }
 
 export function listTools() {
-  return TOOL_REGISTRY.map((e) => ({
-    name: e.tool.name,
-    description: e.tool.description,
+  return TOOL_REGISTRY.map((entry: (typeof TOOL_REGISTRY)[number]) => ({
+    name: entry.tool.name,
+    description: entry.tool.description,
   }));
 }

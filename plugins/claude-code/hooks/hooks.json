@@ -52,6 +52,28 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "memory_delete_.*|memory_prune|memory_mark_facts_pruned",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-memory-ops.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "memory_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/check-scope-permission.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

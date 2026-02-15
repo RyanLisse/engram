@@ -1,0 +1,32 @@
+---
+title: OpenClaw Setup
+description: Use the native OpenClaw plugin bridged to Engram MCP tools.
+---
+
+## 1) Build plugin
+
+From repository root:
+
+```bash
+npm --prefix plugins/openclaw install
+npm --prefix plugins/openclaw run build
+```
+
+## 2) Configure env
+
+Set the same Engram backend values used by other clients:
+
+- `CONVEX_URL`
+- `ENGRAM_AGENT_ID=openclaw-agent` (or your chosen stable ID)
+- `COHERE_API_KEY` (optional)
+
+## 3) Install plugin in OpenClaw
+
+```bash
+openclaw plugins install @engram/openclaw-plugin
+```
+
+## 4) Verify
+
+- Start OpenClaw with plugin enabled
+- Confirm Engram tools are registered and invocable
