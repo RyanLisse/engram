@@ -1,0 +1,108 @@
+---
+title: Memory Scopes
+description: Scope-based access control for multi-agent memory sharing.
+---
+
+Engram uses scope-based access control to manage which agents can read and write which memories. Scopes are more maintainable than per-fact ACLs and scale cleanly to multi-agent setups.
+
+## Scope Types
+
+| Scope | Purpose | Example |
+|-------|---------|---------|
+| **Private** | Single-agent memory | `private-cammy` |
+| **Team** | Shared between a group of agents | `team-pai` |
+| **Project** | All agents working on a project | `project-engram` |
+| **Public** | Everyone can read | `public` |
+
+## Scope Policies
+
+Each scope can define:
+
+- **readPolicy** — `"members"` or `"all"`
+- **writePolicy** — `"members"`, `"creator"`, or `"all"`
+- **retentionDays** — Auto-archive after N days
+- **memoryPolicy** — Fine-grained control:
+
+```typescript
+{
+  maxFacts: 10000,           // Cap total facts
+  decayRate: 0.97,           // Scope-specific decay
+  prioritizeTypes: ["decision", "correction"],
+  autoForget: true,          // Enable active forgetting
+  compressionStrategy: "merge", // summarize | prune | merge
+}
+```
+
+## How It Works
+
+### Agent Registration
+
+When an agent registers via `memory_register_agent`, a private scope is automatically created:
+
+```
+memory_register_agent({
+  agentId: "my-agent",
+  name: "My Agent",
+  defaultScope: "private-my-agent"
+})
+// → Creates scope "private-my-agent" with agent as sole member
+// → Returns list of all accessible scopes
+```
+
+### Multi-Scope Recall
+
+When an agent calls `memory_recall`, Engram searches across **all permitted scopes** and merges results:
+
+1. Identify all scopes where agent has read access
+2. Run vector search in each scope
+3. Merge results by relevance score
+4. Re-rank by importance
+5. Return unified result set
+
+### Scope Hierarchy
+
+```
+public (all agents)
+  └── team-pai (PAI agents)
+       ├── private-cammy (Cammy only)
+       ├── private-indy (Indy only)
+       └── project-engram (Engram contributors)
+```
+
+An agent in `team-pai` can see:
+- Their own private scope
+- `team-pai` shared scope
+- `public` scope
+
+They **cannot** see another agent's private scope.
+
+## Creating Shared Scopes
+
+Shared scopes are created via the seed script or programmatically:
+
+```typescript
+// Convex mutation
+await ctx.db.insert("memory_scopes", {
+  name: "team-ml",
+  description: "ML team shared memory",
+  members: ["agent-a", "agent-b", "agent-c"],
+  readPolicy: "members",
+  writePolicy: "members",
+});
+```
+
+## ISC (Ideal State Criteria)
+
+Scopes can track project-level goals:
+
+```typescript
+{
+  idealStateCriteria: [
+    { criterion: "All MCP tools pass integration tests", status: "met" },
+    { criterion: "Sub-300ms recall latency", status: "pending" },
+    { criterion: "Zero knowledge loss across sessions", status: "met" },
+  ]
+}
+```
+
+This integrates with warm starts — steering rules and ISC status are injected into agent context automatically.

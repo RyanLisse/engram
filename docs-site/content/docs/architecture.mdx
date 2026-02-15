@@ -1,0 +1,120 @@
+---
+title: Architecture
+description: System architecture, data flow, and design principles behind Engram.
+---
+
+## Overview
+
+Engram is a unified multi-agent memory system built on three layers:
+
+1. **MCP Server** — 12 tool primitives exposed via stdio transport
+2. **Convex Backend** — Cloud database with 10 tables, vector search, and 7 cron jobs
+3. **LanceDB** — Local vector search for sub-10ms offline queries
+
+## System Architecture
+
+```
+┌──────────────────────────┐
+│   AI Agents (MCP Clients)│
+│  ┌────────────────────┐  │
+│  │ Agent A  │ Agent B  │  │
+│  │ Agent C  │ Agent D  │  │
+│  └─────────┬──────────┘  │
+└────────────┼─────────────┘
+             │ 12 MCP Tools (stdio)
+             ▼
+┌──────────────────────────┐
+│    Engram MCP Server     │
+│   (TypeScript, Node.js)  │
+│  ┌──────────┬─────────┐  │
+│  │ Tools    │ Lib     │  │
+│  │ (12)     │ Client  │  │
+│  │          │ Embed   │  │
+│  │          │ Sync    │  │
+│  └──────────┴─────────┘  │
+└──────────┬───────────────┘
+           │
+     ┌─────┴──────┐
+     ▼            ▼
+┌─────────┐  ┌─────────┐
+│ Convex  │  │ LanceDB │
+│ (Cloud) │  │ (Local) │
+│ 10 tbls │  │ Vector  │
+│ Vectors │  │ Search  │
+│ Crons   │  │ <10ms   │
+└────┬────┘  └─────────┘
+     │
+     ▼
+┌─────────┐
+│ Cohere  │
+│ Embed 4 │
+│ 1024dim │
+└─────────┘
+```
+
+## Data Flow: Store & Recall
+
+### Storing a Fact
+
+1. Agent calls `memory_store_fact` with content
+2. MCP server stores raw fact immediately (**< 50ms**)
+3. Async enrichment pipeline kicks off:
+   - Generate embedding (Cohere Embed 4, ~200ms)
+   - Calculate importance score (multi-factor formula)
+   - Update fact with enrichment results
+4. Agent never waits for steps 3+
+
+### Recalling Facts
+
+1. Agent calls `memory_recall` with a query
+2. Query is embedded via Cohere
+3. Vector search across all permitted scopes
+4. Results merged and re-ranked by importance
+5. Access count bumped for retrieved facts
+6. `recallId` returned for feedback tracking
+
+## Memory Lifecycle
+
+Facts flow through a 5-state lifecycle:
+
+```
+active → dormant → merged → archived → pruned
+```
+
+- **Active** — Recently created or accessed
+- **Dormant** — Low access, decaying relevance
+- **Merged** — Consolidated into a theme
+- **Archived** — Soft-deleted, retained for provenance
+- **Pruned** — Agent-initiated cleanup
+
+## Project Structure
+
+```
+engram/
+├── convex/                  # Convex backend
+│   ├── schema.ts            # 10 tables with indexes
+│   ├── functions/           # CRUD + search (9 modules)
+│   ├── actions/             # Async: embed, importance, vectorSearch
+│   ├── crons.ts             # 7 cron job configuration
+│   └── crons/               # Cron implementations
+├── mcp-server/              # MCP server (TypeScript)
+│   ├── src/
+│   │   ├── index.ts         # Server entry point (12 tools)
+│   │   ├── tools/           # 12 tool implementations
+│   │   └── lib/             # convex-client, lance-sync, embeddings
+│   └── package.json
+├── skill/                   # OpenClaw skill package
+│   ├── SKILL.md
+│   └── install.sh
+└── docs/                    # Research + plans
+    ├── research/            # Architecture research papers
+    └── plans/               # Implementation plans
+```
+
+## Design Principles
+
+1. **Parity** — Every agent gets the same memory tools
+2. **Granularity** — Atomic primitives, not workflow-shaped APIs
+3. **Composability** — New memory behaviors = new prompts, not new code
+4. **Emergent Capability** — Raw query escape hatch for unanticipated use
+5. **Improvement Over Time** — Memory IS the improvement mechanism

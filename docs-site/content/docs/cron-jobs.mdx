@@ -1,0 +1,91 @@
+---
+title: Cron Jobs
+description: 7 scheduled jobs that keep the memory system healthy, current, and useful.
+---
+
+Engram runs 7 automated cron jobs inside Convex. No external cron needed, no model costs for the server-side jobs.
+
+## Job Overview
+
+| Job | Schedule | Purpose |
+|-----|----------|---------|
+| **Decay** | Daily | Differential relevance decay by fact type |
+| **Forget** | Daily | Archive facts with high forget score |
+| **Compact** | Daily | Conversation compaction |
+| **Consolidate** | Weekly | Merge related facts into themes |
+| **Rerank** | Weekly | Recalculate importance scores |
+| **Rules** | Monthly | Extract steering rules from patterns |
+| **Cleanup** | Daily | Garbage collection + sync log cleanup |
+
+## Differential Relevance Decay
+
+Decay rate varies by fact type, so important memories persist longer:
+
+| Fact Type | Decay Rate | Notes |
+|-----------|------------|-------|
+| `decision` | 0.998/day | Very slow — decisions matter long |
+| `correction` | 0.995/day | Floor at 0.5 — errors must persist |
+| `observation` | 0.99/day | Standard decay |
+| `note` | 0.985/day | Fast decay — low importance |
+
+Emotional weight further resists decay:
+
+```
+effectiveRelevance = relevanceScore * decayRate^days * (1 + emotionalWeight * 0.5)
+```
+
+## Active Forgetting
+
+Computes a `forgetScore` for each fact based on:
+
+| Signal | Weight | Description |
+|--------|--------|-------------|
+| Superseded | +0.3 | Newer fact on same topic exists |
+| Unused recall | +0.2 | Recalled but never marked as used |
+| Low importance + old | +0.2 | Low importance, low access, old age |
+| Contradicted | +0.3 | Contradicts a higher-importance fact |
+
+Facts with `forgetScore > 0.7` are archived (never true-deleted).
+
+## Conversation Compaction
+
+Reviews conversations exceeding `compactionThresholdBytes`:
+
+1. Summarize message clusters into consolidated facts
+2. Pin high-importance facts (never compact)
+3. Replace verbose threads with concise summaries
+
+## Fact Consolidation → Themes
+
+Weekly job that builds higher-level knowledge:
+
+1. Group related facts by shared entities + embedding similarity (> 0.80)
+2. Generate summary themes (stored in `themes` table)
+3. Create theme embedding for theme-level search
+4. Mark originals: `lifecycleState = "merged"`
+
+## Importance Recalculation
+
+Weekly recomputation of importance scores:
+
+1. Rebuild entity PageRank from relationship graph
+2. Factor in signal/feedback scores
+3. Incorporate learned utility from outcomes (MemRL pattern)
+4. Update all fact importance scores
+
+## Steering Rule Extraction
+
+Monthly analysis of patterns in memory:
+
+1. Analyze facts with low feedback scores
+2. Detect patterns: "When doing X, mistakes happen"
+3. Create `factType: "steering_rule"` facts
+4. Auto-inject into warm starts via `memory_get_context`
+
+## Garbage Collection
+
+Daily cleanup:
+
+- Archive facts in expired scopes (`retentionDays` exceeded)
+- Clean old `sync_log` entries (> 30 days)
+- Never true-delete facts (always archive for provenance)

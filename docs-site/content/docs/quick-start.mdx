@@ -1,0 +1,61 @@
+---
+title: Quick Start
+description: Get Engram running in under 2 minutes if you already have Node.js and Convex.
+---
+
+## TL;DR
+
+```bash
+# Install & build
+cd mcp-server && npm install && npx tsc
+
+# Set environment
+export CONVEX_URL="https://your-deployment.convex.cloud"
+export ENGRAM_AGENT_ID="your-agent-id"
+export COHERE_API_KEY="your-cohere-key"  # Optional
+
+# Run
+node mcp-server/dist/index.js
+```
+
+## MCP Client Configuration
+
+Add to your `.mcp.json` (Claude Code, Windsurf, etc.):
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/path/to/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://your-deployment.convex.cloud",
+        "ENGRAM_AGENT_ID": "indy",
+        "COHERE_API_KEY": "your-key"
+      }
+    }
+  }
+}
+```
+
+## First Commands
+
+**Register your agent:**
+```
+memory_register_agent({ agentId: "my-agent", name: "My Agent", capabilities: ["memory"] })
+```
+
+**Store a fact:**
+```
+memory_store_fact({ content: "Project uses TypeScript + Convex", source: "setup" })
+```
+
+**Recall information:**
+```
+memory_recall({ query: "What tech stack does the project use?" })
+```
+
+**Get full context for warm start:**
+```
+memory_get_context({ topic: "project architecture", maxFacts: 20 })
+```

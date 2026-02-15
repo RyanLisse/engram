@@ -1,0 +1,24 @@
+{
+  "title": "Documentation",
+  "root": true,
+  "pages": [
+    "---Getting Started---",
+    "index",
+    "quick-start",
+    "---Core Concepts---",
+    "architecture",
+    "mcp-tools",
+    "memory-scopes",
+    "---Features---",
+    "enrichment-pipeline",
+    "cron-jobs",
+    "hooks",
+    "---Guides---",
+    "multi-agent",
+    "pai-integration",
+    "---Reference---",
+    "schema",
+    "tech-stack",
+    "troubleshooting"
+  ]
+}

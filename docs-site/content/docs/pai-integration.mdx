@@ -1,0 +1,107 @@
+---
+title: PAI Integration
+description: How Engram integrates with the PAI ecosystem for unified agent memory.
+---
+
+Engram is fully integrated with PAI (Personal AI Infrastructure), providing persistent semantic memory across sessions and devices for all PAI agents.
+
+## Configuration
+
+Add Engram to your PAI `settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/path/to/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://your-deployment.convex.cloud",
+        "ENGRAM_AGENT_ID": "cammy"
+      }
+    }
+  }
+}
+```
+
+## PAI + Engram Complementary Roles
+
+| System | Role |
+|--------|------|
+| **PAI MEMORY/** | Session history — raw logs, summaries, learning captures |
+| **Engram** | Semantic knowledge — atomic facts, entities, themes, cross-session recall |
+
+**Best Practice:** Use PAI MEMORY for session logs, Engram for knowledge persistence.
+
+## Hook Integration
+
+### SessionStart Hook
+
+Load recent context at the start of every session:
+
+```typescript
+const context = await memory_get_context({
+  topic: "recent work and decisions",
+  maxFacts: 20,
+  scopeId: "private-cammy"
+})
+```
+
+### SessionEnd Hook
+
+Store session summaries for future recall:
+
+```typescript
+await memory_store_fact({
+  content: sessionSummary,
+  source: "session-end",
+  tags: ["session-summary", date],
+  factType: "session_summary",
+  scopeId: "private-cammy"
+})
+```
+
+### Sentiment Capture Hook
+
+Record implicit sentiment signals:
+
+```typescript
+await memory_record_signal({
+  signalType: "implicit_sentiment",
+  value: sentimentScore,  // -1 to 1
+  context: "user-message-reaction"
+})
+```
+
+## OpenClaw Integration
+
+For multi-agent OpenClaw workflows, agents use shared scopes:
+
+```typescript
+// Agent A stores a decision in team scope
+await memory_store_fact({
+  content: "Use mesh topology for agent coordination",
+  factType: "decision",
+  scopeId: "team-openclaw"
+})
+
+// Agent B recalls team decisions
+const decisions = await memory_recall({
+  query: "architecture decisions",
+  scopeId: "team-openclaw",
+  factType: "decision"
+})
+```
+
+## Testing
+
+```bash
+# Manual test
+cd /path/to/engram
+./test-engram.sh
+
+# In Claude Code — test the full loop
+memory_register_agent({ agentId: "test", name: "Test Agent" })
+memory_store_fact({ content: "Test fact", source: "test" })
+memory_recall({ query: "test fact" })
+```

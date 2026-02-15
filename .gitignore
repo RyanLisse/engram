@@ -14,3 +14,9 @@ dist/
 # Build output
 mcp-server/dist/
 *.tsbuildinfo
+
+# Documentation site
+docs-site/.next/
+docs-site/node_modules/
+docs-site/dist/
+docs-site/.turbo/

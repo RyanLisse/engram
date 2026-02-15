@@ -1,0 +1,74 @@
+---
+title: Enrichment Pipeline
+description: Async fact processing — embeddings, importance scoring, and entity extraction.
+---
+
+When a fact is stored via `memory_store_fact` or `memory_observe`, an async enrichment pipeline processes it in the background. The agent never waits — step 1 returns immediately in under 50ms.
+
+## Pipeline Steps
+
+```
+1. Store raw fact immediately (< 50ms)
+   ↓
+2. Generate embedding (Cohere Embed 4, ~200ms, 1024-dim)
+   ↓
+3. Calculate importance score (multi-factor formula + emotional weight)
+   ↓
+4. Update fact with all enrichment results
+   ↓
+5. Sync log: mark as pending sync for all registered nodes
+```
+
+Future pipeline steps (deferred to v2):
+- Semantic compression (coreference resolution)
+- Synthesis check (merge similar facts, cosine > 0.85)
+- Entity extraction (GPT-4o-mini)
+- Temporal/causal link extraction
+
+## Embeddings
+
+Engram uses **Cohere Embed 4** for multimodal embeddings:
+
+- **Dimensions:** 1024
+- **Model:** `embed-v4.0`
+- **Capabilities:** Text + images + code
+- **Latency:** ~200ms per embedding
+
+Embeddings power vector search in both Convex (cloud) and LanceDB (local).
+
+## Importance Scoring
+
+Importance is calculated using a multi-factor formula:
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Fact type | High | Decisions and corrections score higher |
+| Emotional weight | Medium | Emotional context resists decay |
+| Entity connections | Medium | Facts linking important entities score higher |
+| Recency | Low | Recently stored facts get a small boost |
+
+### Emotional Anchoring
+
+Facts with emotional context get boosted importance and decay resistance:
+
+```
+effectiveDecay = baseDecay * (1 + emotionalWeight * 0.5)
+```
+
+Available emotional contexts: `frustrated`, `proud`, `embarrassed`, `surprised`, `confident`, `key-insight`, `important-lesson`
+
+## Failure Handling
+
+Facts track enrichment status: `pending` → `enriching` → `enriched` | `failed`
+
+- Failed facts retry with exponential backoff
+- Daily backfill cron catches remaining failures
+- Retry every 30 minutes for the first 6 hours
+
+## Implementation
+
+Enrichment is implemented as a single Convex `internalAction` per fact, triggered via `ctx.scheduler.runAfter(0, ...)` from the store mutation. This ensures:
+
+- Non-blocking storage
+- Automatic retry via `@convex-dev/action-retrier`
+- Idempotent operations (checks if enrichment already exists before calling external APIs)

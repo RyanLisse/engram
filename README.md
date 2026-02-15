@@ -101,13 +101,13 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 
 ## Tech Stack
 
-- **Convex** — Cloud backend (14 tables, native vector search, scheduled functions, crons)
+- **Convex** — Cloud backend (15 tables, native vector search, scheduled functions, crons)
 - **LanceDB** — Local vector search (sub-10ms, offline, mergeInsert sync)
 - **TypeScript** — MCP server + Convex functions
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim: `embed-v4.0`)
 - **MCP SDK** — `@modelcontextprotocol/sdk` v1.x (stdio transport)
 
-## Convex Schema (14 Tables)
+## Convex Schema (15 Tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -126,7 +126,7 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 | `memory_policies` | Scope-level policy overrides |
 | `memory_events` | Watermark-ordered event stream |
 
-## Cron Jobs (11 Scheduled)
+## Cron Jobs (10 Scheduled)
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
@@ -136,10 +136,10 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 | Consolidate | Weekly | Merge related facts into themes |
 | Rerank | Weekly | Recalculate importance scores |
 | Rules | Monthly | Extract steering rules from patterns |
-| Notification cleanup | Daily | Expire old notifications |
-| Vault sync heartbeat | Every 5 min | Drive mirror sync daemon |
-| Vault index regenerate | Every 5 min | Trigger index regeneration |
+| Dedup | Daily | Remove duplicate facts |
 | Cleanup | Daily | Garbage collection + sync log cleanup |
+| Sync | Every 5 min | Vault sync heartbeat |
+| Regenerate Indices | Every 5 min | Trigger index regeneration |
 
 ## Agent-Native Principles
 
@@ -160,10 +160,10 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 ```
 engram/
 ├── convex/                  # Convex backend
-│   ├── schema.ts            # 14 tables with indexes
+│   ├── schema.ts            # 15 tables with indexes
 │   ├── functions/           # CRUD + search (9 modules)
 │   ├── actions/             # Async: embed, importance, vectorSearch, enrich
-│   ├── crons.ts             # 11 cron job configuration
+│   ├── crons.ts             # 10 cron job configuration
 │   └── crons/               # Cron implementations
 ├── mcp-server/              # MCP server (TypeScript)
 │   ├── src/

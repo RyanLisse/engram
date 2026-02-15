@@ -1,0 +1,146 @@
+---
+title: MCP Tools
+description: All 12 MCP tool primitives — store, recall, search, link, observe, and more.
+---
+
+Engram exposes 12 atomic tool primitives via the Model Context Protocol. Each tool is designed to be composable — agents combine them to build complex memory behaviors.
+
+## Core Tools
+
+### `memory_store_fact`
+
+Store an atomic fact with scope, entities, and tags. Triggers async enrichment.
+
+```
+Input:  { content, source?, entityIds?, tags?, factType?, scopeId?, emotionalContext? }
+Output: { factId, importanceScore }
+```
+
+**Side-effect:** Triggers async enrichment (embedding, entity extraction, importance scoring)
+
+### `memory_recall`
+
+Semantic search across permitted scopes. The primary retrieval tool.
+
+```
+Input:  { query, limit?, scopeId?, factType?, minImportance?, searchStrategy? }
+Output: { facts: [{ id, content, importance, relevance, source, entities }], recallId }
+```
+
+**searchStrategy options:** `"semantic"` (default) | `"fulltext"` | `"temporal"` | `"hybrid"`
+
+**Side-effect:** Bumps `accessedCount`, returns `recallId` for feedback tracking
+
+### `memory_search`
+
+Full-text + structured filters. For precise lookups when you know what you're looking for.
+
+```
+Input:  { text?, tags?, factType?, agentId?, dateRange?, scopeId? }
+Output: { facts: [...] }
+```
+
+### `memory_link_entity`
+
+Create or update an entity and its relationships.
+
+```
+Input:  { entityId, name, type, metadata?, relationships? }
+Output: { entity, created: boolean }
+```
+
+### `memory_get_context`
+
+Warm start tool. Returns everything relevant for a topic/project.
+
+```
+Input:  { topic, maxTokens?, maxFacts?, includeSessions?, includeEntities?, includeThemes? }
+Output: { facts, entities, themes, recentSessions, steeringRules, summary }
+```
+
+When `maxTokens` is set, fills the budget with highest-importance facts first (token-aware injection).
+
+### `memory_observe`
+
+Passive, fire-and-forget observation storage. Low-ceremony.
+
+```
+Input:  { observation, emotionalContext? }
+Output: { ack: true }
+```
+
+**Side-effect:** Same async enrichment as `store_fact`
+
+### `memory_register_agent`
+
+Agent self-registers on first interaction. Creates a private scope automatically.
+
+```
+Input:  { agentId, name, capabilities?, defaultScope?, telos? }
+Output: { agent, scopes: [...available] }
+```
+
+### `memory_query_raw`
+
+Escape hatch for emergent use. Direct Convex query access (read-only).
+
+```
+Input:  { table, filter?, sort?, limit? }
+Output: { results: [...] }
+```
+
+## Feedback Tools
+
+### `memory_record_signal`
+
+Record explicit ratings or implicit sentiment on facts. Low ratings (1-3) auto-store full context as correction facts.
+
+```
+Input:  { factId?, signalType, value, comment?, context? }
+Output: { signalId }
+```
+
+**signalType:** `"explicit_rating"` | `"implicit_sentiment"` | `"failure"`
+
+### `memory_record_feedback`
+
+Post-recall feedback: which recalled facts were actually helpful. Feeds into importance recalculation.
+
+```
+Input:  { recallId, usedFactIds: string[], unusedFactIds?: string[] }
+Output: { ack: true }
+```
+
+## Maintenance Tools
+
+### `memory_summarize`
+
+Consolidate facts on a topic into a summary fact.
+
+```
+Input:  { topic, scopeId?, maxFacts? }
+Output: { summaryFactId, consolidatedCount }
+```
+
+### `memory_prune`
+
+Agent-initiated cleanup of stale or irrelevant facts. Never true-deletes — always archives.
+
+```
+Input:  { scopeId?, olderThanDays?, maxForgetScore?, dryRun? }
+Output: { prunedCount, prunedFactIds }
+```
+
+## Fact Types
+
+| Type | Description | Decay Rate |
+|------|-------------|------------|
+| `decision` | Architecture/tech decisions | 0.998/day (very slow) |
+| `correction` | Error corrections | 0.995/day, floor 0.5 |
+| `observation` | General observations | 0.99/day (standard) |
+| `insight` | Discovered patterns | 0.99/day |
+| `error` | Error records | 0.995/day |
+| `plan` | Plans and intentions | 0.99/day |
+| `steering_rule` | Extracted behavior rules | 0.998/day |
+| `session_summary` | End-of-session summaries | 0.99/day |
+| `learning` | Learned behaviors | 0.995/day |

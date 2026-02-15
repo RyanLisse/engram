@@ -1,0 +1,147 @@
+---
+title: Schema Reference
+description: All 10 Convex tables — facts, entities, conversations, sessions, agents, scopes, signals, themes, and sync.
+---
+
+Engram uses 10 Convex tables to store all memory data. This page documents the complete schema.
+
+## `facts`
+
+The core table. Every memory unit is a fact.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `content` | string | The fact content |
+| `factualSummary` | string? | Compressed representation |
+| `timestamp` | number | Creation time |
+| `updatedAt` | number? | Last modification |
+| `source` | string | Origin of the fact |
+| `entityIds` | string[] | Linked entity IDs |
+| `relevanceScore` | float64 | Current relevance (decays) |
+| `accessedCount` | number | Times retrieved |
+| `importanceScore` | float64 | Computed importance |
+| `outcomeScore` | float64? | Learned utility from outcomes |
+| `createdBy` | string | Agent ID |
+| `contributingAgents` | string[]? | Collaborative provenance |
+| `conversationId` | Id? | Link to conversation |
+| `scopeId` | Id | Memory scope |
+| `tags` | string[] | User tags |
+| `factType` | string | decision\|observation\|correction\|insight\|error\|plan\|steering_rule\|learning\|session_summary |
+| `embedding` | float64[]? | 1024-dim Cohere vector |
+| `lifecycleState` | string? | active\|dormant\|merged\|archived\|pruned |
+| `mergedInto` | Id? | Pointer if merged |
+| `forgetScore` | float64? | 0.0=keep, 1.0=forget |
+| `emotionalContext` | string? | frustrated\|proud\|embarrassed\|surprised\|confident |
+| `emotionalWeight` | float64? | 0.0-1.0, affects decay resistance |
+
+**Indexes:** `by_scope`, `by_agent`, `by_type`, `by_importance`, `by_lifecycle`, `search_content` (full-text), `vector_search` (1024-dim)
+
+## `entities`
+
+Named concepts with a relationship graph.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `entityId` | string | Unique ID (e.g. "entity-ryan") |
+| `name` | string | Display name |
+| `type` | string | person\|project\|company\|concept\|tool |
+| `firstSeen` | number | First mention time |
+| `lastSeen` | number | Last mention time |
+| `metadata` | any | Flexible key-value |
+| `relationships` | object[] | `{ targetId, relationType, since }` |
+| `importanceScore` | float64 | PageRank-based |
+| `accessCount` | number | Access frequency |
+
+## `conversations`
+
+Thread facts together with handoff tracking.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sessionId` | Id | Parent session |
+| `participants` | string[] | Agent IDs |
+| `threadFacts` | Id[] | Linked facts |
+| `contextSummary` | string | Conversation summary |
+| `importance` | float64 | Computed importance |
+| `handoffs` | object[] | `{ fromAgent, toAgent, timestamp, contextSummary }` |
+
+## `sessions`
+
+Agent session tracking.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agentId` | string | Agent ID |
+| `startTime` | number | Session start |
+| `lastActivity` | number | Last activity time |
+| `conversationIds` | Id[] | Linked conversations |
+| `factCount` | number | Facts in session |
+| `contextSummary` | string | Session summary |
+| `parentSession` | Id? | Parent session (delegation) |
+| `nodeId` | string? | Device/node ID |
+
+## `agents`
+
+Agent registry with capabilities.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agentId` | string | Unique agent ID |
+| `name` | string | Display name |
+| `capabilities` | string[] | Agent capabilities |
+| `lastSeen` | number | Last activity |
+| `factCount` | number | Total facts stored |
+| `defaultScope` | string | Default memory scope |
+| `telos` | string? | Agent purpose/goal |
+
+## `memory_scopes`
+
+Scope-based access control.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Scope name |
+| `description` | string | Scope description |
+| `members` | string[] | Agent IDs with access |
+| `readPolicy` | string | members\|all |
+| `writePolicy` | string | members\|creator\|all |
+| `retentionDays` | number? | Auto-archive threshold |
+| `memoryPolicy` | object? | Fine-grained memory control |
+
+## `signals`
+
+Feedback loop for ratings and sentiment.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `factId` | Id? | Related fact |
+| `agentId` | string | Signal source |
+| `signalType` | string | explicit_rating\|implicit_sentiment\|failure |
+| `value` | number | 1-10 for ratings, -1.0 to 1.0 for sentiment |
+| `comment` | string? | Optional description |
+| `timestamp` | number | Signal time |
+
+## `themes`
+
+Consolidated fact clusters (weekly cron output).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Theme name |
+| `description` | string | Theme summary |
+| `factIds` | Id[] | Source facts |
+| `entityIds` | Id[] | Related entities |
+| `scopeId` | Id | Memory scope |
+| `importance` | float64 | Theme importance |
+| `embedding` | float64[]? | 1024-dim vector |
+
+## `sync_log`
+
+Per-node LanceDB sync tracking.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodeId` | string | Device node ID |
+| `lastSyncTimestamp` | number | Last sync time |
+| `factsSynced` | number | Facts synced |
+| `status` | string | ok\|error\|syncing |

@@ -26,7 +26,7 @@ Every OpenClaw agent shares one brain. Store facts, recall context, build knowle
 ```
 engram/
 ├── convex/                  # Convex backend
-│   ├── schema.ts            # 10 tables (was 7 + 3 new)
+│   ├── schema.ts            # 15 tables (was 7, expanded for full feature set)
 │   ├── functions/
 │   │   ├── facts.ts         # CRUD + search + vector search
 │   │   ├── entities.ts      # CRUD + relationship graph
@@ -86,7 +86,7 @@ engram/
 
 ---
 
-## Convex Schema (10 Tables)
+## Convex Schema (15 Tables)
 
 ### `facts` (enhanced from research)
 ```typescript

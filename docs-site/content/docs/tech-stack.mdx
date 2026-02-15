@@ -1,0 +1,77 @@
+---
+title: Tech Stack
+description: Technology choices and rationale behind Engram's architecture.
+---
+
+## Core Stack
+
+| Component | Technology | Rationale |
+|-----------|-----------|-----------|
+| **Backend** | Convex | Realtime, native vector search, scheduled functions, free tier |
+| **Embeddings** | Cohere Embed 4 (1024-dim) | Multimodal (text + images + code), SOTA quality |
+| **MCP SDK** | `@modelcontextprotocol/sdk` v1.x | stdio transport, wide client support |
+| **Entity Extraction** | GPT-4o-mini | $0.04/1K facts, works in Convex V8 isolates |
+| **Local Vector DB** | LanceDB (`@lancedb/lancedb`) | Sub-10ms, offline, `mergeInsert` upserts |
+| **HTTP Client** | `ConvexHttpClient` | Stateless HTTP, no WebSocket overhead |
+| **Language** | TypeScript | End-to-end type safety |
+
+## Key Decisions
+
+### Why Convex?
+
+- **Native vector search** — No need for a separate vector DB in the cloud
+- **Scheduled functions** — Cron jobs run inside Convex, no external scheduler
+- **Realtime subscriptions** — Future UI can subscribe to memory changes
+- **Free tier** — Generous limits for personal/small-team use
+- **V8 isolates** — Actions can call external APIs (Cohere, GPT-4o-mini)
+
+### Why Cohere Embed 4?
+
+- **Multimodal** — Handles text, images, and code in one model
+- **1024 dimensions** — Good balance of quality vs. storage
+- **SOTA quality** — Top results on MTEB benchmarks
+- **Replaces OpenAI** — Better quality for embedding-specific tasks
+
+### Why LanceDB?
+
+- **Sub-10ms** — Local vector search is nearly instant
+- **Offline support** — Works without cloud connectivity
+- **`mergeInsert`** — Atomic upserts for sync operations
+- **Multi-vector** — Can store multiple vectors per row
+- **No indexes needed** — Brute-force is fast enough under ~50K records
+
+### Why stdio Transport?
+
+- **Universal** — Works with Claude Code, Windsurf, and other MCP clients
+- **Simple** — No HTTP server, port management, or CORS
+- **Secure** — No network exposure
+
+## Implementation Patterns
+
+### Convex Patterns
+
+- **Action orchestrates, mutation writes** — Enrichment pipeline uses `internalAction` for external APIs, calls `internalMutation` to persist results
+- **Paginated cron processing** — Crons batch-process 500 records with self-continuation via `ctx.scheduler.runAfter(0, ...)`
+- **Idempotent actions** — Check if enrichment exists before calling external APIs on retry
+
+### MCP Server Patterns
+
+- **All logging to stderr** — `console.error` only. `console.log` corrupts JSON-RPC
+- **Error responses for LLMs** — Return `isError: true` with what/why/what-to-do guidance
+- **Circuit breaker** — Wraps Convex calls (3 failures → 30s open → half-open retry)
+
+### LanceDB Patterns
+
+- **No vector indexes initially** — Brute-force < 10ms for < 50K records
+- **BTree indexes** — On `scopeId` and `factType` immediately
+- **HNSW-SQ** — Add when local fact count exceeds ~20K rows
+- **Lazy singleton** — Connection and table handles
+
+## Competitive Landscape
+
+| System | Approach | Engram Differentiator |
+|--------|----------|-----------------------|
+| **Mem0** | Single-agent, vector + graph | Multi-agent-first, scope ACLs, differential decay |
+| **Letta/MemGPT** | 3-tier memory blocks | More fact types, signals/feedback loop |
+| **EverMemOS** | MemCell/MemScene hierarchy | Local-first hybrid, MCP-native |
+| **Supermemory** | Container-based, profiles | Richer policies, multi-graph retrieval |

@@ -1,0 +1,108 @@
+---
+title: Getting Started
+description: Set up Engram — unified multi-agent memory — in 5 minutes.
+---
+
+## What is Engram?
+
+Engram is like a shared notebook for your AI assistants — when one assistant learns something, the others can remember it too. It stores facts, finds them later using meaning (not just keywords), and keeps everything synced across your devices.
+
+Think of it as giving your AI agents a long-term memory they can all share.
+
+## What You'll Need
+
+- **Node.js** (version 18+) — [nodejs.org](https://nodejs.org)
+- **A free Convex account** — [convex.dev](https://www.convex.dev)
+- **Claude Code** (or another MCP-compatible AI client)
+- **A Cohere API key** (optional) — enables real semantic search. Free tier at [cohere.com](https://dashboard.cohere.com/api-keys)
+
+## Setup in 5 Steps
+
+### Step 1: Download Engram
+
+```bash
+git clone https://github.com/RyanLisse/engram.git
+cd engram
+```
+
+### Step 2: Set Up Convex Backend
+
+```bash
+npm install
+npx convex dev
+```
+
+This will:
+1. Ask you to log in to Convex (creates a free account if needed)
+2. Create a new project
+3. Give you a deployment URL like `https://happy-animal-123.convex.cloud`
+
+Leave this terminal running and open a **new terminal** for the next steps.
+
+### Step 3: Configure Environment
+
+```bash
+cd engram/mcp-server
+npm install
+```
+
+Create a `.env` file in the `mcp-server` folder:
+
+```bash
+CONVEX_URL=https://your-deployment.convex.cloud
+ENGRAM_AGENT_ID=my-assistant
+COHERE_API_KEY=  # optional
+```
+
+### Step 4: Build the Server
+
+```bash
+npm run build
+```
+
+### Step 5: Connect to Claude Code
+
+Add to your `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/FULL/PATH/TO/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://your-deployment.convex.cloud",
+        "ENGRAM_AGENT_ID": "my-assistant",
+        "COHERE_API_KEY": ""
+      }
+    }
+  }
+}
+```
+
+Restart Claude Code. You should now see Engram's 12 memory tools available.
+
+## Your First Memory
+
+**Store a fact:**
+
+> "Remember that my preferred programming language is Python."
+
+The assistant calls `memory_store_fact` and saves this to your shared memory.
+
+**Recall it later (even in a new conversation):**
+
+> "What do you remember about my programming preferences?"
+
+The assistant calls `memory_recall`, searches by meaning, and finds the fact — even if you used different words.
+
+## Common Questions
+
+**What if I don't have a Cohere API key?**
+Engram works without one. Semantic search will be less precise, but all 12 tools function normally. Add a key later — no data is lost.
+
+**Can multiple agents share memory?**
+Yes. Each agent gets its own ID and memories can be scoped as private, team, project, or public.
+
+**Does it work offline?**
+The current version requires Convex connectivity. A future update will add local-only mode via LanceDB.

@@ -1,0 +1,94 @@
+---
+title: Troubleshooting
+description: Common issues and solutions when running Engram.
+---
+
+## MCP Server Won't Start
+
+**"Cannot find module" error:**
+
+You likely skipped the build step:
+```bash
+cd mcp-server
+npm install && npm run build
+```
+
+**Check the server manually:**
+```bash
+node /path/to/engram/mcp-server/dist/index.js
+```
+
+## Connection Issues
+
+**"CONVEX_URL is not set":**
+
+Verify your `.mcp.json` has the correct Convex URL:
+- Must start with `https://`
+- Must end with `.convex.cloud`
+- The `npx convex dev` process must be running
+
+**Check your config:**
+```bash
+cat ~/.mcp.json | jq '.mcpServers.engram'
+```
+
+## Claude Code Doesn't Show Engram Tools
+
+1. **Restart Claude Code** after editing `.mcp.json`
+2. Verify the path in `args` points to the actual `dist/index.js`
+3. Test the server directly:
+```bash
+node /path/to/engram/mcp-server/dist/index.js
+```
+
+## Facts Not Storing
+
+1. Check Convex dashboard: [dashboard.convex.dev](https://dashboard.convex.dev)
+2. Verify agent is registered: call `memory_register_agent`
+3. Check scope exists (created automatically on registration)
+
+## Recall Returns Nothing
+
+**Embeddings not ready:**
+Wait for async enrichment (< 5 seconds after storing).
+
+**Scope mismatch:**
+Ensure the `scopeId` matches where facts were stored.
+
+**Try structured search:**
+Use `memory_search` with text/tag filters instead of `memory_recall`.
+
+## Convex Deployment Issues
+
+```bash
+cd /path/to/engram
+npx convex dev    # Redeploy backend
+```
+
+## Node.js Version
+
+Engram requires Node.js 18+:
+```bash
+node --version
+```
+
+If below 18, update from [nodejs.org](https://nodejs.org).
+
+## TypeErrors from Tools
+
+Common causes:
+- **Wrong parameter types** — Check the tool schema in the MCP tools docs
+- **Missing required fields** — `content` is required for `memory_store_fact`
+- **Invalid scope** — Scope must exist before writing to it
+
+## Performance Issues
+
+**Slow recall (> 300ms):**
+- Check if Cohere API key is configured (without it, search falls back to full-text)
+- Reduce result `limit` parameter
+- Use `factType` filter to narrow scope
+
+**Slow storage:**
+- Storage itself should be < 50ms
+- Enrichment is async and doesn't block the response
+- If storage feels slow, check Convex dashboard for function latency

@@ -1,0 +1,144 @@
+---
+title: Multi-Agent Patterns
+description: Coordination patterns for multiple agents sharing Engram memory.
+---
+
+Engram is multi-agent-first. Every agent gets the same tools, and scope-based access control manages what they can see.
+
+## Agent Registration
+
+Each agent self-registers on first interaction:
+
+```typescript
+memory_register_agent({
+  agentId: "coder-1",
+  name: "Code Agent",
+  capabilities: ["coding", "testing", "refactoring"],
+  defaultScope: "private-coder-1",
+  telos: "Ship clean, tested code"
+})
+```
+
+This creates:
+- An agent record in the `agents` table
+- A private scope for the agent
+- Returns all accessible scopes
+
+## Agent Coordination
+
+### Decision Sharing
+
+**Agent A** stores an architecture decision:
+
+```typescript
+memory_store_fact({
+  content: "Use mesh topology for agent coordination",
+  source: "architecture-decision",
+  tags: ["architecture", "multi-agent"],
+  factType: "decision",
+  scopeId: "team-openclaw"
+})
+```
+
+**Agent B** recalls decisions before starting work:
+
+```typescript
+memory_recall({
+  query: "architecture decisions for agent coordination",
+  scopeId: "team-openclaw",
+  factType: "decision"
+})
+```
+
+### Context Handoffs
+
+When Agent A delegates work to Agent B:
+
+1. Agent A stores a session summary with current context
+2. Handoff record created linking both agents
+3. Agent B auto-receives relevant scope access
+4. On completion, Agent B's discoveries merge back
+
+```
+Agent A (orchestrator)
+  ├── Stores context summary
+  ├── Creates handoff record
+  └── Delegates to Agent B
+       ├── Auto-registers with project scope
+       ├── Receives warm start context
+       ├── Does work, stores facts
+       └── On complete: facts promote to parent scope
+```
+
+### Warm Starts
+
+Every agent session begins with a warm start:
+
+```typescript
+memory_get_context({
+  topic: "current project status and recent decisions",
+  maxFacts: 30,
+  includeEntities: true,
+  includeThemes: true
+})
+```
+
+This returns:
+- Recent high-importance facts
+- Active entities and relationships
+- Consolidated themes
+- Steering rules (learned behavior patterns)
+
+## Multi-Agent Memory Patterns
+
+### Pattern: Shared Learning
+
+When one agent discovers something useful:
+
+```typescript
+// Agent A discovers a pattern
+memory_store_fact({
+  content: "API rate limit is 100 req/min, not 1000 as documented",
+  factType: "correction",
+  scopeId: "team-backend",  // shared scope
+  emotionalContext: "important-lesson"
+})
+```
+
+All agents in `team-backend` will see this correction in their warm starts.
+
+### Pattern: Collaborative Knowledge Building
+
+Multiple agents contribute to the same knowledge base:
+
+```typescript
+// Agent A stores research finding
+memory_store_fact({ content: "...", scopeId: "project-ml", factType: "insight" })
+
+// Agent B stores related finding
+memory_store_fact({ content: "...", scopeId: "project-ml", factType: "insight" })
+
+// Weekly consolidation cron merges related facts into themes
+// All agents benefit from the consolidated knowledge
+```
+
+### Pattern: Feedback Loop
+
+Agents rate the usefulness of recalled facts:
+
+```typescript
+// Recall facts
+const { facts, recallId } = memory_recall({ query: "..." })
+
+// Use some facts, skip others
+// ...
+
+// Report which were useful
+memory_record_feedback({
+  recallId,
+  usedFactIds: ["fact-1", "fact-3"],
+  unusedFactIds: ["fact-2"]
+})
+```
+
+This feeds into importance recalculation, improving recall quality over time.

@@ -1,0 +1,97 @@
+---
+title: Hooks
+description: Event-driven hooks that make memory automatic, not manual.
+---
+
+Hooks are event-driven triggers that automate common memory operations. They integrate with AI agent session lifecycles and external events.
+
+## Session Lifecycle Hooks
+
+### `on_session_start` — Warm Start Injection
+
+**Trigger:** Any agent session starts
+
+**Action:**
+1. Detect topic from channel/agent/recent messages
+2. Call `memory_get_context(topic, limit=20)`
+3. Inject top facts as hidden context before first turn
+
+Replaces static `MEMORY.md` with dynamic, relevance-weighted context. Agent only sees what matters for THIS conversation.
+
+### `on_session_end` — Auto-Summarize & Store
+
+**Trigger:** Session ends, compacts, or goes idle > 30min
+
+**Action:**
+1. Summarize session (decisions, corrections, patterns, entities)
+2. Store as facts with `factType: "session_summary"`
+3. Update session record with `contextSummary`
+4. Link to conversation thread
+
+The anti-context-rot hook. Nothing is lost between sessions.
+
+### `on_agent_spawn` — Context Handoff
+
+**Trigger:** Agent spawns a sub-agent
+
+**Action:**
+1. Summarize parent's current conversation context
+2. Create conversation handoff record
+3. Attach relevant scope facts to child agent's context
+4. Child agent auto-registers with parent's project scope
+
+Zero knowledge loss on delegation.
+
+## Memory Event Hooks
+
+### `on_fact_stored` — Enrichment Pipeline
+
+**Trigger:** Any `memory_store_fact` or `memory_observe` call
+
+Kicks off the async enrichment pipeline (embeddings, entities, importance scoring).
+
+### `on_correction` — Learning Amplifier
+
+**Trigger:** Detects correction patterns like "no, actually...", "that's wrong", "not X, Y"
+
+**Action:**
+1. Store as fact with `factType: "correction"`, `importanceScore: 0.9`
+2. Set minimum decay floor at 0.5
+3. Link to the fact being corrected
+4. Tag with `["correction", "high-priority"]`
+
+Corrections are the highest-value memory. Agents should never repeat a corrected mistake.
+
+### `on_handoff_complete` — Merge Back
+
+**Trigger:** Spawned agent session ends
+
+**Action:**
+1. Collect facts from child agent's private scope
+2. Promote relevant facts to parent's project scope
+3. Update handoff record with completion summary
+4. Merge entity discoveries back to shared graph
+
+### `on_conflict` — Fact Contradiction Detection
+
+**Trigger:** New fact has semantic similarity > 0.9 with existing fact but opposite content
+
+**Action:**
+1. Flag both facts as `conflicting`
+2. Do NOT auto-resolve
+3. Surface to agent for resolution
+4. On resolution: deprecate old fact, boost new fact importance
+
+## External Event Hooks
+
+### `on_tool_error` — Error Memory
+
+Stores tool errors as facts so agents avoid hitting the same wall twice. Next time the agent uses the same tool, relevant errors surface via warm start.
+
+### `on_research_complete` — Knowledge Ingestion
+
+Parses research output into atomic facts, extracts entities, and creates conversation records linking all research facts.
+
+### `on_bookmark_processed` — External Knowledge
+
+Extracts insights from bookmarked content and stores as facts with source URLs and entity links.
