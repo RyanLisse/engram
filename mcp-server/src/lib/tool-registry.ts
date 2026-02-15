@@ -55,6 +55,26 @@ import {
   updateFact, updateFactSchema,
 } from "../tools/admin-primitives.js";
 
+import { rankCandidatesPrimitive, rankCandidatesSchema } from "../tools/rank-candidates.js";
+
+import {
+  resolveScopes, resolveScopesSchema,
+  loadBudgetedFacts, loadBudgetedFactsSchema,
+  searchDailyNotes, searchDailyNotesSchema,
+  getGraphNeighbors, getGraphNeighborsSchema,
+  getActivityStats, getActivityStatsSchema,
+  getWorkspaceInfo, getWorkspaceInfoSchema,
+} from "../tools/context-primitives.js";
+
+import {
+  vaultExport, vaultExportSchema,
+  vaultImport, vaultImportSchema,
+  vaultListFiles, vaultListFilesSchema,
+  vaultReconcile, vaultReconcileSchema,
+} from "../tools/vault-primitives.js";
+
+import { buildFullSystemPrompt, buildFullSystemPromptSchema } from "../tools/system-prompt-builder.js";
+
 import {
   bumpAccessBatch, bumpAccessSchema,
   getEntitiesPrimitive, getEntitiesPrimitiveSchema,
@@ -707,6 +727,260 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     },
     zodSchema: searchThemesSchema,
     handler: (args) => searchThemesPrimitive(args),
+  },
+
+  // ── Rank Candidates ────────────────────────────────
+  {
+    tool: {
+      name: "memory_rank_candidates",
+      description: "Primitive: hybrid ranking of candidate facts. Scores = 0.45×semantic + 0.15×lexical + 0.20×importance + 0.10×freshness + 0.10×outcome.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Query for lexical scoring" },
+          candidates: { type: "array", items: { type: "object", properties: { _id: { type: "string" }, content: { type: "string" }, timestamp: { type: "number" }, importanceScore: { type: "number" }, outcomeScore: { type: "number" }, _score: { type: "number" } }, required: ["_id", "content", "timestamp"] }, description: "Candidate facts to rank" },
+          limit: { type: "number", description: "Max results (default: 10)" },
+        },
+        required: ["query", "candidates"],
+      },
+    },
+    zodSchema: rankCandidatesSchema,
+    handler: (args) => rankCandidatesPrimitive(args),
+  },
+
+  // ── Context Primitives (decomposed from get_context) ──
+  {
+    tool: {
+      name: "memory_resolve_scopes",
+      description: "Primitive: resolve scope name→ID or get all permitted scopes for agent. Use before any scoped search.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scopeId: { type: "string", description: "Scope name or ID to resolve (omit for all permitted)" },
+          agentId: { type: "string", description: "Agent ID (defaults to current)" },
+        },
+      },
+    },
+    zodSchema: resolveScopesSchema,
+    handler: (args, agentId) => resolveScopes(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_load_budgeted_facts",
+      description: "Primitive: token-budget-aware fact loading with query intent detection. Profiles: default, planning, incident, handoff.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Topic or search query" },
+          tokenBudget: { type: "number", description: "Max token budget (default: 4000)" },
+          scopeId: { type: "string", description: "Scope ID to search within" },
+          maxFacts: { type: "number", description: "Max facts to load (default: 20)" },
+          profile: { type: "string", enum: ["default", "planning", "incident", "handoff"], description: "Context profile" },
+        },
+        required: ["query"],
+      },
+    },
+    zodSchema: loadBudgetedFactsSchema,
+    handler: (args) => loadBudgetedFacts(args),
+  },
+  {
+    tool: {
+      name: "memory_search_daily_notes",
+      description: "Primitive: search vault daily notes for matching text.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Text to search for" },
+          maxFiles: { type: "number", description: "Max files to scan (default: 5)" },
+          snippetLength: { type: "number", description: "Max snippet chars (default: 160)" },
+        },
+        required: ["query"],
+      },
+    },
+    zodSchema: searchDailyNotesSchema,
+    handler: (args) => searchDailyNotes(args),
+  },
+  {
+    tool: {
+      name: "memory_get_graph_neighbors",
+      description: "Primitive: find facts connected via shared entity IDs (knowledge graph traversal).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          entityIds: { type: "array", items: { type: "string" }, description: "Entity IDs to find connected facts for" },
+          scopeIds: { type: "array", items: { type: "string" }, description: "Scope IDs to search within" },
+          limit: { type: "number", description: "Max results (default: 20)" },
+        },
+        required: ["entityIds"],
+      },
+    },
+    zodSchema: getGraphNeighborsSchema,
+    handler: (args) => getGraphNeighbors(args),
+  },
+  {
+    tool: {
+      name: "memory_get_activity_stats",
+      description: "Primitive: agent activity tracking — factsStored, recalls, signals, handoffs in a period.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agentId: { type: "string", description: "Agent ID (defaults to current)" },
+          periodHours: { type: "number", description: "Lookback period in hours (default: 24)" },
+        },
+      },
+    },
+    zodSchema: getActivityStatsSchema,
+    handler: (args, agentId) => getActivityStats(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_get_workspace_info",
+      description: "Primitive: workspace awareness — other agents, their capabilities, shared scopes and member counts.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agentId: { type: "string", description: "Agent ID (defaults to current)" },
+        },
+      },
+    },
+    zodSchema: getWorkspaceInfoSchema,
+    handler: (args, agentId) => getWorkspaceInfo(args, agentId),
+  },
+
+  // ── Vault Primitives (decomposed from vault_sync) ──
+  {
+    tool: {
+      name: "memory_vault_export",
+      description: "Primitive: export unmirrored facts to vault markdown files.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scopeId: { type: "string", description: "Scope to export (omit for all)" },
+          force: { type: "boolean", description: "Force large batch (up to 1000)" },
+          dryRun: { type: "boolean", description: "Preview only" },
+        },
+      },
+    },
+    zodSchema: vaultExportSchema,
+    handler: (args) => vaultExport(args),
+  },
+  {
+    tool: {
+      name: "memory_vault_import",
+      description: "Primitive: import vault markdown files into Convex facts.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          dryRun: { type: "boolean", description: "Preview only" },
+          maxFiles: { type: "number", description: "Max files to process (default: 200)" },
+        },
+      },
+    },
+    zodSchema: vaultImportSchema,
+    handler: (args) => vaultImport(args),
+  },
+  {
+    tool: {
+      name: "memory_vault_list_files",
+      description: "Primitive: list all markdown files in vault.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          maxFiles: { type: "number", description: "Max files to list (default: 50)" },
+        },
+      },
+    },
+    zodSchema: vaultListFilesSchema,
+    handler: (args) => vaultListFiles(args),
+  },
+  {
+    tool: {
+      name: "memory_vault_reconcile",
+      description: "Primitive: reconcile a single vault file edit with Convex (conflict detection + merge).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "Absolute path to vault markdown file" },
+        },
+        required: ["filePath"],
+      },
+    },
+    zodSchema: vaultReconcileSchema,
+    handler: (args) => vaultReconcile(args),
+  },
+
+  // ── System Prompt Builder (Week 3-4) ──────────────
+  {
+    tool: {
+      name: "memory_build_system_prompt",
+      description: "Aggregator: build a complete system prompt context block with identity, activity, config, workspace, notifications, and handoffs.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agentId: { type: "string", description: "Agent ID (defaults to current)" },
+          includeActivity: { type: "boolean", description: "Include activity stats (default: true)" },
+          includeConfig: { type: "boolean", description: "Include config context (default: true)" },
+          includeWorkspace: { type: "boolean", description: "Include workspace info (default: true)" },
+          includeNotifications: { type: "boolean", description: "Include notifications (default: true)" },
+          includeHandoffs: { type: "boolean", description: "Include recent handoffs (default: true)" },
+          format: { type: "string", enum: ["markdown", "xml", "plain"], description: "Output format (default: markdown)" },
+        },
+      },
+    },
+    zodSchema: buildFullSystemPromptSchema,
+    handler: (args, agentId) => buildFullSystemPrompt(args, agentId),
+  },
+
+  // ── Discovery ─────────────────────────────────────
+  {
+    tool: {
+      name: "memory_list_capabilities",
+      description: "Discovery: list all available memory tools with descriptions, grouped by category.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          category: { type: "string", description: "Filter by category (core, lifecycle, signals, agent, events, config, retrieval, delete, composition, vault, health, context, discovery)" },
+          format: { type: "string", enum: ["list", "table", "json"], description: "Output format (default: list)" },
+        },
+      },
+    },
+    zodSchema: z.object({
+      category: z.string().optional(),
+      format: z.enum(["list", "table", "json"]).optional().default("list"),
+    }),
+    handler: async (args) => {
+      const categories: Record<string, string[]> = {
+        core: ["memory_store_fact", "memory_recall", "memory_search", "memory_observe", "memory_link_entity", "memory_get_context"],
+        lifecycle: ["memory_update_fact", "memory_archive_fact", "memory_boost_relevance", "memory_list_stale_facts", "memory_mark_facts_merged", "memory_mark_facts_pruned"],
+        signals: ["memory_record_signal", "memory_record_feedback", "memory_record_recall"],
+        agent: ["memory_register_agent", "memory_end_session", "memory_get_agent_info", "memory_get_agent_context", "memory_get_system_prompt"],
+        events: ["memory_poll_events", "memory_get_notifications", "memory_mark_notifications_read"],
+        config: ["memory_get_config", "memory_list_configs", "memory_set_config", "memory_set_scope_policy"],
+        retrieval: ["memory_vector_search", "memory_text_search", "memory_rank_candidates", "memory_bump_access", "memory_get_observations", "memory_get_entities", "memory_get_themes", "memory_get_handoffs", "memory_search_facts", "memory_search_entities", "memory_search_themes"],
+        delete: ["memory_delete_entity", "memory_delete_scope", "memory_delete_conversation", "memory_delete_session", "memory_delete_theme"],
+        composition: ["memory_summarize", "memory_prune", "memory_create_theme", "memory_query_raw"],
+        context: ["memory_resolve_scopes", "memory_load_budgeted_facts", "memory_search_daily_notes", "memory_get_graph_neighbors", "memory_get_activity_stats", "memory_get_workspace_info", "memory_build_system_prompt"],
+        vault: ["memory_vault_sync", "memory_vault_export", "memory_vault_import", "memory_vault_list_files", "memory_vault_reconcile", "memory_query_vault", "memory_export_graph", "memory_checkpoint", "memory_wake"],
+        health: ["memory_health"],
+        discovery: ["memory_list_capabilities"],
+      };
+
+      const filtered = args.category
+        ? { [args.category]: categories[args.category] ?? [] }
+        : categories;
+
+      if (args.format === "json") return { categories: filtered, totalTools: TOOL_REGISTRY.length };
+
+      const lines: string[] = [];
+      for (const [cat, tools] of Object.entries(filtered)) {
+        lines.push(`\n### ${cat.charAt(0).toUpperCase() + cat.slice(1)} (${tools.length})`);
+        for (const toolName of tools) {
+          const entry = TOOL_MAP.get(toolName);
+          lines.push(`- **${toolName}**: ${entry?.tool.description ?? "—"}`);
+        }
+      }
+      return { capabilities: lines.join("\n"), totalTools: TOOL_REGISTRY.length };
+    },
   },
 
   // ── Health ────────────────────────────────────────

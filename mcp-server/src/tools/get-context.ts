@@ -4,9 +4,6 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
-import { loadBudgetAwareContext } from "../lib/budget-aware-loader.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import {
   getEntitiesPrimitive,
   getHandoffs,
@@ -14,6 +11,12 @@ import {
   getThemesPrimitive,
   markNotificationsRead,
 } from "./primitive-retrieval.js";
+import {
+  getGraphNeighbors,
+  loadBudgetedFacts,
+  resolveScopes,
+  searchDailyNotes,
+} from "./context-primitives.js";
 
 export const getContextSchema = z.object({
   topic: z.string().describe("Topic to gather context about"),
@@ -62,49 +65,20 @@ export async function getContext(
   try {
     console.error("[deprecation] memory_get_context is a compatibility wrapper over primitive tools");
     const agent = await convex.getAgentByAgentId(agentId);
-    // Resolve scope
-    let scopeIds: string[] | undefined;
-
-    if (input.scopeId) {
-      if (!input.scopeId.startsWith("j")) {
-        const scope = await convex.getScopeByName(input.scopeId);
-        if (!scope) {
-          return {
-            isError: true,
-            message: `Scope "${input.scopeId}" not found`,
-          };
-        }
-        scopeIds = [scope._id];
-      } else {
-        scopeIds = [input.scopeId];
-      }
-    } else {
-      const permitted = await convex.getPermittedScopes(agentId);
-      if (permitted && Array.isArray(permitted)) {
-        scopeIds = permitted.map((s: any) => s._id);
-      }
+    const scopeResolution = await resolveScopes({ scopeId: input.scopeId }, agentId);
+    if ("isError" in scopeResolution) {
+      return scopeResolution;
     }
+    const scopeIds = scopeResolution.scopeIds;
 
-    // Search for relevant facts with budget-aware prioritization
-    const profileBudgetMultiplier =
-      input.profile === "incident" ? 0.8 : input.profile === "planning" ? 1.1 : 1;
-
-    const budgeted = await loadBudgetAwareContext({
+    const budgeted = await loadBudgetedFacts({
       query: input.topic,
-      tokenBudget: Math.floor(input.tokenBudget * profileBudgetMultiplier),
-      scopeId: scopeIds?.[0],
+      tokenBudget: input.tokenBudget,
+      scopeId: scopeIds[0],
       maxFacts: input.maxFacts,
+      profile: input.profile,
     });
-    let facts = budgeted.facts.map((item) => item.fact);
-
-    if (input.profile === "incident") {
-      facts = facts
-        .filter((f: any) => f.observationTier !== "background")
-        .sort((a: any, b: any) => (b.importanceScore ?? 0) - (a.importanceScore ?? 0));
-    }
-    if (input.profile === "handoff") {
-      facts = facts.filter((f: any) => f.factType === "session_summary" || f.factType === "decision");
-    }
+    let facts = budgeted.facts;
 
     if (!Array.isArray(facts)) {
       return {
@@ -127,7 +101,7 @@ export async function getContext(
 
     // Gather themes if requested
     let themes: any[] = [];
-    if (input.includeThemes && scopeIds && scopeIds.length > 0) {
+    if (input.includeThemes && scopeIds.length > 0) {
       const scopedThemes = await getThemesPrimitive({ scopeId: scopeIds[0], limit: 20 });
       if (Array.isArray(scopedThemes)) {
         // Filter themes relevant to topic (simple string match)
@@ -141,7 +115,7 @@ export async function getContext(
 
     // Get recent handoffs from other agents
     let recentHandoffs: any[] = [];
-    if (scopeIds && scopeIds.length > 0) {
+    if (scopeIds.length > 0) {
       try {
         recentHandoffs = (await getHandoffs({ scopeIds, limit: 5 }, agentId)) as any[];
       } catch (error) {
@@ -164,29 +138,33 @@ export async function getContext(
       ["critical", "notable", "background"].includes(f.observationTier)
     );
 
-    const dailyNotes: Array<{ path: string; snippet: string }> = [];
+    let dailyNotes: Array<{ path: string; snippet: string }> = [];
     try {
-      const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
-      const dailyDir = path.join(vaultRoot, "daily");
-      const files = await fs.readdir(dailyDir);
-      for (const file of files.filter((f) => f.endsWith(".md")).slice(0, 5)) {
-        const fullPath = path.join(dailyDir, file);
-        const content = await fs.readFile(fullPath, "utf8");
-        if (!content.toLowerCase().includes(input.topic.toLowerCase())) continue;
-        dailyNotes.push({
-          path: path.relative(vaultRoot, fullPath),
-          snippet: content.replace(/\s+/g, " ").slice(0, 160),
-        });
-      }
+      const dailyResults = await searchDailyNotes({
+        query: input.topic,
+        maxFiles: 5,
+        snippetLength: 160,
+      });
+      dailyNotes = dailyResults.notes;
     } catch {
       // optional source
     }
 
     const searchResults = facts.slice(0, 10);
-    const topicEntities = new Set(entities.map((e: any) => e.entityId || e.name));
-    const graphNeighbors = facts.filter((fact: any) =>
-      (fact.entityIds ?? []).some((id: string) => topicEntities.has(id))
-    );
+    const topicEntityIds = [...new Set(entities.map((e: any) => e.entityId).filter(Boolean))];
+    let graphNeighbors: any[] = [];
+    if (topicEntityIds.length > 0) {
+      try {
+        const neighborResults = await getGraphNeighbors({
+          entityIds: topicEntityIds,
+          scopeIds,
+          limit: 20,
+        });
+        graphNeighbors = neighborResults.neighbors;
+      } catch (error) {
+        console.error("[get-context] Failed to fetch graph neighbors:", error);
+      }
+    }
 
     // Generate summary
     const summary = `Context(${input.profile}) for "${input.topic}": ${facts.length} facts (${budgeted.usedTokens}/${budgeted.tokenBudget} tokens), ${entities.length} entities, ${themes.length} themes, ${recentHandoffs.length} handoffs, ${notifications.length} notifications, ${dailyNotes.length} daily notes`;
@@ -203,7 +181,7 @@ export async function getContext(
         capabilities: agent?.capabilities ?? [],
         telos: agent?.telos,
         defaultScope: agent?.defaultScope,
-        permittedScopes: scopeIds ?? [],
+        permittedScopes: scopeIds,
       },
       sources: {
         observations,

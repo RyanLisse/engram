@@ -13,7 +13,7 @@ Engram is a unified multi-agent memory system. It provides a shared memory layer
 - **Convex** — Cloud backend (schema, CRUD, vector search, scheduled functions)
 - **TypeScript** — All code (MCP server + Convex functions + CLI + plugins)
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim, text + images + code)
-- **MCP (Model Context Protocol)** — Agent-facing interface (52 tools)
+- **MCP (Model Context Protocol)** — Agent-facing interface (65 tools)
 - **Commander.js** — CLI framework
 
 ## Architecture
@@ -33,7 +33,7 @@ Key patterns:
 - **Differential memory decay**: Decay rate varies by fact type (decisions slow, notes fast).
 - **Memory lifecycle**: 5-state machine — active → dormant → merged → archived → pruned.
 
-## MCP Tools (52 primitives)
+## MCP Tools (65 primitives)
 
 All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
 
@@ -43,10 +43,12 @@ All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
 ### Agent (5): register_agent, end_session, get_agent_info, get_agent_context, get_system_prompt
 ### Events (3): poll_events, get_notifications, mark_notifications_read
 ### Config (4): get_config, list_configs, set_config, set_scope_policy
-### Retrieval (10): vector_search, text_search, bump_access, get_observations, get_entities, get_themes, get_handoffs, search_facts, search_entities, search_themes
+### Retrieval (11): vector_search, text_search, rank_candidates, bump_access, get_observations, get_entities, get_themes, get_handoffs, search_facts, search_entities, search_themes
+### Context (7): resolve_scopes, load_budgeted_facts, search_daily_notes, get_graph_neighbors, get_activity_stats, get_workspace_info, build_system_prompt
 ### Delete (5): delete_entity, delete_scope, delete_conversation, delete_session, delete_theme
 ### Composition (4): summarize, prune, create_theme, query_raw
-### Vault (5): vault_sync, query_vault, export_graph, checkpoint, wake
+### Vault (9): vault_sync, vault_export, vault_import, vault_list_files, vault_reconcile, query_vault, export_graph, checkpoint, wake
+### Discovery (1): list_capabilities
 ### Health (1): health
 
 ## Directory Structure

@@ -3,16 +3,18 @@
  */
 
 import { z } from "zod";
-import * as convex from "../lib/convex-client.js";
 import { randomUUID } from "crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { rankCandidates, SearchStrategy } from "../lib/ranking.js";
 import {
   bumpAccessBatch,
   recordRecall,
+  textSearch,
   vectorSearch,
 } from "./primitive-retrieval.js";
+import { rankCandidatesPrimitive } from "./rank-candidates.js";
+import { resolveScopes } from "./context-primitives.js";
+import type { SearchStrategy } from "../lib/ranking.js";
 
 export const recallSchema = z.object({
   query: z.string().describe("Search query for semantic recall"),
@@ -47,44 +49,25 @@ export async function recall(
       // index not present yet
     }
 
-    // Resolve scopeId if provided
-    let scopeIds: string[] | undefined;
-
-    if (input.scopeId) {
-      if (!input.scopeId.startsWith("j")) {
-        // Name provided, resolve to ID
-        const scope = await convex.getScopeByName(input.scopeId);
-        if (!scope) {
-          return {
-            isError: true,
-            message: `Scope "${input.scopeId}" not found`,
-          };
-        }
-        scopeIds = [scope._id];
-      } else {
-        scopeIds = [input.scopeId];
-      }
-    } else {
-      // Get all permitted scopes for the agent
-      const permitted = await convex.getPermittedScopes(agentId);
-      if (permitted && Array.isArray(permitted)) {
-        scopeIds = permitted.map((s: any) => s._id);
-      }
+    const scopeResolution = await resolveScopes({ scopeId: input.scopeId }, agentId);
+    if ("isError" in scopeResolution) {
+      return scopeResolution;
     }
+    const scopeIds = scopeResolution.scopeIds;
 
     const strategy = input.searchStrategy as SearchStrategy;
     const textResults =
-      strategy === "vector-only"
+      strategy === "vector-only" || scopeIds.length === 0
         ? []
-        : await convex.searchFactsMulti({
+        : await textSearch({
             query: queryText,
             limit: input.limit,
-            scopeIds: scopeIds ?? [],
+            scopeIds,
             factType: input.factType,
           });
 
     const vectorResults =
-      strategy === "text-only" || !scopeIds
+      strategy === "text-only" || scopeIds.length === 0
         ? []
         : await vectorSearch({
             query: input.query,
@@ -100,7 +83,12 @@ export async function recall(
       if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
       else byId.set(id, row);
     }
-    const results = rankCandidates(input.query, [...byId.values()]).slice(0, input.limit);
+    const ranked = await rankCandidatesPrimitive({
+      query: input.query,
+      candidates: [...byId.values()],
+      limit: input.limit,
+    });
+    const results = ranked.ranked;
 
     if (!results || !Array.isArray(results)) {
       return {
@@ -109,8 +97,14 @@ export async function recall(
       };
     }
 
+    const minImportance = input.minImportance;
+    const filteredResults =
+      minImportance === undefined
+        ? results
+        : results.filter((fact: any) => (fact.importanceScore ?? 0) >= minImportance);
+
     // Bump access count on all returned facts
-    await bumpAccessBatch({ factIds: results.map((fact: any) => fact._id) }).catch((err) => {
+    await bumpAccessBatch({ factIds: filteredResults.map((fact: any) => fact._id) }).catch((err) => {
       console.error("[recall] Failed to bump access for some facts:", err);
     });
 
@@ -118,10 +112,10 @@ export async function recall(
     const recallId = randomUUID();
     await recordRecall({
       recallId,
-      factIds: results.map((r: any) => r._id),
+      factIds: filteredResults.map((r: any) => r._id),
     });
 
-    const prioritized = [...results].sort((a: any, b: any) => {
+    const prioritized = [...filteredResults].sort((a: any, b: any) => {
       const tierWeight = (tier?: string) =>
         tier === "critical" ? 3 : tier === "notable" ? 2 : tier === "background" ? 1 : 0;
       const byTier = tierWeight(b.observationTier) - tierWeight(a.observationTier);
