@@ -24,8 +24,19 @@ import * as convex from "./lib/convex-client.js";
 // Get agent ID from env (defaults to "indy")
 const AGENT_ID = process.env.ENGRAM_AGENT_ID || "indy";
 const MCP_API_KEY = process.env.ENGRAM_API_KEY;
-const RATE_LIMIT_PER_MIN = 100;
+const RATE_LIMIT_PER_MIN = parseInt(process.env.ENGRAM_RATE_LIMIT || "200", 10);
 const requestBuckets = new Map<string, { windowStart: number; count: number }>();
+
+// Periodic cleanup of stale rate-limit buckets (prevents memory leak)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of requestBuckets) {
+    if (now - bucket.windowStart > 120_000) requestBuckets.delete(key);
+  }
+}, 60_000);
+
+// Request counter for tracing
+let requestSeq = 0;
 
 // Ensure CONVEX_URL is set
 if (!process.env.CONVEX_URL) {
@@ -80,19 +91,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Register tool call handler — single dispatch via registry
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const reqId = ++requestSeq;
+  const startMs = Date.now();
 
-  console.error(`[engram-mcp] Tool called: ${name}`);
-
-  // Rate limiting
-  const now = Date.now();
+  // Rate limiting with per-agent buckets
   const bucket = requestBuckets.get(AGENT_ID);
-  if (!bucket || now - bucket.windowStart > 60_000) {
-    requestBuckets.set(AGENT_ID, { windowStart: now, count: 1 });
+  if (!bucket || startMs - bucket.windowStart > 60_000) {
+    requestBuckets.set(AGENT_ID, { windowStart: startMs, count: 1 });
   } else {
     bucket.count += 1;
     if (bucket.count > RATE_LIMIT_PER_MIN) {
+      console.error(`[engram-mcp] #${reqId} RATE_LIMITED ${name}`);
       return {
-        content: [{ type: "text", text: JSON.stringify({ isError: true, message: "Rate limit exceeded" }) }],
+        content: [{ type: "text", text: JSON.stringify({
+          isError: true,
+          code: "RATE_LIMITED",
+          message: `Rate limit exceeded (${RATE_LIMIT_PER_MIN}/min). Retry after ${Math.ceil((bucket.windowStart + 60_000 - startMs) / 1000)}s.`,
+          retryAfterMs: bucket.windowStart + 60_000 - startMs,
+        }) }],
         isError: true,
       };
     }
@@ -100,18 +116,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     const result = await routeToolCall(name, args, AGENT_ID);
+    const durationMs = Date.now() - startMs;
+    console.error(`[engram-mcp] #${reqId} ${name} OK ${durationMs}ms`);
+    // Compact JSON (no pretty-printing) — saves ~30% tokens per response
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify(result) }],
     };
   } catch (error: any) {
-    console.error(`[engram-mcp] Error in ${name}:`, error);
+    const durationMs = Date.now() - startMs;
+    console.error(`[engram-mcp] #${reqId} ${name} ERR ${durationMs}ms:`, error.message);
     return {
       content: [
         {
           type: "text",
           text: JSON.stringify({
             isError: true,
+            code: error.code || "INTERNAL_ERROR",
             message: error.message || "Internal error",
+            tool: name,
+            hint: getErrorHint(name, error),
           }),
         },
       ],
@@ -119,6 +142,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 });
+
+/** Agent-legible error recovery hints based on tool + error pattern */
+function getErrorHint(tool: string, error: any): string | undefined {
+  const msg = error.message?.toLowerCase() || "";
+  if (msg.includes("not found")) return "The referenced ID may be invalid or the item was deleted. Use memory_search or memory_recall to find the correct ID.";
+  if (msg.includes("scope")) return "Resolve scope with memory_resolve_scopes first, then retry with the returned scope ID.";
+  if (msg.includes("permission") || msg.includes("access")) return "Agent may not have write access to this scope. Check with memory_get_agent_info.";
+  if (msg.includes("validation") || msg.includes("parse")) return "Check the tool's input schema via memory_list_capabilities for correct parameter types.";
+  return undefined;
+}
 
 // Start server with stdio transport
 async function main() {

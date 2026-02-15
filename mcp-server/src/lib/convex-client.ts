@@ -6,6 +6,7 @@
  */
 
 import { ConvexHttpClient } from "convex/browser";
+import { PATHS } from "./convex-paths.js";
 
 let client: ConvexHttpClient | null = null;
 const configCache = new Map<string, { value: any; expiresAt: number }>();
@@ -68,14 +69,14 @@ export async function storeFact(args: {
   emotionalContext?: string;
   conversationId?: string;
 }) {
-  return await mutate("functions/facts:storeFact", args);
+  return await mutate(PATHS.facts.storeFact, args);
 }
 
 export async function getUnmirroredFacts(args: {
   scopeId?: string;
   limit?: number;
 }) {
-  return await query("functions/facts:getUnmirrored", args);
+  return await query(PATHS.facts.getUnmirrored, args);
 }
 
 export async function updateVaultPath(args: {
@@ -83,7 +84,7 @@ export async function updateVaultPath(args: {
   vaultPath: string;
   vaultSyncedAt?: number;
 }) {
-  return await mutate("functions/facts:updateVaultPath", args);
+  return await mutate(PATHS.facts.updateVaultPath, args);
 }
 
 export async function applyVaultEdit(args: {
@@ -96,15 +97,15 @@ export async function applyVaultEdit(args: {
   vaultPath: string;
   updatedAt?: number;
 }) {
-  return await mutate("functions/facts:applyVaultEdit", args);
+  return await mutate(PATHS.facts.applyVaultEdit, args);
 }
 
 export async function runReconcileFromVault(args: { filePath: string }) {
-  return await action("actions/reconcileFromVault:reconcileFromVault", args);
+  return await action(PATHS.actions.reconcileFromVault, args);
 }
 
 export async function classifyObservation(args: { factId: string }) {
-  return await action("actions/classifyObservation:classifyObservation", args);
+  return await action(PATHS.actions.classifyObservation, args);
 }
 
 export async function searchFacts(args: {
@@ -121,7 +122,7 @@ export async function searchFacts(args: {
     convexArgs.scopeId = scopeIds[0];
   }
   // When multiple scopes or no scope, search without scope filter
-  return await query("functions/facts:searchFacts", convexArgs);
+  return await query(PATHS.facts.searchFacts, convexArgs);
 }
 
 export async function searchFactsMulti(args: {
@@ -131,7 +132,7 @@ export async function searchFactsMulti(args: {
   createdBy?: string;
   limit?: number;
 }) {
-  return await query("functions/facts:searchFactsMulti", args);
+  return await query(PATHS.facts.searchFactsMulti, args);
 }
 
 export async function vectorRecall(args: {
@@ -139,18 +140,18 @@ export async function vectorRecall(args: {
   scopeIds: string[];
   limit?: number;
 }) {
-  return await query("functions/facts:vectorRecall", args);
+  return await query(PATHS.facts.vectorRecall, args);
 }
 
 export async function listFactsByScope(args: {
   scopeId: string;
   limit?: number;
 }) {
-  return await query("functions/facts:listByScopePublic", args);
+  return await query(PATHS.facts.listByScopePublic, args);
 }
 
 export async function getFact(factId: string) {
-  return await query("functions/facts:getFact", { factId });
+  return await query(PATHS.facts.getFact, { factId });
 }
 
 export async function updateFact(args: {
@@ -159,19 +160,19 @@ export async function updateFact(args: {
   tags?: string[];
   factType?: string;
 }) {
-  return await mutate("functions/facts:updateFact", args);
+  return await mutate(PATHS.facts.updateFact, args);
 }
 
 export async function archiveFactPublic(factId: string) {
-  return await mutate("functions/facts:archiveFactPublic", { factId });
+  return await mutate(PATHS.facts.archiveFactPublic, { factId });
 }
 
 export async function boostRelevance(args: { factId: string; boost?: number }) {
-  return await mutate("functions/facts:boostRelevance", args);
+  return await mutate(PATHS.facts.boostRelevance, args);
 }
 
 export async function bumpAccess(factId: string) {
-  return await mutate("functions/facts:bumpAccess", { factId });
+  return await mutate(PATHS.facts.bumpAccess, { factId });
 }
 
 export async function getRecentHandoffs(
@@ -179,7 +180,7 @@ export async function getRecentHandoffs(
   scopeIds: string[],
   limit?: number
 ) {
-  return await query("functions/facts:getRecentHandoffs", {
+  return await query(PATHS.facts.getRecentHandoffs, {
     currentAgentId,
     scopeIds,
     limit,
@@ -197,15 +198,15 @@ export async function upsertEntity(args: {
   metadata?: Record<string, any>;
   createdBy: string;
 }) {
-  return await mutate("functions/entities:upsert", args);
+  return await mutate(PATHS.entities.upsert, args);
 }
 
 export async function getEntityByEntityId(entityId: string) {
-  return await query("functions/entities:getByEntityId", { entityId });
+  return await query(PATHS.entities.getByEntityId, { entityId });
 }
 
 export async function deleteEntity(args: { entityId: string; hardDelete?: boolean }) {
-  return await mutate("functions/entities:deleteEntity", args);
+  return await mutate(PATHS.entities.deleteEntity, args);
 }
 
 export async function searchEntities(args: {
@@ -213,7 +214,7 @@ export async function searchEntities(args: {
   type?: string;
   limit?: number;
 }) {
-  return await query("functions/entities:search", args);
+  return await query(PATHS.entities.search, args);
 }
 
 export async function addRelationship(args: {
@@ -221,14 +222,14 @@ export async function addRelationship(args: {
   targetId: string;
   relationType: string;
 }) {
-  return await mutate("functions/entities:addRelationship", args);
+  return await mutate(PATHS.entities.addRelationship, args);
 }
 
 export async function updateBacklinks(args: {
   factId: string;
   entityNames: string[];
 }) {
-  return await mutate("functions/entities:updateBacklinks", args);
+  return await mutate(PATHS.entities.updateBacklinks, args);
 }
 
 // ========================================
@@ -243,15 +244,15 @@ export async function registerAgent(args: {
   telos?: string;
   isInnerCircle?: boolean;
 }) {
-  return await mutate("functions/agents:register", args);
+  return await mutate(PATHS.agents.register, args);
 }
 
 export async function embedAgentCapabilities(agentId: string) {
-  return await action("actions/embedAgentCapabilities:embedAgentCapabilities", { agentId });
+  return await action(PATHS.actions.embedAgentCapabilities, { agentId });
 }
 
 export async function getAgentByAgentId(agentId: string) {
-  return await query("functions/agents:getByAgentId", { agentId });
+  return await query(PATHS.agents.getByAgentId, { agentId });
 }
 
 // ========================================
@@ -259,15 +260,15 @@ export async function getAgentByAgentId(agentId: string) {
 // ========================================
 
 export async function getScopeByName(name: string) {
-  return await query("functions/scopes:getByName", { name });
+  return await query(PATHS.scopes.getByName, { name });
 }
 
 export async function getPermittedScopes(agentId: string) {
-  return await query("functions/scopes:getPermitted", { agentId });
+  return await query(PATHS.scopes.getPermitted, { agentId });
 }
 
 export async function deleteScope(args: { scopeId: string; hardDelete?: boolean; force?: boolean }) {
-  return await mutate("functions/scopes:deleteScope", args);
+  return await mutate(PATHS.scopes.deleteScope, args);
 }
 
 export async function createScope(args: {
@@ -278,14 +279,14 @@ export async function createScope(args: {
   writePolicy: string;
   retentionDays?: number;
 }) {
-  return await mutate("functions/scopes:create", args);
+  return await mutate(PATHS.scopes.create, args);
 }
 
 export async function addScopeMember(args: {
   scopeId: string;
   agentId: string;
 }) {
-  return await mutate("functions/scopes:addMember", args);
+  return await mutate(PATHS.scopes.addMember, args);
 }
 
 // ========================================
@@ -298,15 +299,15 @@ export async function createSession(args: {
   parentSession?: string;
   nodeId?: string;
 }) {
-  return await mutate("functions/sessions:create", args);
+  return await mutate(PATHS.sessions.create, args);
 }
 
 export async function getSessionsByAgent(agentId: string) {
-  return await query("functions/sessions:getByAgent", { agentId });
+  return await query(PATHS.sessions.getByAgent, { agentId });
 }
 
 export async function deleteSession(args: { sessionId: string; hardDelete?: boolean }) {
-  return await mutate("functions/sessions:deleteSession", args);
+  return await mutate(PATHS.sessions.deleteSession, args);
 }
 
 // ========================================
@@ -320,14 +321,14 @@ export async function createConversation(args: {
   tags: string[];
   importance?: number;
 }) {
-  return await mutate("functions/conversations:create", args);
+  return await mutate(PATHS.conversations.create, args);
 }
 
 export async function addFactToConversation(args: {
   conversationId: string;
   factId: string;
 }) {
-  return await mutate("functions/conversations:addFact", args);
+  return await mutate(PATHS.conversations.addFact, args);
 }
 
 export async function addHandoff(args: {
@@ -336,7 +337,7 @@ export async function addHandoff(args: {
   toAgent: string;
   contextSummary: string;
 }) {
-  return await mutate("functions/conversations:addHandoff", args);
+  return await mutate(PATHS.conversations.addHandoff, args);
 }
 
 /** Record handoff on a conversation (session end). Uses empty toAgent when not yet known. */
@@ -345,7 +346,7 @@ export async function addHandoffToConversation(args: {
   fromAgent: string;
   summary: string;
 }) {
-  return await mutate("functions/conversations:addHandoff", {
+  return await mutate(PATHS.conversations.addHandoff, {
     conversationId: args.conversationId,
     fromAgent: args.fromAgent,
     toAgent: "",
@@ -354,7 +355,7 @@ export async function addHandoffToConversation(args: {
 }
 
 export async function deleteConversation(args: { conversationId: string; hardDelete?: boolean }) {
-  return await mutate("functions/conversations:deleteConversation", args);
+  return await mutate(PATHS.conversations.deleteConversation, args);
 }
 
 // ========================================
@@ -369,21 +370,28 @@ export async function recordSignal(args: {
   comment?: string;
   context?: string;
 }) {
-  return await mutate("functions/signals:recordSignal", args);
+  return await mutate(PATHS.signals.recordSignal, args);
 }
 
 export async function getUnreadNotifications(args: { agentId: string; limit?: number }) {
-  return await query("functions/notifications:getUnreadByAgent", args);
+  return await query(PATHS.notifications.getUnreadByAgent, args);
 }
 
 export async function markNotificationsRead(notificationIds: string[]) {
-  for (const notificationId of notificationIds) {
-    await mutate("functions/notifications:markRead", { notificationId });
+  // Batch mark-read in parallel (max 10 concurrent) instead of sequential N+1
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < notificationIds.length; i += BATCH_SIZE) {
+    const batch = notificationIds.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map((notificationId) =>
+        mutate(PATHS.notifications.markRead, { notificationId })
+      )
+    );
   }
 }
 
 export async function recordRecallResult(args: { recallId: string; factIds: string[] }) {
-  return await mutate("functions/recallFeedback:recordRecall", args);
+  return await mutate(PATHS.recallFeedback.recordRecall, args);
 }
 
 export async function recordRecallUsage(args: {
@@ -391,11 +399,11 @@ export async function recordRecallUsage(args: {
   usedFactIds: string[];
   unusedFactIds?: string[];
 }) {
-  return await mutate("functions/recallFeedback:recordUsage", args);
+  return await mutate(PATHS.recallFeedback.recordUsage, args);
 }
 
 export async function markPruned(factIds: string[]) {
-  return await mutate("functions/facts:markPruned", { factIds });
+  return await mutate(PATHS.facts.markPruned, { factIds });
 }
 
 export async function listStaleFacts(args: {
@@ -403,26 +411,26 @@ export async function listStaleFacts(args: {
   olderThanDays?: number;
   limit?: number;
 }) {
-  return await query("functions/facts:listStaleFacts", args);
+  return await query(PATHS.facts.listStaleFacts, args);
 }
 
 export async function markFactsMerged(args: {
   sourceFactIds: string[];
   targetFactId: string;
 }) {
-  return await mutate("functions/facts:markFactsMerged", args);
+  return await mutate(PATHS.facts.markFactsMerged, args);
 }
 
 export async function listAgents() {
-  return await query("functions/agents:list", {});
+  return await query(PATHS.agents.list, {});
 }
 
 export async function listScopes(agentId: string) {
-  return await query("functions/scopes:getPermitted", { agentId });
+  return await query(PATHS.scopes.getPermitted, { agentId });
 }
 
 export async function getSignalsByFact(factId: string) {
-  return await query("functions/signals:getByFact", { factId });
+  return await query(PATHS.signals.getByFact, { factId });
 }
 
 // ========================================
@@ -430,7 +438,7 @@ export async function getSignalsByFact(factId: string) {
 // ========================================
 
 export async function getThemesByScope(scopeId: string) {
-  return await query("functions/themes:getByScope", { scopeId });
+  return await query(PATHS.themes.getByScope, { scopeId });
 }
 
 export async function createTheme(args: {
@@ -441,11 +449,11 @@ export async function createTheme(args: {
   scopeId: string;
   importance?: number;
 }) {
-  return await mutate("functions/themes:create", args);
+  return await mutate(PATHS.themes.create, args);
 }
 
 export async function deleteTheme(args: { themeId: string; hardDelete?: boolean }) {
-  return await mutate("functions/themes:deleteTheme", args);
+  return await mutate(PATHS.themes.deleteTheme, args);
 }
 
 // ========================================
@@ -455,7 +463,7 @@ export async function deleteTheme(args: { themeId: string; hardDelete?: boolean 
 export async function getConfig(key: string) {
   const hit = configCache.get(key);
   if (hit && hit.expiresAt > Date.now()) return hit.value;
-  const value = await query("functions/config:getConfig", { key });
+  const value = await query(PATHS.config.getConfig, { key });
   configCache.set(key, { value, expiresAt: Date.now() + CONFIG_TTL_MS });
   return value;
 }
@@ -464,7 +472,7 @@ export async function listConfigs(category?: string) {
   const cacheKey = `list:${category ?? "*"}`;
   const hit = configCache.get(cacheKey);
   if (hit && hit.expiresAt > Date.now()) return hit.value;
-  const value = await query("functions/config:listConfigs", { category });
+  const value = await query(PATHS.config.listConfigs, { category });
   configCache.set(cacheKey, { value, expiresAt: Date.now() + CONFIG_TTL_MS });
   return value;
 }
@@ -476,7 +484,7 @@ export async function setConfig(args: {
   description: string;
   updatedBy: string;
 }) {
-  const result = await mutate("functions/config:setConfig", args);
+  const result = await mutate(PATHS.config.setConfig, args);
   configCache.clear();
   return result;
 }
@@ -488,13 +496,13 @@ export async function setScopePolicy(args: {
   priority?: number;
   createdBy: string;
 }) {
-  const result = await mutate("functions/config:setScopePolicy", args);
+  const result = await mutate(PATHS.config.setScopePolicy, args);
   configCache.clear();
   return result;
 }
 
 export async function listScopePolicies(scopeId: string) {
-  return await query("functions/config:listScopePolicies", { scopeId });
+  return await query(PATHS.config.listScopePolicies, { scopeId });
 }
 
 // ========================================
@@ -507,7 +515,7 @@ export async function pollEvents(args: {
   scopeId?: string;
   limit?: number;
 }) {
-  return await query("functions/events:poll", args);
+  return await query(PATHS.events.poll, args);
 }
 
 // ========================================
@@ -519,7 +527,7 @@ export async function getFactsSince(args: {
   since: number;
   limit?: number;
 }) {
-  return await query("functions/sync:getFactsSince", args);
+  return await query(PATHS.sync.getFactsSince, args);
 }
 
 export async function updateSyncLog(args: {
@@ -527,9 +535,9 @@ export async function updateSyncLog(args: {
   factsSynced: number;
   status: "ok" | "error" | "syncing";
 }) {
-  return await mutate("functions/sync:updateSyncLog", args);
+  return await mutate(PATHS.sync.updateSyncLog, args);
 }
 
 export async function getSyncStatus(nodeId: string) {
-  return await query("functions/sync:getSyncStatus", { nodeId });
+  return await query(PATHS.sync.getSyncStatus, { nodeId });
 }
