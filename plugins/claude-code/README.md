@@ -34,12 +34,12 @@ Hooks fire automatically at key lifecycle points. Defined in `hooks/hooks.json`.
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `session-start.sh` | `SessionStart` | Auto-inject system prompt context (identity, activity, config, notifications) |
+| `session-start.sh` | `SessionStart` | Inject agent context (identity, scopes, notifications) |
 | `auto-recall.sh` | `UserPromptSubmit` | Auto-recall top-3 relevant memories per prompt |
-| `post-tool-observe.sh` | `PostToolUse` | Track engram tool usage patterns (async, non-blocking) |
+| `post-tool-observe.sh` | `PostToolUse` | Record file edit observations as passive memory events (async, non-blocking) |
 | `auto-handoff.sh` | `Stop` | Record turn completion events (async) |
 | `pre-compact-checkpoint.sh` | `PreCompact` | Checkpoint state before context compaction |
-| `session-end.sh` | `SessionEnd` | Auto-end session with handoff summary |
+| `session-end.sh` | `SessionEnd` | Create a durable session checkpoint fact |
 
 Hooks require `jq` and `node` in PATH. Set `CONVEX_URL` and `ENGRAM_AGENT_ID` in your `.mcp.json` env.
 
@@ -148,7 +148,7 @@ Hooks require `jq` and `node` in PATH. Set `CONVEX_URL` and `ENGRAM_AGENT_ID` in
 ## Usage Pattern
 
 ```
-Session Start  → [HOOK] session-start.sh auto-injects system prompt context
+Session Start  → [HOOK] session-start.sh injects agent context snapshot
                → memory_get_context (warm start on topic)
 
 Each Prompt    → [HOOK] auto-recall.sh injects top-3 relevant memories
@@ -157,13 +157,13 @@ Each Prompt    → [HOOK] auto-recall.sh injects top-3 relevant memories
 During Work    → memory_store_fact (capture decisions/insights)
                → memory_observe (passive observations)
                → memory_record_signal (feedback loop)
-               → [HOOK] post-tool-observe.sh tracks tool usage (async)
+               → [HOOK] post-tool-observe.sh records file edit observations (async)
 
 Turn Complete  → [HOOK] auto-handoff.sh records completion events
 
 Pre-Compact    → [HOOK] pre-compact-checkpoint.sh saves state
 
-Session End    → [HOOK] session-end.sh auto-ends session with handoff
+Session End    → [HOOK] session-end.sh stores session checkpoint fact
 ```
 
 ## Verify

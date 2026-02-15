@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Hook: PostToolUse — Track engram MCP tool usage patterns
+# Hook: PostToolUse — Record file edit observations
 #
-# Fires after any engram MCP tool call succeeds.
-# Records tool usage as an observation for ALMA feedback loop.
-# Runs async to avoid blocking the agentic loop.
+# Fires after local editing tools succeed.
+# Records lightweight edit observations for memory continuity.
+# Runs async to avoid blocking the active loop.
 #
 # Input (stdin): JSON with tool_name, tool_input, tool_output
 # Output: none (async, fire-and-forget)
@@ -11,10 +11,10 @@
 set -euo pipefail
 
 INPUT=$(cat)
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""')
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // .toolName // ""')
 
-# Only track engram tools (mcp__engram__memory_*)
-if [[ "$TOOL_NAME" != mcp__engram__* ]]; then
+# Only track editing tools
+if [[ ! "$TOOL_NAME" =~ ^(Edit|Write|MultiEdit|apply_patch)$ ]]; then
   exit 0
 fi
 
@@ -25,25 +25,25 @@ fi
 
 ENGRAM_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 AGENT_ID="${ENGRAM_AGENT_ID:-claude-code}"
+SCOPE_ID="private-${AGENT_ID}"
 
-# Extract the short tool name (memory_recall → recall)
-SHORT_NAME="${TOOL_NAME#mcp__engram__}"
+# Best-effort file path extraction by tool
+FILE_PATH=$(echo "$INPUT" | jq -r '
+  .tool_input.file_path //
+  .tool_input.path //
+  .tool_input.TargetFile //
+  .tool_input.absolute_path //
+  ""
+')
 
-# Record tool usage as a lightweight event
-node -e "
-  const agentId = '$AGENT_ID';
-  const toolName = '$SHORT_NAME';
+# Build concise observation text
+if [ -n "$FILE_PATH" ]; then
+  OBSERVATION="Edited ${FILE_PATH} via ${TOOL_NAME}"
+else
+  OBSERVATION="Edited file via ${TOOL_NAME}"
+fi
 
-  import('$ENGRAM_ROOT/mcp-server/dist/lib/convex-client.js')
-    .then(async (convex) => {
-      try {
-        await convex.recordEvent({
-          agentId,
-          type: 'tool_used',
-          payload: { tool: toolName, timestamp: Date.now() },
-        });
-      } catch (e) {
-        // Silent fail — don't disrupt the session
-      }
-    });
-" 2>/dev/null || true
+# Store as passive observation (fire-and-forget)
+printf '%s' "{\"observation\":$(printf '%s' "$OBSERVATION" | jq -Rs .),\"scopeId\":$(printf '%s' "$SCOPE_ID" | jq -Rs .)}" \
+  | (cd "$ENGRAM_ROOT" && npx mcporter call engram.memory_observe --json >/dev/null 2>&1) \
+  || true

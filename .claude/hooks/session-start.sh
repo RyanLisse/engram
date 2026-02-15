@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Hook: SessionStart — Auto-register agent + inject memory context
+# Hook: SessionStart — Inject agent context at session boundary
 #
 # Fires when a Claude Code session begins or resumes.
-# Calls memory_build_system_prompt via the MCP server to inject
-# full agent context (identity, activity, config, workspace, notifications).
+# Injects full agent context (identity, scopes, notifications) as hidden context.
 #
 # Input (stdin): JSON with session_id, source, model, cwd
 # Output (stdout): JSON with additionalContext for Claude
@@ -20,41 +19,70 @@ if [[ "$SESSION_SOURCE" == "clear" ]]; then
 fi
 
 ENGRAM_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-MCP_SERVER="$ENGRAM_ROOT/mcp-server/dist/index.js"
+CONVEX_CLIENT="$ENGRAM_ROOT/mcp-server/dist/lib/convex-client.js"
 
-# Check if MCP server is built
-if [ ! -f "$MCP_SERVER" ]; then
+# Check if MCP client is built
+if [ ! -f "$CONVEX_CLIENT" ]; then
   echo "Engram MCP server not built" >&2
   exit 0  # Non-blocking: don't fail the session
 fi
 
-# Build system prompt context via a lightweight Node script
+# Build context payload via Convex client
 CONTEXT=$(node -e "
   process.env.CONVEX_URL = process.env.CONVEX_URL || '';
-  if (!process.env.CONVEX_URL) { process.exit(0); }
+  if (!process.env.CONVEX_URL) process.exit(0);
 
-  import('$ENGRAM_ROOT/mcp-server/dist/tools/system-prompt-builder.js')
-    .then(async (mod) => {
-      try {
-        const agentId = process.env.ENGRAM_AGENT_ID || 'claude-code';
-        const result = await mod.buildFullSystemPrompt({
-          format: 'markdown',
-          includeNotifications: true,
-          includeHandoffs: true,
-        }, agentId);
-        const prompt = result.systemPrompt || '';
-        if (prompt) {
-          console.log(JSON.stringify({
-            hookSpecificOutput: {
-              hookEventName: 'SessionStart',
-              additionalContext: prompt
-            }
-          }));
+  const agentId = process.env.ENGRAM_AGENT_ID || 'claude-code';
+
+  import('$ENGRAM_ROOT/mcp-server/dist/lib/convex-client.js').then(async (convex) => {
+    try {
+      const [agent, scopes, notifications] = await Promise.all([
+        convex.getAgentByAgentId(agentId).catch(() => null),
+        convex.getPermittedScopes(agentId).catch(() => []),
+        convex.getUnreadNotifications({ agentId, limit: 5 }).catch(() => []),
+      ]);
+
+      const lines = [
+        '## Engram Agent Context (SessionStart)',
+        `- sessionId: $SESSION_ID`,
+        `- agentId: ${agent?.agentId || agentId}`,
+        `- name: ${agent?.name || '(unregistered)'}`,
+        `- capabilities: ${(agent?.capabilities || []).join(', ') || '(none)'}`,
+        `- defaultScope: ${agent?.defaultScope || '(none)'}`,
+        `- factCount: ${agent?.factCount || 0}`,
+        `- permittedScopes: ${Array.isArray(scopes) ? scopes.length : 0}`,
+        `- unreadNotifications: ${Array.isArray(notifications) ? notifications.length : 0}`,
+      ];
+
+      if (Array.isArray(scopes) && scopes.length > 0) {
+        lines.push('');
+        lines.push('### Scopes');
+        for (const s of scopes.slice(0, 10)) {
+          lines.push(`- ${s.name} (r:${s.readPolicy} w:${s.writePolicy})`);
         }
-      } catch (e) {
-        process.stderr.write('[engram] System prompt build failed: ' + e.message + '\n');
       }
-    });
+
+      if (Array.isArray(notifications) && notifications.length > 0) {
+        lines.push('');
+        lines.push('### Unread Notifications');
+        for (const n of notifications) {
+          const reason = n.reason || n.type || 'notification';
+          lines.push(`- [${reason}] fact:${n.factId || 'n/a'}`);
+        }
+      }
+
+      const context = lines.join('\n');
+      console.log(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: 'SessionStart',
+          additionalContext: context,
+        }
+      }));
+    } catch (e) {
+      process.stderr.write('[engram] SessionStart context failed: ' + e.message + '\n');
+      process.exit(0);
+    }
+  });
 " 2>/dev/null) || true
 
 if [ -n "$CONTEXT" ]; then

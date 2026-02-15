@@ -42,12 +42,12 @@ Defined in `.claude/settings.json`. Also distributable via `plugins/claude-code/
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `session-start.sh` | `SessionStart` | Auto-inject system prompt context (identity, activity, config, notifications) |
+| `session-start.sh` | `SessionStart` | Inject agent context (identity, scopes, notifications) |
 | `auto-recall.sh` | `UserPromptSubmit` | Auto-recall top-3 relevant memories per prompt |
-| `post-tool-observe.sh` | `PostToolUse` | Track engram tool usage patterns (async) |
+| `post-tool-observe.sh` | `PostToolUse` | Record file edit observations as passive memory events (async) |
 | `auto-handoff.sh` | `Stop` | Record turn completion events (async) |
 | `pre-compact-checkpoint.sh` | `PreCompact` | Checkpoint state before context compaction |
-| `session-end.sh` | `SessionEnd` | Auto-end session with handoff summary |
+| `session-end.sh` | `SessionEnd` | Create a durable session checkpoint fact |
 
 ## Convex Cron Jobs (14)
 
