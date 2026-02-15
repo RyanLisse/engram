@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "engram": {
+      "description": "Engram multi-agent memory — store facts, recall, search, link entities",
+      "command": "node",
+      "args": ["../mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "${CONVEX_URL}",
+        "ENGRAM_AGENT_ID": "${ENGRAM_AGENT_ID:-indy}",
+        "COHERE_API_KEY": "${COHERE_API_KEY}"
+      }
+    }
+  },
+  "imports": ["cursor", "claude-code", "claude-desktop", "codex", "windsurf"]
+}

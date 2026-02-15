@@ -48,6 +48,17 @@ node mcp-server/dist/index.js
 }
 ```
 
+### MCPorter CLI
+
+Call Engram from the terminal without an AI client:
+
+```bash
+npm run mcp:list                    # List all 52 tools
+npx mcporter call engram.memory_store_fact content="Remember this"
+```
+
+See [docs/MCPORTER-CLI.md](docs/MCPORTER-CLI.md) for full usage.
+
 ## Architecture
 
 > Diagrams available in [dark (tokyo-night)](docs/diagrams/) and [light (github-light)](docs/diagrams/light/) themes.

@@ -10,7 +10,13 @@
     "convex:dev": "npx convex dev",
     "convex:codegen": "npx convex codegen",
     "seed": "npx tsx scripts/seed.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "bash scripts/test-engram.sh",
+    "mcp:list": "npx mcporter list engram",
+    "mcp:call": "npx mcporter call engram",
+    "mcp:generate-cli": "npx mcporter generate-cli --command 'node mcp-server/dist/index.js' --name engram --bundle dist/engram-cli.js"
+  },
+  "devDependencies": {
+    "mcporter": "^0.7.3"
   },
   "repository": {
     "type": "git",
