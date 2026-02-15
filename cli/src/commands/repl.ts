@@ -76,6 +76,55 @@ export const replCommand = new Command("repl")
             await handleListScopes(agentId);
             break;
 
+          case "get":
+            if (!rest) {
+              console.log(fmt.warn("Usage: get <factId>"));
+              break;
+            }
+            await handleGetFact(rest);
+            break;
+
+          case "bump":
+            if (!rest) {
+              console.log(fmt.warn("Usage: bump <factId>"));
+              break;
+            }
+            await handleBump(rest);
+            break;
+
+          case "archive":
+            if (!rest) {
+              console.log(fmt.warn("Usage: archive <factId>"));
+              break;
+            }
+            await handleArchive(rest);
+            break;
+
+          case "signal":
+            if (args.length < 2) {
+              console.log(fmt.warn("Usage: signal <factId> <type>"));
+              break;
+            }
+            await handleSignal(args[0], args[1], agentId);
+            break;
+
+          case "whoami":
+            await handleWhoami(agentId);
+            break;
+
+          case "notifications":
+          case "notifs":
+            await handleNotifications(agentId);
+            break;
+
+          case "config":
+            if (!rest) {
+              console.log(fmt.warn("Usage: config <key>"));
+              break;
+            }
+            await handleGetConfig(rest);
+            break;
+
           case "status":
             await handleStatus(agentId);
             break;
@@ -106,22 +155,35 @@ export const replCommand = new Command("repl")
   });
 
 function printHelp() {
-  console.log(fmt.header("Commands"));
-  const cmds = [
+  console.log(fmt.header("Primitives"));
+  const primitives = [
     ["store <fact>", "Store a fact (alias: s)"],
     ["recall <query>", "Semantic search (alias: r)"],
     ["search <text>", "Full-text search (alias: q)"],
+    ["get <factId>", "Get a single fact by ID"],
+    ["bump <factId>", "Bump access count (ALMA signal)"],
+    ["signal <id> <type>", "Record signal: useful|outdated|wrong"],
+    ["archive <factId>", "Archive a fact"],
+  ];
+  for (const [cmd, desc] of primitives) {
+    console.log(`  ${chalk.bold(cmd.padEnd(22))} ${chalk.dim(desc)}`);
+  }
+
+  console.log(fmt.header("Management"));
+  const mgmt = [
+    ["whoami", "Agent identity + scopes + health"],
     ["agents", "List registered agents"],
     ["scopes", "List accessible scopes"],
-    ["status", "Show system status"],
-    ["help", "Show this help"],
-    ["exit", "Quit the shell"],
+    ["notifications", "Unread notifications"],
+    ["config <key>", "Get a config value"],
+    ["status", "System status"],
   ];
-  for (const [cmd, desc] of cmds) {
-    console.log(`  ${chalk.bold(cmd.padEnd(20))} ${chalk.dim(desc)}`);
+  for (const [cmd, desc] of mgmt) {
+    console.log(`  ${chalk.bold(cmd.padEnd(22))} ${chalk.dim(desc)}`);
   }
+
   console.log();
-  console.log(fmt.dim("Tip: Any unrecognized input is treated as a recall query"));
+  console.log(fmt.dim("help | exit | Any unrecognized input → recall query"));
   console.log();
 }
 
@@ -209,4 +271,69 @@ async function handleStatus(agentId: string) {
   console.log(fmt.label("Facts", agent?.factCount || 0));
   console.log(fmt.label("Scopes", scopeCount));
   console.log(fmt.label("Sessions", sessionCount));
+}
+
+async function handleGetFact(factId: string) {
+  const fact = await client.getFact(factId);
+  if (!fact) {
+    console.log(fmt.warn("Fact not found"));
+    return;
+  }
+  console.log(fmt.label("ID", fact._id));
+  console.log(fmt.label("Content", fact.content));
+  console.log(fmt.label("Type", fact.factType));
+  console.log(fmt.label("Importance", fact.importanceScore?.toFixed(3)));
+  console.log(fmt.label("Tags", fact.tags?.join(", ")));
+  console.log(fmt.label("Access Count", fact.accessedCount || 0));
+}
+
+async function handleBump(factId: string) {
+  await client.bumpAccess(factId);
+  console.log(fmt.success(`Bumped ${factId.slice(-8)}`));
+}
+
+async function handleArchive(factId: string) {
+  await client.archiveFact(factId);
+  console.log(fmt.success(`Archived ${factId.slice(-8)}`));
+}
+
+async function handleSignal(factId: string, type: string, agentId: string) {
+  await client.recordSignal({
+    factId,
+    agentId,
+    signalType: type,
+    value: 1,
+  });
+  console.log(fmt.success(`Signal "${type}" on ${factId.slice(-8)}`));
+}
+
+async function handleWhoami(agentId: string) {
+  const ctx = await client.getAgentContext(agentId);
+  console.log(fmt.label("Agent", ctx.identity.name || ctx.identity.agentId));
+  console.log(fmt.label("Telos", ctx.identity.telos || "(none)"));
+  console.log(fmt.label("Capabilities", ctx.identity.capabilities.join(", ") || "(none)"));
+  console.log(fmt.label("Scopes", ctx.scopes.map((s: any) => s.name).join(", ") || "(none)"));
+  console.log(fmt.label("Facts", ctx.identity.factCount));
+  console.log(fmt.label("Sessions", ctx.activeSessions));
+  console.log(fmt.label("Notifications", ctx.unreadNotifications));
+}
+
+async function handleNotifications(agentId: string) {
+  const notifications = await client.getUnreadNotifications({ agentId, limit: 10 });
+  if (!notifications || !Array.isArray(notifications) || notifications.length === 0) {
+    console.log(fmt.dim("No unread notifications"));
+    return;
+  }
+  for (const n of notifications) {
+    console.log(`  • ${chalk.yellow(`[${n.type || "info"}]`)} ${n.message || n.content || JSON.stringify(n)}`);
+  }
+}
+
+async function handleGetConfig(key: string) {
+  const value = await client.getConfig(key);
+  if (value === null || value === undefined) {
+    console.log(fmt.warn(`Config "${key}" not found`));
+  } else {
+    console.log(fmt.label(key, typeof value === "object" ? JSON.stringify(value) : value));
+  }
 }
