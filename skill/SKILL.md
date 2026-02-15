@@ -61,7 +61,7 @@ Add to your Claude Code MCP settings (`.mcp.json`):
 }
 ```
 
-## MCP Tools (12)
+## MCP Tools (52)
 
 | Tool | Description |
 |------|-------------|
@@ -90,8 +90,8 @@ Add to your Claude Code MCP settings (`.mcp.json`):
 
 ## Architecture
 
-- **Convex Cloud** — 10 tables, native vector search, 7 cron jobs, async enrichment
-- **MCP Server** — 12 tools over stdio, TypeScript, Convex HTTP client
+- **Convex Cloud** — 14 tables, native vector search, 11 cron jobs, async enrichment
+- **MCP Server** — 52 tools over stdio, TypeScript, Convex HTTP client
 - **Cohere Embed 4** — 1024-dim multimodal embeddings (text + images + code)
 - **Async Pipeline** — Facts stored in <50ms, enrichment runs asynchronously
 - **Memory Lifecycle** — 5-state machine: active → dormant → merged → archived → pruned

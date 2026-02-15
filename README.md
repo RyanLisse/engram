@@ -78,7 +78,10 @@ node mcp-server/dist/index.js
 
 ![Agent Lifecycle](docs/diagrams/light/agent-lifecycle.svg)
 
-## MCP Tools (12 Primitives)
+## MCP Tools (52)
+
+Engram currently registers 52 `memory_*` tools (workflow-compatible wrappers + atomic primitives + admin/health/event tools).
+For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFERENCE.md`.
 
 | Tool | Description |
 |------|-------------|
@@ -94,16 +97,17 @@ node mcp-server/dist/index.js
 | `memory_record_feedback` | Post-recall usefulness tracking (ALMA) |
 | `memory_summarize` | Consolidate facts on a topic |
 | `memory_prune` | Agent-initiated cleanup of stale facts |
+| `...` | Plus primitive/admin/event/health tools (see API reference) |
 
 ## Tech Stack
 
-- **Convex** — Cloud backend (10 tables, native vector search, scheduled functions, crons)
+- **Convex** — Cloud backend (14 tables, native vector search, scheduled functions, crons)
 - **LanceDB** — Local vector search (sub-10ms, offline, mergeInsert sync)
 - **TypeScript** — MCP server + Convex functions
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim: `embed-v4.0`)
 - **MCP SDK** — `@modelcontextprotocol/sdk` v1.x (stdio transport)
 
-## Convex Schema (10 Tables)
+## Convex Schema (14 Tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -116,8 +120,13 @@ node mcp-server/dist/index.js
 | `signals` | Feedback loop (ratings + sentiment) |
 | `themes` | Thematic fact clusters (consolidated memory) |
 | `sync_log` | Per-node LanceDB sync tracking |
+| `notifications` | Agent-routing notifications |
+| `recall_feedback` | Recall outcome tracking |
+| `system_config` | Runtime configuration |
+| `memory_policies` | Scope-level policy overrides |
+| `memory_events` | Watermark-ordered event stream |
 
-## Cron Jobs (7 Scheduled)
+## Cron Jobs (11 Scheduled)
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
@@ -127,6 +136,9 @@ node mcp-server/dist/index.js
 | Consolidate | Weekly | Merge related facts into themes |
 | Rerank | Weekly | Recalculate importance scores |
 | Rules | Monthly | Extract steering rules from patterns |
+| Notification cleanup | Daily | Expire old notifications |
+| Vault sync heartbeat | Every 5 min | Drive mirror sync daemon |
+| Vault index regenerate | Every 5 min | Trigger index regeneration |
 | Cleanup | Daily | Garbage collection + sync log cleanup |
 
 ## Agent-Native Principles
@@ -142,15 +154,15 @@ node mcp-server/dist/index.js
 ```
 engram/
 ├── convex/                  # Convex backend
-│   ├── schema.ts            # 10 tables with indexes
+│   ├── schema.ts            # 14 tables with indexes
 │   ├── functions/           # CRUD + search (9 modules)
 │   ├── actions/             # Async: embed, importance, vectorSearch, enrich
-│   ├── crons.ts             # 7 cron job configuration
+│   ├── crons.ts             # 11 cron job configuration
 │   └── crons/               # Cron implementations
 ├── mcp-server/              # MCP server (TypeScript)
 │   ├── src/
-│   │   ├── index.ts         # Server entry point (12 tools)
-│   │   ├── tools/           # 12 tool implementations
+│   │   ├── index.ts         # Server entry point (52 tools)
+│   │   ├── tools/           # Tool implementations + primitives
 │   │   └── lib/             # convex-client, lance-sync, embeddings
 │   └── package.json
 ├── skill/                   # OpenClaw skill package
@@ -165,11 +177,16 @@ engram/
 
 Phases 1-6 complete. Core system operational. See [PLAN.md](./PLAN.md) for detailed checklist.
 
-**Verified via reloaderoo:**
-- All 12 MCP tools listed with correct schemas
+**Verified:**
+- All MCP tools listed with correct schemas
 - `memory_store_fact` stores facts end-to-end with async enrichment
 - `memory_recall` retrieves stored facts with access bumping
 - Convex deploy + MCP server build clean (zero TypeScript errors)
+
+## Setup Guides
+
+- OpenClaw setup guide: `/Users/cortex-air/Tools/engram/docs/setup/OPENCLAW-SETUP.md`
+- Claude Code setup guide: `/Users/cortex-air/Tools/engram/docs/setup/CLAUDE-CODE-SETUP.md`
 
 ## License
 

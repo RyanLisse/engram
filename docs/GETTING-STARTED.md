@@ -113,7 +113,7 @@ Tell Claude Code where to find Engram. Open (or create) the file `.mcp.json` in 
 
 **Important:** Replace `/FULL/PATH/TO/engram` with the actual path where you downloaded Engram. For example, if you cloned it into your home folder, it might be `/Users/yourname/engram`.
 
-Restart Claude Code. You should now see Engram's 12 memory tools available.
+Restart Claude Code. You should now see Engram's memory tools available (current build exposes 52 `memory_*` tools).
 
 ---
 
@@ -141,7 +141,7 @@ This uses `memory_observe` to quietly log context without interrupting your work
 ## Common Questions
 
 **What if I don't have a Cohere API key?**
-Engram works without one. Memory storage, retrieval, and all 12 tools function normally. The difference is that semantic search (finding memories by meaning) will be less precise. You can always add a Cohere key later -- no data is lost.
+Engram works without one. Memory storage, retrieval, and all tools function normally. The difference is that semantic search (finding memories by meaning) will be less precise. You can always add a Cohere key later -- no data is lost.
 
 **Can multiple agents share memory?**
 Yes, that is Engram's main purpose. Each agent gets its own ID (like `my-assistant` or `code-helper`), and memories can be scoped as private (only that agent), team (a group of agents), project (everyone on a project), or public (all agents). Agents only see memories they have permission to access.
