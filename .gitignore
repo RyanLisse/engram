@@ -20,3 +20,9 @@ docs-site/.next/
 docs-site/node_modules/
 docs-site/dist/
 docs-site/.turbo/
+
+# Claude Code configuration (track hooks + settings, ignore local/ephemeral)
+.claude/settings.local.json
+.claude/.env
+.claude/engram-hook-log.jsonl
+.claude/engram-subagent-log.txt

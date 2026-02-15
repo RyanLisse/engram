@@ -44,4 +44,25 @@ crons.interval(
   internal.crons.regenerateIndices.runRegenerateIndices
 );
 
+// Every 15 min: Re-embed facts that failed enrichment
+crons.interval(
+  "embedding-backfill",
+  { minutes: 15 },
+  internal.crons.embeddingBackfill.runEmbeddingBackfill
+);
+
+// Every 30 min: Check for stale agents + send notifications
+crons.interval(
+  "agent-health",
+  { minutes: 30 },
+  internal.crons.agentHealth.runAgentHealth
+);
+
+// Daily: Usage analytics rollup per agent
+crons.daily(
+  "usage-analytics",
+  { hourUTC: 0, minuteUTC: 30 },
+  internal.crons.usageAnalytics.runUsageAnalytics
+);
+
 export default crons;

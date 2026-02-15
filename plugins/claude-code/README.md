@@ -1,6 +1,6 @@
 # Engram — Claude Code Plugin
 
-Agent-native memory for Claude Code. 52 MCP tools as atomic primitives.
+Agent-native memory for Claude Code. 69 MCP tools as atomic primitives + 6 lifecycle hooks.
 
 ## Quick Setup
 
@@ -28,7 +28,22 @@ Or manually add to your project's `.mcp.json`:
 }
 ```
 
-## Tool Categories (52 tools)
+## Claude Code Hooks (6 automations)
+
+Hooks fire automatically at key lifecycle points. Defined in `hooks/hooks.json`.
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `session-start.sh` | `SessionStart` | Auto-inject system prompt context (identity, activity, config, notifications) |
+| `auto-recall.sh` | `UserPromptSubmit` | Auto-recall top-3 relevant memories per prompt |
+| `post-tool-observe.sh` | `PostToolUse` | Track engram tool usage patterns (async, non-blocking) |
+| `auto-handoff.sh` | `Stop` | Record turn completion events (async) |
+| `pre-compact-checkpoint.sh` | `PreCompact` | Checkpoint state before context compaction |
+| `session-end.sh` | `SessionEnd` | Auto-end session with handoff summary |
+
+Hooks require `jq` and `node` in PATH. Set `CONVEX_URL` and `ENGRAM_AGENT_ID` in your `.mcp.json` env.
+
+## Tool Categories (69 tools)
 
 ### Core (6)
 | Tool | Use When |
@@ -133,15 +148,22 @@ Or manually add to your project's `.mcp.json`:
 ## Usage Pattern
 
 ```
-Session Start  → memory_get_agent_context (inject identity)
+Session Start  → [HOOK] session-start.sh auto-injects system prompt context
                → memory_get_context (warm start on topic)
+
+Each Prompt    → [HOOK] auto-recall.sh injects top-3 relevant memories
+               → memory_recall / memory_search (explicit retrieval)
 
 During Work    → memory_store_fact (capture decisions/insights)
                → memory_observe (passive observations)
-               → memory_recall / memory_search (retrieve)
                → memory_record_signal (feedback loop)
+               → [HOOK] post-tool-observe.sh tracks tool usage (async)
 
-Session End    → memory_end_session (handoff summary)
+Turn Complete  → [HOOK] auto-handoff.sh records completion events
+
+Pre-Compact    → [HOOK] pre-compact-checkpoint.sh saves state
+
+Session End    → [HOOK] session-end.sh auto-ends session with handoff
 ```
 
 ## Verify

@@ -36,6 +36,38 @@ Key patterns:
 - **Differential memory decay**: Decay rate varies by fact type (decisions slow, notes fast).
 - **Memory lifecycle**: 5-state machine — active → dormant → merged → archived → pruned.
 
+## Claude Code Hooks (6 lifecycle automations)
+
+Defined in `.claude/settings.json`. Also distributable via `plugins/claude-code/hooks/hooks.json`.
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `session-start.sh` | `SessionStart` | Auto-inject system prompt context (identity, activity, config, notifications) |
+| `auto-recall.sh` | `UserPromptSubmit` | Auto-recall top-3 relevant memories per prompt |
+| `post-tool-observe.sh` | `PostToolUse` | Track engram tool usage patterns (async) |
+| `auto-handoff.sh` | `Stop` | Record turn completion events (async) |
+| `pre-compact-checkpoint.sh` | `PreCompact` | Checkpoint state before context compaction |
+| `session-end.sh` | `SessionEnd` | Auto-end session with handoff summary |
+
+## Convex Cron Jobs (14)
+
+| Schedule | Job | Purpose |
+|----------|-----|---------|
+| Daily 0:30 | `usage-analytics` | Per-agent daily stats rollup |
+| Daily 1:30 | `notification-cleanup` | Expire old notifications |
+| Daily 2:00 | `cleanup` | Garbage collection |
+| Daily 2:30 | `dedup` | Cross-agent deduplication |
+| Daily 3:00 | `decay` | Differential relevance decay |
+| Daily 3:30 | `forget` | Active forgetting |
+| Daily 4:00 | `compact` | Conversation compaction |
+| Daily 7:00 | `rules` | Steering rule extraction |
+| Weekly Sun 5:00 | `consolidate` | Fact → theme consolidation |
+| Weekly Sun 6:00 | `rerank` | Importance recalculation |
+| Every 5m | `vault-sync-heartbeat` | Mirror sync heartbeat |
+| Every 5m | `vault-regenerate-indices` | Vault index regeneration |
+| Every 15m | `embedding-backfill` | Re-embed failed facts |
+| Every 30m | `agent-health` | Stale agent detection + notifications |
+
 ## MCP Tools (69 primitives)
 
 All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
@@ -63,8 +95,11 @@ convex/               # Convex backend
   schema.ts           # 14 table definitions with indexes
   functions/          # CRUD + search
   actions/            # Async: enrich, embed, importance, vectorSearch
-  crons.ts            # Cron job configuration
-  crons/              # Cron implementations
+  crons.ts            # 14 cron job definitions
+  crons/              # 13 cron implementations
+.claude/
+  settings.json       # 6 Claude Code hook definitions
+  hooks/              # Hook scripts (session-start, auto-recall, etc.)
 mcp-server/src/       # MCP server (v2 agent-native)
   index.ts            # Entry point — stdio + event bus + optional SSE
   lib/
