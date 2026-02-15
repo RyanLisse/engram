@@ -46,6 +46,6 @@ export async function exportVaultGraph(vaultRoot: string, files: { relativePath:
 
   const outputPath = path.join(vaultRoot, ".obsidian", "graph.json");
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, JSON.stringify(graph, null, 2), "utf8");
+  await fs.writeFile(outputPath, JSON.stringify(graph), "utf8");
   return { outputPath, nodeCount: graph.nodes.length, edgeCount: graph.edges.length };
 }

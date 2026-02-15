@@ -1,4 +1,5 @@
 import { ConvexHttpClient } from "convex/browser";
+import { PATHS } from "./convex-paths.js";
 
 // LanceDB sync daemon - pulls facts from Convex, stores locally
 // Uses @lancedb/lancedb async API with mergeInsert for upserts
@@ -82,7 +83,7 @@ export class LanceSyncDaemon {
     this.state.status = "syncing";
     try {
       // Get agent's permitted scopes
-      const scopes = await this.convex.query("functions/scopes:getPermitted" as any, {
+      const scopes = await this.convex.query(PATHS.scopes.getPermitted as any, {
         agentId: this.config.agentId,
       });
 
@@ -90,7 +91,7 @@ export class LanceSyncDaemon {
 
       for (const scope of scopes) {
         // Get facts since last sync
-        const facts = await this.convex.query("functions/sync:getFactsSince" as any, {
+        const facts = await this.convex.query(PATHS.sync.getFactsSince as any, {
           scopeId: scope._id,
           since: this.state.lastSyncTimestamp,
           limit: 100,
@@ -131,7 +132,7 @@ export class LanceSyncDaemon {
       this.state.status = "idle";
 
       // Update sync log in Convex
-      await this.convex.mutation("functions/sync:updateSyncLog" as any, {
+      await this.convex.mutation(PATHS.sync.updateSyncLog as any, {
         nodeId: `lance-${this.config.agentId}`,
         factsSynced: totalSynced,
         status: "ok",

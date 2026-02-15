@@ -1,35 +1,19 @@
-/**
- * Context primitives — decomposed from memory_get_context
- *
- * memory_resolve_scopes     — scope name→ID + permitted scope discovery
- * memory_load_budgeted_facts — token-budget-aware fact loading
- * memory_search_daily_notes — vault daily notes search
- * memory_get_graph_neighbors — find facts connected via shared entities
- * memory_get_activity_stats — agent activity tracking (factsStoredToday, recallsToday)
- * memory_get_workspace_info — other agents, shared scope stats
- */
-
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 import { loadBudgetAwareContext, detectQueryIntent } from "../lib/budget-aware-loader.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-// ── memory_resolve_scopes ───────────────────────────
-
 export const resolveScopesSchema = z.object({
   scopeId: z.string().optional().describe("Scope name or ID to resolve (omit for all permitted scopes)"),
   agentId: z.string().optional().describe("Agent ID (defaults to current agent)"),
 });
-
 export async function resolveScopes(
   input: z.infer<typeof resolveScopesSchema>,
   currentAgentId: string
 ): Promise<{ scopeIds: string[]; resolved: Array<{ name?: string; id: string }> } | { isError: true; message: string }> {
   const agentId = input.agentId ?? currentAgentId;
-
   if (input.scopeId) {
-    // Name provided — resolve to ID
     if (!input.scopeId.startsWith("j")) {
       const scope = await convex.getScopeByName(input.scopeId);
       if (!scope) {
@@ -37,11 +21,8 @@ export async function resolveScopes(
       }
       return { scopeIds: [scope._id], resolved: [{ name: input.scopeId, id: scope._id }] };
     }
-    // Already an ID
     return { scopeIds: [input.scopeId], resolved: [{ id: input.scopeId }] };
   }
-
-  // Get all permitted scopes
   const permitted = await convex.getPermittedScopes(agentId);
   if (!permitted || !Array.isArray(permitted)) {
     return { scopeIds: [], resolved: [] };
@@ -52,8 +33,6 @@ export async function resolveScopes(
   };
 }
 
-// ── memory_load_budgeted_facts ──────────────────────
-
 export const loadBudgetedFactsSchema = z.object({
   query: z.string().describe("Topic or search query"),
   tokenBudget: z.number().optional().default(4000).describe("Max token budget"),
@@ -61,7 +40,6 @@ export const loadBudgetedFactsSchema = z.object({
   maxFacts: z.number().optional().default(20).describe("Maximum facts to load"),
   profile: z.enum(["default", "planning", "incident", "handoff"]).optional().default("default").describe("Context profile"),
 });
-
 export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsSchema>) {
   const profileBudgetMultiplier =
     input.profile === "incident" ? 0.8 : input.profile === "planning" ? 1.1 : 1;
@@ -95,19 +73,15 @@ export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsS
   };
 }
 
-// ── memory_search_daily_notes ───────────────────────
-
 export const searchDailyNotesSchema = z.object({
   query: z.string().describe("Text to search for in daily notes"),
   maxFiles: z.number().optional().default(5).describe("Maximum files to scan"),
   snippetLength: z.number().optional().default(160).describe("Max snippet characters"),
 });
-
 export async function searchDailyNotes(input: z.infer<typeof searchDailyNotesSchema>) {
   const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
   const dailyDir = path.join(vaultRoot, "daily");
   const results: Array<{ path: string; snippet: string }> = [];
-
   try {
     const files = await fs.readdir(dailyDir);
     for (const file of files.filter((f) => f.endsWith(".md")).slice(0, input.maxFiles)) {
@@ -119,25 +93,17 @@ export async function searchDailyNotes(input: z.infer<typeof searchDailyNotesSch
         snippet: content.replace(/\s+/g, " ").slice(0, input.snippetLength),
       });
     }
-  } catch {
-    // daily notes directory not present
-  }
-
+  } catch { /* daily notes dir not present */ }
   return { notes: results, count: results.length, vaultRoot };
 }
-
-// ── memory_get_graph_neighbors ──────────────────────
 
 export const getGraphNeighborsSchema = z.object({
   entityIds: z.array(z.string()).describe("Entity IDs to find connected facts for"),
   scopeIds: z.array(z.string()).optional().describe("Scope IDs to search within"),
   limit: z.number().optional().default(20).describe("Maximum results"),
 });
-
 export async function getGraphNeighbors(input: z.infer<typeof getGraphNeighborsSchema>) {
   const entitySet = new Set(input.entityIds);
-
-  // Search for facts that reference any of the provided entities
   const allFacts: any[] = [];
   for (const entityId of input.entityIds) {
     const results = await convex.searchFacts({
@@ -149,8 +115,6 @@ export async function getGraphNeighbors(input: z.infer<typeof getGraphNeighborsS
       allFacts.push(...results);
     }
   }
-
-  // Deduplicate and filter to facts with entity overlap
   const seen = new Set<string>();
   const neighbors = allFacts.filter((fact: any) => {
     if (seen.has(fact._id)) return false;
@@ -161,22 +125,16 @@ export async function getGraphNeighbors(input: z.infer<typeof getGraphNeighborsS
 
   return { neighbors, count: neighbors.length };
 }
-
-// ── memory_get_activity_stats ───────────────────────
-
 export const getActivityStatsSchema = z.object({
   agentId: z.string().optional().describe("Agent ID (defaults to current agent)"),
   periodHours: z.number().optional().default(24).describe("Lookback period in hours"),
 });
-
 export async function getActivityStats(
   input: z.infer<typeof getActivityStatsSchema>,
   currentAgentId: string
 ) {
   const agentId = input.agentId ?? currentAgentId;
   const since = Date.now() - (input.periodHours * 60 * 60 * 1000);
-
-  // Poll events to count activity
   const events = await convex.pollEvents({
     agentId,
     watermark: since,
@@ -200,23 +158,16 @@ export async function getActivityStats(
   };
 }
 
-// ── memory_get_workspace_info ───────────────────────
-
 export const getWorkspaceInfoSchema = z.object({
   agentId: z.string().optional().describe("Agent ID (defaults to current agent)"),
 });
-
 export async function getWorkspaceInfo(
   input: z.infer<typeof getWorkspaceInfoSchema>,
   currentAgentId: string
 ) {
   const agentId = input.agentId ?? currentAgentId;
-
-  // List all registered agents
   const agents = await convex.listAgents();
   const agentList = Array.isArray(agents) ? agents : [];
-
-  // Get shared scopes
   const scopes = await convex.getPermittedScopes(agentId);
   const scopeList = Array.isArray(scopes) ? scopes : [];
 

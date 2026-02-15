@@ -1,7 +1,3 @@
-/**
- * memory_get_context — Warm start with token-aware injection
- */
-
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 import {

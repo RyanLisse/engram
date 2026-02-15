@@ -29,7 +29,7 @@ export async function checkpoint(input: CheckpointInput, agentId: string) {
   const checkpointFile = path.join(CHECKPOINT_DIR, `${id}.json`);
   await fs.writeFile(
     checkpointFile,
-    JSON.stringify({ id, createdAt, agentId, scopeId, summary: input.summary, context }, null, 2),
+    JSON.stringify({ id, createdAt, agentId, scopeId, summary: input.summary, context }),
     "utf8"
   );
   await fs.writeFile(DIRTY_FLAG, String(createdAt), "utf8");

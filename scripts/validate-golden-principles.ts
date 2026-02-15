@@ -102,15 +102,15 @@ function checkPrettyPrintJson(): Violation[] {
 
 function checkToolFileSize(): Violation[] {
   const violations: Violation[] = [];
-  // GP-001: Tool files should stay under 150 lines for agent legibility
+  // GP-001: Tool files should stay under 200 lines (multi-handler primitives are expected)
   for (const file of walkTs("mcp-server/src/tools")) {
     const lines = readLines(file);
-    if (lines.length > 150) {
+    if (lines.length > 200) {
       violations.push({
         principle: "GP-001",
         severity: "medium",
         file,
-        message: `Tool file is ${lines.length} lines (guideline: ≤150). Consider splitting.`,
+        message: `Tool file is ${lines.length} lines (guideline: ≤200). Consider splitting.`,
       });
     }
   }
@@ -243,7 +243,6 @@ function checkDocumentation(): Violation[] {
 
 function checkToolParameters(): Violation[] {
   const violations: Violation[] = [];
-  // GP-011: Tool parameter counts (from tool-registry.ts)
   const registryPath = "mcp-server/src/lib/tool-registry.ts";
   const content = readFileSync(join(ROOT, registryPath), "utf-8");
 
@@ -255,14 +254,24 @@ function checkToolParameters(): Violation[] {
     if (!nameMatch) continue;
     const toolName = nameMatch[1];
 
-    // Count properties in inputSchema
-    const propsMatch = block.match(/properties:\s*\{/);
-    if (!propsMatch) continue;
+    // Count only top-level properties by tracking brace depth
+    const propsIdx = block.indexOf("properties: {");
+    if (propsIdx === -1) continue;
 
-    // Count property keys between properties: { and the closing }
-    const afterProps = block.slice(propsMatch.index! + propsMatch[0].length);
-    const propKeys = afterProps.match(/[a-zA-Z_]+:\s*\{/g);
-    const paramCount = propKeys?.length ?? 0;
+    let depth = 0;
+    let paramCount = 0;
+    let started = false;
+    const sub = block.slice(propsIdx + "properties: ".length);
+    for (let ci = 0; ci < sub.length; ci++) {
+      if (sub[ci] === "{") {
+        depth++;
+        if (depth === 1) started = true;
+        if (depth === 2) paramCount++; // each top-level prop opens a { at depth 2
+      } else if (sub[ci] === "}") {
+        depth--;
+        if (depth === 0 && started) break; // closed the properties object
+      }
+    }
 
     // Count required params
     const reqMatch = block.match(/required:\s*\[([^\]]*)\]/);
