@@ -30,6 +30,19 @@ export COHERE_API_KEY="your-cohere-key"  # Optional: enables real embeddings
 node mcp-server/dist/index.js
 ```
 
+## Harness Quality
+
+Run local harness checks before pushing:
+
+```bash
+make harness-check
+```
+
+This validates core harness artifacts and smoke-tests Claude hook installation into a temp directory.
+
+CI enforces this on PRs and `main` via:
+- `.github/workflows/harness.yml`
+
 ### Supported AI Editors
 
 Engram provides automated setup for multiple AI code editors. **[Full integration guide →](docs/EDITOR-INTEGRATIONS.md)**
