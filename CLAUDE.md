@@ -137,7 +137,7 @@ docs/
 Both the MCP server and OpenClaw plugin import from this file.
 
 ### Convex Integration
-The MCP server uses string-based function paths (`"functions/facts:storeFact"`) in `mcp-server/src/lib/convex-client.ts`. The `as any` cast is isolated there.
+The MCP server uses type-safe function path constants from `mcp-server/src/lib/convex-paths.ts`. All paths are centralized there — renaming a Convex function requires a single update.
 
 ### Scope Resolution
 Scope names: `private-{agentId}`. Tools resolve names to IDs via `getScopeByName()`.

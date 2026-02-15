@@ -12,6 +12,39 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## I Want To...
+
+| Goal | Tool / Path |
+|------|-------------|
+| Store a fact | `memory_store_fact` → Core tools |
+| Search memory | `memory_recall` (semantic) or `memory_search` (structured) |
+| Build context | `memory_get_context` (token-aware injection) |
+| Register an agent | `memory_register_agent` → Agent tools |
+| Subscribe to events | `memory_subscribe` → `memory_poll_subscription` |
+| Query raw data | `memory_query_raw` (escape hatch) |
+| Discover all tools | `memory_list_capabilities` (69 tools, 13 categories) |
+
+## Navigation Map
+
+- **Architecture & Design** → `CLAUDE.md`
+- **Golden Principles** → `GOLDEN_PRINCIPLES.md` (mechanical rules)
+- **Full API Reference** → `docs/API-REFERENCE.md` (auto-generated)
+- **Tool Registry** → `mcp-server/src/lib/tool-registry.ts` (single source of truth)
+- **Convex Schema** → `convex/schema.ts` (14 tables)
+- **Cron Jobs** → `CRONS.md` (14 scheduled tasks)
+- **Hooks** → `HOOKS.md` (6 lifecycle automations)
+- **Patterns** → `docs/patterns/` (async enrichment, scopes, events, depth-first)
+- **Plans** → `docs/plans/` (timestamped design docs)
+
+## Key Build Commands
+
+```bash
+npx tsc --noEmit                 # Type-check MCP server
+cd mcp-server && npm run build   # Build MCP server
+npx convex dev                   # Start Convex dev
+npx tsx scripts/generate-api-reference.ts  # Regen API docs
+```
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
