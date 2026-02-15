@@ -149,6 +149,12 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 4. **Emergent Capability** — Raw query escape hatch for unanticipated use
 5. **Improvement Over Time** — Memory IS the improvement mechanism
 
+## Philosophy and Research
+
+- Philosophy: `/Users/cortex-air/Tools/engram/docs/PHILOSOPHY.md`
+- Research index: `/Users/cortex-air/Tools/engram/docs/research/README.md`
+- Research synthesis to implementation: `/Users/cortex-air/Tools/engram/docs/research/SYNTHESIS.md`
+
 ## Project Structure
 
 ```

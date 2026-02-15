@@ -5,11 +5,13 @@ flowchart LR
     Agent1[Agent 1] --> MCP[MCP Server]
     Agent2[Agent 2] --> MCP
     Agent3[Agent N] --> MCP
+    OpenClaw[OpenClaw Runtime] -.native plugin path.- Plugin[Future Native Plugin Package]
+    Plugin -.bridge/compat.- MCP
     MCP --> Convex[Convex Cloud]
     MCP --> Lance[LanceDB Local]
     Convex --> VI[Vector Index]
     Convex --> SI[Search Index]
-    Convex --> Crons[Crons/Pipeline]
+    Convex --> Crons[Crons/Enrichment Pipeline]
     Lance --> LR[Local Recall]
 ```
 
@@ -38,6 +40,17 @@ flowchart TD
     OS --> Rerank[Rerank Cron]
     Rerank --> IS[importanceScore]
     IS --> Better[Better Recall]
+```
+
+# Philosophy Loop
+
+```mermaid
+flowchart LR
+    P1[Primitive Tools] --> C1[Agent Composition]
+    C1 --> O1[Observable Outcomes]
+    O1 --> F1[Signals and Feedback]
+    F1 --> L1[Ranking and Policy Updates]
+    L1 --> P1
 ```
 
 # Synthesis

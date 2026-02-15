@@ -2,6 +2,9 @@
 
 All research informing Engram's architecture, ordered by relevance.
 
+Also see the implementation synthesis:
+- [Research Synthesis](SYNTHESIS.md) — direct mapping from findings to architecture decisions
+
 ---
 
 ## Memory Systems & Frameworks

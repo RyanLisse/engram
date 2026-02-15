@@ -178,3 +178,7 @@ If it shows a number below 18, update Node.js from [nodejs.org](https://nodejs.o
 ---
 
 For advanced configuration, architecture details, and the full list of tools and their options, see the main [README](../README.md).
+
+For design intent:
+- Philosophy: `/Users/cortex-air/Tools/engram/docs/PHILOSOPHY.md`
+- Research synthesis: `/Users/cortex-air/Tools/engram/docs/research/SYNTHESIS.md`
