@@ -1,0 +1,25 @@
+{
+  "name": "@engram/cli",
+  "version": "1.0.0",
+  "description": "Engram Memory CLI — store, recall, search, and manage multi-agent memory",
+  "type": "module",
+  "bin": {
+    "engram": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "convex": "^1.31.7",
+    "ora": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
