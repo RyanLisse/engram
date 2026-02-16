@@ -40,8 +40,8 @@ hooks-install-both: hooks-install-claude hooks-install-openclaw
 	@echo "Installed both Claude and OpenClaw hooks"
 
 harness-check:
-	@test -f AGENTS.md
-	@test -f docs/GOLDEN-PRINCIPLES.md
+	@test -f AGENTS.md || { echo "Missing AGENTS.md"; exit 1; }
+	@test -f GOLDEN_PRINCIPLES.md || { echo "Missing GOLDEN_PRINCIPLES.md"; exit 1; }
 	@tmpdir="$$(mktemp -d)"; \
 		make hooks-install-claude CLAUDE_DEST="$$tmpdir/.claude"; \
 		test -f "$$tmpdir/.claude/hooks/hooks.json"; \
@@ -50,11 +50,11 @@ harness-check:
 	@echo "Harness checks passed"
 
 harness-validate:
-	npx tsx scripts/validate-golden-principles.ts
+	mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts
 
 harness-install-pre-commit:
+	@mkdir -p .git/hooks
 	@echo '#!/bin/bash' > .git/hooks/pre-commit
-	@echo 'npx tsx scripts/validate-golden-principles.ts' >> .git/hooks/pre-commit
-	@echo 'exit $$?' >> .git/hooks/pre-commit
+	@echo 'mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts' >> .git/hooks/pre-commit
 	@chmod +x .git/hooks/pre-commit
 	@echo "Pre-commit hook installed at .git/hooks/pre-commit"

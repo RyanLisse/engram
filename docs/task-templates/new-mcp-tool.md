@@ -4,7 +4,7 @@
 
 **Purpose**: Depth-first template for adding a new MCP tool to Engram following golden principles.
 
-**Estimated Time**: 80 minutes (design 15min, implementation 30min, testing 20min, docs 10min, validation 5min)
+**Estimated Time**: 90 minutes (design 15min, implementation 30min, testing 20min, docs 10min, validation 5min, PR & merge 10min)
 
 ---
 

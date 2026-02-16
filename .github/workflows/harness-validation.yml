@@ -1,0 +1,265 @@
+name: Harness Engineering Validation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Weekly validation every Monday at 6am UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  checks: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'mcp-server/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd mcp-server
+          npm ci
+
+      - name: Run Golden Principles Validation
+        id: validate
+        run: |
+          npx tsx scripts/validate-golden-principles.ts --json > validation-results.json
+          cat validation-results.json
+        continue-on-error: true
+
+      - name: Upload validation results
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-results
+          path: validation-results.json
+          retention-days: 30
+
+      - name: Parse validation results
+        id: parse
+        run: |
+          # Extract key metrics from JSON
+          GRADE=$(jq -r '.grade' validation-results.json)
+          CRITICAL=$(jq -r '.summary.critical' validation-results.json)
+          HIGH=$(jq -r '.summary.high' validation-results.json)
+          MEDIUM=$(jq -r '.summary.medium' validation-results.json)
+          TOTAL=$(jq -r '.violations | length' validation-results.json)
+
+          echo "grade=$GRADE" >> $GITHUB_OUTPUT
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+
+          # Set step outcome based on critical violations
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          elif [ "$HIGH" -gt 5 ]; then
+            echo "status=warning" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create check run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('validation-results.json', 'utf8'));
+
+            const conclusion = results.summary.critical > 0 ? 'failure' :
+                              results.summary.high > 5 ? 'neutral' : 'success';
+
+            const summary = `## Golden Principles Validation
+
+            **Overall Grade**: ${results.grade}
+            **Total Violations**: ${results.violations.length}
+
+            | Severity | Count |
+            |----------|-------|
+            | Critical | ${results.summary.critical} |
+            | High | ${results.summary.high} |
+            | Medium | ${results.summary.medium} |
+            | Low | ${results.summary.low} |
+            `;
+
+            const details = results.violations.length > 0 ? `
+            ### Violations by Principle
+
+            ${results.violations.reduce((acc, v) => {
+              if (!acc[v.principle]) acc[v.principle] = [];
+              acc[v.principle].push(v);
+              return acc;
+            }, Object.create(null))}
+
+            ${Object.entries(results.violations.reduce((acc, v) => {
+              if (!acc[v.principle]) acc[v.principle] = [];
+              acc[v.principle].push(v);
+              return acc;
+            }, Object.create(null))).map(([principle, violations]) => `
+            #### ${principle} (${violations.length} violation${violations.length > 1 ? 's' : ''})
+
+            ${violations.slice(0, 5).map(v => `
+            - **${v.severity.toUpperCase()}**: \`${v.file}${v.line ? ':' + v.line : ''}\`
+              - ${v.message}
+              ${v.fix ? `- **Fix**: ${v.fix}` : ''}
+            `).join('\n')}
+
+            ${violations.length > 5 ? `\n_...and ${violations.length - 5} more_` : ''}
+            `).join('\n')}
+            ` : '\n✅ No violations found!';
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Golden Principles Validation',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: conclusion,
+              output: {
+                title: `Grade ${results.grade} - ${results.violations.length} violation(s)`,
+                summary: summary,
+                text: details
+              }
+            });
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('validation-results.json', 'utf8'));
+
+            const body = `## 🔍 Golden Principles Validation
+
+            **Overall Grade**: ${results.grade}
+            **Total Violations**: ${results.violations.length}
+
+            | Severity | Count |
+            |----------|-------|
+            | 🔴 Critical | ${results.summary.critical} |
+            | 🟠 High | ${results.summary.high} |
+            | 🟡 Medium | ${results.summary.medium} |
+            | 🔵 Low | ${results.summary.low} |
+
+            ${results.summary.critical > 0 ? `
+            ### ⚠️ Action Required: Critical Violations
+
+            This PR introduces ${results.summary.critical} critical violation(s) that must be fixed before merge.
+            ` : ''}
+
+            ${results.violations.length > 0 ? `
+            <details>
+            <summary>View all violations</summary>
+
+            ${Object.entries(results.violations.reduce((acc, v) => {
+              if (!acc[v.principle]) acc[v.principle] = [];
+              acc[v.principle].push(v);
+              return acc;
+            }, {})).map(([principle, violations]) => `
+            #### ${principle}
+            ${violations.map(v => `
+            - **${v.severity}**: \`${v.file}${v.line ? ':' + v.line : ''}\`
+              - ${v.message}
+              ${v.fix ? `- Fix: ${v.fix}` : ''}
+            `).join('\n')}
+            `).join('\n')}
+
+            </details>
+            ` : '✅ No violations introduced by this PR!'}
+
+            ---
+
+            📚 **Reference**: [Golden Principles](../blob/main/docs/GOLDEN-PRINCIPLES.md) | [Validation Tool](../blob/main/scripts/validate-golden-principles.ts)
+            `;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Create issues for critical violations
+        if: steps.parse.outputs.critical > 0 && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('validation-results.json', 'utf8'));
+
+            const critical = results.violations.filter(v => v.severity === 'critical');
+
+            if (critical.length > 0) {
+              // Group by principle
+              const grouped = critical.reduce((acc, v) => {
+                if (!acc[v.principle]) acc[v.principle] = [];
+                acc[v.principle].push(v);
+                return acc;
+              }, {});
+
+              for (const [principle, violations] of Object.entries(grouped)) {
+                const title = `🚨 Critical: ${principle} violations (${violations.length})`;
+                const body = `## Critical Golden Principle Violations
+
+            **Principle**: ${principle}
+            **Severity**: Critical
+            **Count**: ${violations.length}
+            **Detected**: ${new Date().toISOString().split('T')[0]}
+
+            ### Violations
+
+            ${violations.map((v, i) => `
+            ${i + 1}. **File**: \`${v.file}${v.line ? ':' + v.line : ''}\`
+               - **Message**: ${v.message}
+               ${v.fix ? `- **Fix**: ${v.fix}` : ''}
+            `).join('\n')}
+
+            ### Action Required
+
+            These violations must be fixed immediately as they can break core functionality.
+
+            ### Resources
+
+            - [Golden Principles Documentation](../blob/main/docs/GOLDEN-PRINCIPLES.md)
+            - [Validation Tool](../blob/main/scripts/validate-golden-principles.ts)
+            - [Harness Engineering Guide](../blob/main/docs/HARNESS-ENGINEERING-OPTIMIZATION.md)
+
+            ---
+
+            🤖 This issue was created automatically by the [Harness Validation workflow](../actions/workflows/harness-validation.yml).
+            `;
+
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  labels: ['harness-engineering', 'critical', 'automated', principle]
+                });
+              }
+            }
+
+      - name: Fail on critical violations
+        if: steps.parse.outputs.critical > 0
+        run: |
+          echo "❌ Critical violations detected: ${{ steps.parse.outputs.critical }}"
+          echo "Fix these violations before merging."
+          exit 1

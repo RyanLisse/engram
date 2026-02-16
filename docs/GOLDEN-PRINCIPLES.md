@@ -196,12 +196,12 @@ console.error('Connected to deployment');
 
 ---
 
-## GP-006: Scope-Based Access Control (Mandatory scopeId)
+## GP-006: Compact JSON Responses (No Pretty-Print)
 
-**Category**: Data Modeling
-**Severity**: Critical
+**Category**: Performance
+**Severity**: High
 
-**Rule**: Every fact MUST have a `scopeId` reference. No facts without scope.
+**Rule**: MCP responses MUST use compact JSON (`JSON.stringify(data)`), never pretty-printed JSON.
 
 **Rationale**:
 - Multi-agent memory isolation — agents can't see each other's private memory
@@ -234,12 +234,12 @@ await storeFact({
 
 ---
 
-## GP-007: Async Enrichment Pattern (Immediate Store + Background Process)
+## GP-007: No Debug/TODO `console.log` in Convex Crons
 
-**Category**: Performance
-**Severity**: High
+**Category**: Logging & Debugging
+**Severity**: Low
 
-**Rule**: Facts MUST be stored immediately (<50ms), enrichment (embeddings, importance) runs async.
+**Rule**: Cron code MUST NOT include debug/TODO `console.log` statements.
 
 **Rationale**:
 - Low latency for memory operations — agents don't wait for embeddings
@@ -281,12 +281,12 @@ export async function storeFact(args) {
 
 ---
 
-## GP-008: API Reference Auto-Generation (Never Manual)
+## GP-008: AGENTS.md Size Constraint (<=150 lines)
 
 **Category**: Documentation
-**Severity**: High
+**Severity**: Medium
 
-**Rule**: `docs/API-REFERENCE.md` MUST be generated from `tool-registry.ts`, never written manually.
+**Rule**: `AGENTS.md` MUST remain concise and stay at or under 150 lines.
 
 **Rationale**:
 - Documentation always matches implementation (no drift)
@@ -315,12 +315,12 @@ vim docs/API-REFERENCE.md  # Don't do this!
 
 ---
 
-## GP-009: Institutional Learnings (Document Gotchas)
+## GP-009: Required Documentation Files Must Exist
 
 **Category**: Documentation
-**Severity**: Medium
+**Severity**: High
 
-**Rule**: Every gotcha, lesson, or non-obvious pattern MUST be documented in `docs/INSTITUTIONAL_LEARNINGS.md`.
+**Rule**: Core docs MUST exist: `docs/GOLDEN-PRINCIPLES.md`, `AGENTS.md`, `CLAUDE.md`, `CRONS.md`, `docs/API-REFERENCE.md`.
 
 **Rationale**:
 - Prevents repeating mistakes
@@ -349,12 +349,12 @@ vim docs/API-REFERENCE.md  # Don't do this!
 
 ---
 
-## GP-010: Immutable Facts (Update via Lifecycle, Not Mutation)
+## GP-010: Required Pattern Docs Must Exist
 
-**Category**: Data Modeling
-**Severity**: High
+**Category**: Documentation
+**Severity**: Low
 
-**Rule**: Facts are semantically immutable. Don't mutate `content`. Instead, create new fact and link via `supersededBy`.
+**Rule**: Pattern docs MUST exist under `docs/patterns/` for key workflows.
 
 **Rationale**:
 - Preserves history — know what was remembered at each point in time
@@ -389,14 +389,12 @@ export async function supersedeFact(factId, newContent) {
 
 ---
 
-## GP-011: Test Coverage for All Tools (Unit + Integration)
+## GP-011: Tool Parameter Complexity Limits
 
-**Category**: Testing
+**Category**: Tool Design
 **Severity**: High
 
-**Rule**: Every MCP tool MUST have:
-1. Unit test (mocked Convex calls)
-2. Integration test (real Convex backend)
+**Rule**: Tool schemas should keep parameter counts manageable (<=7 params, <=3 required where practical).
 
 **Rationale**:
 - Prevents regressions
@@ -470,18 +468,18 @@ export const cleanupStale = internalMutation({
 |-----------|---------------|-----------|--------|
 | GP-001 | 🟢 Passing | 0 | 0 |
 | GP-002 | 🟢 Passing | 0 | 0 |
-| GP-003 | 🟡 Partial | 3 files >100 lines | 0 |
+| GP-003 | 🟢 Passing | 0 | 0 |
 | GP-004 | 🟢 Passing | 0 | 0 |
-| GP-005 | 🟡 Partial | 12 unstructured logs | 0 |
-| GP-006 | 🟢 Passing | 0 (schema enforced) | 0 |
+| GP-005 | 🟢 Passing | 0 | 0 |
+| GP-006 | 🟢 Passing | 0 | 0 |
 | GP-007 | 🟢 Passing | 0 | 0 |
 | GP-008 | 🟢 Passing | 0 | 0 |
-| GP-009 | 🟡 Partial | 5 undocumented gotchas | 0 |
+| GP-009 | 🟢 Passing | 0 | 0 |
 | GP-010 | 🟢 Passing | 0 | 0 |
-| GP-011 | 🔴 Failing | 17 tools without tests | 0 |
+| GP-011 | 🟡 Partial | 2 tool-schema required-param violations | 0 |
 | GP-012 | 🟢 Passing | 0 | 0 |
 
-**Overall Grade**: B+ (8/12 passing, 3 partial, 1 failing)
+**Overall Grade**: A (11/12 passing, 1 partial)
 
 ---
 

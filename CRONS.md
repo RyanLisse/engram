@@ -18,6 +18,7 @@ These run inside Convex — no external cron needed, no model costs.
 | `stats:daily` | Daily 11:59 PM | Snapshot: total facts, entities, active agents, sync health |
 | `quality-scan` | Daily 4:30 AM | Golden principles enforcement: embedding coverage, scope bloat, stale agents, theme freshness |
 | `learning-synthesis` | Weekly Sun 7:30 AM | Aggregate recall feedback, boost high-value facts, generate weekly learning report |
+| `update-golden-principles` | Weekly Mon 8:00 AM | Analyze successful performance patterns and store candidate principle updates |
 
 ---
 
@@ -163,3 +164,4 @@ Find and merge duplicate facts:
 | Daily Stats | daily | none | Snapshot metrics |
 | Quality Scan | daily | none | Golden principles enforcement |
 | Learning Synthesis | weekly | none | Feedback aggregation + fact boosting |
+| Update Golden Principles | weekly | none | Promote successful patterns to principle candidates |

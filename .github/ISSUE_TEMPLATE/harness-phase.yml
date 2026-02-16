@@ -1,0 +1,104 @@
+name: Harness Engineering Phase
+description: Track implementation of a harness engineering phase
+title: "Phase X: [Phase Name]"
+labels: ["harness-engineering", "phase-implementation"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Track progress on implementing a harness engineering phase.
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      description: Which phase is this?
+      options:
+        - Phase 1 (Golden Principles Foundation)
+        - Phase 2 (Recurring Agent Cleanup)
+        - Phase 3 (Depth-First Task Templates)
+        - Phase 4 (Quality Metrics & Tracking)
+        - Phase 5 (Agent Performance Feedback Loop)
+    validations:
+      required: true
+
+  - type: input
+    id: duration
+    attributes:
+      label: Duration
+      description: Expected duration (e.g., "Week 1", "1 week")
+      placeholder: "Week 1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: objectives
+    attributes:
+      label: Objectives
+      description: What are the goals of this phase?
+      placeholder: |
+        - Establish baseline quality grade
+        - Fix all critical violations
+        - Add pre-commit validation hook
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: List of tasks to complete (use checkboxes)
+      value: |
+        ### Implementation Tasks
+
+        - [ ] Task 1
+        - [ ] Task 2
+        - [ ] Task 3
+
+        ### Testing Tasks
+
+        - [ ] Test 1
+        - [ ] Test 2
+
+        ### Documentation Tasks
+
+        - [ ] Update docs
+        - [ ] Add examples
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: What will be delivered at the end?
+      placeholder: |
+        - Validation script running in CI
+        - Zero critical violations
+        - Quality dashboard initialized
+    validations:
+      required: true
+
+  - type: textarea
+    id: success_criteria
+    attributes:
+      label: Success Criteria
+      description: How do we know this phase is complete?
+      placeholder: |
+        - [ ] All tasks completed
+        - [ ] All tests passing
+        - [ ] Documentation updated
+        - [ ] Peer review completed
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Reference Documentation
+      description: Link to detailed plan
+      placeholder: "docs/HARNESS-ENGINEERING-OPTIMIZATION.md#phase-1"
+    validations:
+      required: false

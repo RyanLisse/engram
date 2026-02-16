@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+// @ts-nocheck
 /**
  * Golden Principles Validator
  *
@@ -11,8 +12,8 @@
  *   npx tsx scripts/validate-golden-principles.ts --json # JSON output
  */
 
-import { readFileSync, readdirSync, existsSync } from 'fs';
-import { join, relative } from 'path';
+import { readFileSync, readdirSync, existsSync } from "fs";
+import { join, relative } from "path";
 
 const ROOT = process.cwd();
 
@@ -74,8 +75,6 @@ function checkStdoutLogging(): Violation[] {
       }
     });
   }
-  // Also flag console.log in Convex crons/functions (should use console.log there, but check for accidental console.error)
-  // Actually Convex uses console.log fine — but let's flag console.log in convex actions that might confuse
   return violations;
 }
 
@@ -102,12 +101,12 @@ function checkPrettyPrintJson(): Violation[] {
 
 function checkToolFileSize(): Violation[] {
   const violations: Violation[] = [];
-  // GP-001: Tool files should stay under 200 lines (multi-handler primitives are expected)
+  // GP-003: Tool files should stay under 200 lines (multi-handler primitives are expected)
   for (const file of walkTs("mcp-server/src/tools")) {
     const lines = readLines(file);
     if (lines.length > 200) {
       violations.push({
-        principle: "GP-001",
+        principle: "GP-003",
         severity: "medium",
         file,
         message: `Tool file is ${lines.length} lines (guideline: ≤200). Consider splitting.`,
@@ -202,7 +201,7 @@ function checkDocumentation(): Violation[] {
 
   // GP-009: Required documentation files must exist
   const requiredDocs = [
-    "GOLDEN_PRINCIPLES.md",
+    "docs/GOLDEN-PRINCIPLES.md",
     "AGENTS.md",
     "CLAUDE.md",
     "CRONS.md",
@@ -244,6 +243,7 @@ function checkDocumentation(): Violation[] {
 function checkToolParameters(): Violation[] {
   const violations: Violation[] = [];
   const registryPath = "mcp-server/src/lib/tool-registry.ts";
+  if (!existsSync(join(ROOT, registryPath))) return violations;
   const content = readFileSync(join(ROOT, registryPath), "utf-8");
 
   // Find tool definitions with their parameter counts
@@ -340,6 +340,7 @@ const summary = {
   low: allViolations.filter((v) => v.severity === "low").length,
   total: allViolations.length,
   filesAffected: new Set(allViolations.map((v) => v.file)).size,
+  totalFiles: walkTs("mcp-server/src").length + walkTs("convex").length,
 };
 const overallGrade = grade(allViolations);
 const durationMs = Date.now() - startMs;

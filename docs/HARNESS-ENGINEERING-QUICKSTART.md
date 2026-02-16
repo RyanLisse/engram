@@ -21,7 +21,7 @@ I've applied OpenAI's Harness Engineering methodology to Engram. This transforms
 ### Step 1: Run Golden Principles Validation
 
 ```bash
-cd /Users/cortex-air/Tools/engram
+cd <path-to-engram>  # root of the engram repository
 npx tsx scripts/validate-golden-principles.ts
 ```
 
@@ -87,7 +87,7 @@ cat docs/HARNESS-ENGINEERING-OPTIMIZATION.md
 
 | File | Purpose |
 |------|---------|
-| `docs/HARNESS-ENGINEERING-OPTIMIZATION.md` | Master plan: 5 phases, 25 weeks, full transformation strategy |
+| `docs/HARNESS-ENGINEERING-OPTIMIZATION.md` | Master plan: 5 phases, 5 weeks, full transformation strategy |
 | `docs/GOLDEN-PRINCIPLES.md` | Machine-readable rules (GP-001 through GP-012) |
 | `scripts/validate-golden-principles.ts` | Automated violation detection + quality grading |
 | `docs/task-templates/new-mcp-tool.md` | Depth-first template for adding MCP tools |
