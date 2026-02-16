@@ -30,6 +30,90 @@ export COHERE_API_KEY="your-cohere-key"  # Optional: enables real embeddings
 node mcp-server/dist/index.js
 ```
 
+## Add Engram to your agent (easy guide)
+
+Use Engram from **Claude Code** or **OpenClaw** in a few steps.
+
+### 1. Build the MCP server (once)
+
+From the Engram repo root:
+
+```bash
+cd mcp-server && npm install && npx tsc
+# or: cd mcp-server && bun install && bun run build
+```
+
+### 2. Add the MCP server to your editor
+
+**Claude Code** — Add to your project’s `.mcp.json` or `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/path/to/engram/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://your-deployment.convex.cloud",
+        "ENGRAM_AGENT_ID": "your-agent-id",
+        "COHERE_API_KEY": ""
+      }
+    }
+  }
+}
+```
+
+Replace `/path/to/engram` with the real path (e.g. `~/Tools/engram`). Optional: copy the ready-made config:
+
+```bash
+cp plugins/claude-code/.mcp.json ~/.claude/settings.json
+# then edit paths and CONVEX_URL / ENGRAM_AGENT_ID
+```
+
+**OpenClaw** — Add the same `engram` block to your OpenClaw MCP config (same `command`, `args`, `env`). Use your actual path in `args`.
+
+### 3. Restart and verify
+
+Restart Claude Code or OpenClaw, then call `memory_health`. You should see something like `{ "ok": true }`.
+
+**Detailed setup:** [Claude Code](docs/setup/CLAUDE-CODE-SETUP.md) · [OpenClaw](docs/setup/OPENCLAW-SETUP.md) · [Editor integrations](docs/EDITOR-INTEGRATIONS.md)
+
+---
+
+## Point your agent here (agent instructions)
+
+Copy this block into your AI agent’s system instructions or project rules so it knows how to use Engram:
+
+```markdown
+## Engram memory
+
+Engram is the shared memory layer for this project. Use it to store facts, recall context, and coordinate across sessions.
+
+### Quick reference
+| Goal | Tool |
+|------|------|
+| Store a fact | `memory_store_fact` |
+| Search memory (semantic) | `memory_recall` |
+| Search (structured/filters) | `memory_search` |
+| Warm-start context | `memory_get_context` |
+| Register this agent | `memory_register_agent` |
+| Discover all tools | `memory_list_capabilities` (69 tools) |
+
+### Navigation
+- Architecture & design → `CLAUDE.md`
+- Full API → `docs/API-REFERENCE.md`
+- Tool registry → `mcp-server/src/lib/tool-registry.ts`
+- Convex schema → `convex/schema.ts`
+- Hooks → `HOOKS.md`; Crons → `CRONS.md`
+
+### Commands (from repo root)
+- Type-check: `npx tsc --noEmit`
+- Build MCP: `cd mcp-server && npm run build`
+- Convex dev: `npx convex dev`
+```
+
+---
+
 ## Harness Quality
 
 Run local harness checks before pushing:
@@ -45,16 +129,16 @@ CI enforces this on PRs and `main` via:
 
 ### Supported AI Editors
 
-Engram provides automated setup for multiple AI code editors. **[Full integration guide →](docs/EDITOR-INTEGRATIONS.md)**
+See **Add Engram to your agent (easy guide)** above for short setup. Full details:
 
 | Editor | Setup | Features |
 |--------|-------|----------|
-| **Claude Code** | `cp plugins/claude-code/.mcp.json ~/.claude/settings.json` | 8 lifecycle hooks, auto-recall, session checkpoints |
-| **Windsurf** | `./plugins/windsurf/setup.sh` | Full MCP access (69 tools), real-time events |
-| **OpenClaw** | Native integration | Zero-overhead TypeScript imports |
-| **Any MCP Client** | Manual config below | Standard MCP protocol support |
+| **Claude Code** | Add `engram` to `.mcp.json` (see easy guide) or `cp plugins/claude-code/.mcp.json ~/.claude/settings.json` | 8 lifecycle hooks, auto-recall, session checkpoints |
+| **OpenClaw** | Same MCP block in OpenClaw MCP config (see easy guide) | 69 tools; optional native plugin |
+| **Windsurf** | `./plugins/windsurf/setup.sh` | Full MCP access, real-time events |
+| **Any MCP Client** | Same `command` / `args` / `env` as above | Standard MCP protocol |
 
-**→ See [docs/EDITOR-INTEGRATIONS.md](docs/EDITOR-INTEGRATIONS.md) for detailed setup guides, troubleshooting, and feature comparisons.**
+**→ [docs/EDITOR-INTEGRATIONS.md](docs/EDITOR-INTEGRATIONS.md)** — detailed setup, troubleshooting, feature comparison.
 
 #### Claude Code Configuration
 
