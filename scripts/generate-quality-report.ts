@@ -30,7 +30,74 @@ function runValidationJson(): string {
   }
 }
 
-const report = JSON.parse(runValidationJson()) as ValidationReport;
+// Parse validation output with robust JSON boundary detection
+function parseValidationReport(): ValidationReport {
+  const rawOutput = runValidationJson().trim();
+
+  // Find JSON object boundaries (first '{' to matching '}')
+  const jsonStart = rawOutput.indexOf('{');
+  if (jsonStart === -1) {
+    throw new Error(
+      `No JSON object found in validation output. Output:\n${rawOutput.slice(0, 200)}`
+    );
+  }
+
+  // Extract from first '{' to end, then try to parse
+  const jsonCandidate = rawOutput.slice(jsonStart);
+
+  try {
+    const parsed = JSON.parse(jsonCandidate) as ValidationReport;
+
+    // Validate required fields
+    if (!parsed.grade || !parsed.summary || !Array.isArray(parsed.violations)) {
+      throw new Error(
+        `Invalid ValidationReport structure: missing required fields (grade, summary, or violations)`
+      );
+    }
+
+    return parsed;
+  } catch (parseError: any) {
+    // Try to find the last complete JSON object if parsing failed
+    let lastValidJson = -1;
+    let braceCount = 0;
+
+    for (let i = jsonStart; i < rawOutput.length; i++) {
+      if (rawOutput[i] === '{') braceCount++;
+      if (rawOutput[i] === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          lastValidJson = i + 1;
+          break;
+        }
+      }
+    }
+
+    if (lastValidJson > jsonStart) {
+      try {
+        const trimmedJson = rawOutput.slice(jsonStart, lastValidJson);
+        const parsed = JSON.parse(trimmedJson) as ValidationReport;
+
+        if (!parsed.grade || !parsed.summary || !Array.isArray(parsed.violations)) {
+          throw new Error(
+            `Invalid ValidationReport structure: missing required fields (grade, summary, or violations)`
+          );
+        }
+
+        return parsed;
+      } catch (retryError: any) {
+        throw new Error(
+          `Failed to parse validation output as JSON.\nOriginal error: ${parseError.message}\nRetry error: ${retryError.message}\nOutput preview:\n${rawOutput.slice(0, 500)}`
+        );
+      }
+    }
+
+    throw new Error(
+      `Failed to parse validation output as JSON: ${parseError.message}\nOutput preview:\n${rawOutput.slice(0, 500)}`
+    );
+  }
+}
+
+const report = parseValidationReport();
 
 const today = new Date();
 const date = today.toISOString().split("T")[0];
