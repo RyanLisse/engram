@@ -11,8 +11,8 @@ export const queryRawSchema = z.object({
   table: z
     .string()
     .describe("Table to query: facts, entities, agents, scopes, sessions, conversations, signals, themes, sync_log"),
-  filter: z.record(z.any()).optional().describe("Filter conditions (table-specific)"),
-  limit: z.number().optional().default(50).describe("Maximum results (default: 50, max: 50)"),
+  filter: z.record(z.string(), z.any()).optional().describe("Filter conditions (table-specific)"),
+  limit: z.number().optional().prefault(50).describe("Maximum results (default: 50, max: 50)"),
 });
 
 export type QueryRawInput = z.infer<typeof queryRawSchema>;

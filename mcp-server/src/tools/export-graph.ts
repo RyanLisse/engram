@@ -7,7 +7,7 @@ import { listVaultMarkdownFiles } from "../lib/vault-writer.js";
 const DEFAULT_VAULT_ROOT = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
 
 export const exportGraphSchema = z.object({
-  includeContent: z.boolean().optional().default(true),
+  includeContent: z.boolean().optional().prefault(true),
 });
 
 export type ExportGraphInput = z.infer<typeof exportGraphSchema>;

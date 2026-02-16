@@ -7,7 +7,7 @@ const DEFAULT_VAULT_ROOT = process.env.VAULT_ROOT || path.resolve(process.cwd(),
 
 export const queryVaultSchema = z.object({
   query: z.string(),
-  limit: z.number().optional().default(20),
+  limit: z.number().optional().prefault(20),
 });
 
 export type QueryVaultInput = z.infer<typeof queryVaultSchema>;

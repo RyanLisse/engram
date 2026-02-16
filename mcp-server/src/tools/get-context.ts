@@ -16,15 +16,15 @@ import {
 
 export const getContextSchema = z.object({
   topic: z.string().describe("Topic to gather context about"),
-  maxFacts: z.number().optional().default(20).describe("Maximum facts to include"),
-  tokenBudget: z.number().optional().default(4000).describe("Max token budget"),
+  maxFacts: z.number().optional().prefault(20).describe("Maximum facts to include"),
+  tokenBudget: z.number().optional().prefault(4000).describe("Max token budget"),
   profile: z
     .enum(["default", "planning", "incident", "handoff"])
     .optional()
-    .default("default")
+    .prefault("default")
     .describe("Context profile"),
-  includeEntities: z.boolean().optional().default(true).describe("Include related entities"),
-  includeThemes: z.boolean().optional().default(true).describe("Include thematic clusters"),
+  includeEntities: z.boolean().optional().prefault(true).describe("Include related entities"),
+  includeThemes: z.boolean().optional().prefault(true).describe("Include thematic clusters"),
   scopeId: z.string().optional().describe("Scope to search within"),
 });
 

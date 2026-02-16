@@ -20,7 +20,7 @@ export const rankCandidatesSchema = z.object({
     outcomeScore: z.number().optional(),
     _score: z.number().optional(),
   })).describe("Candidate facts to rank"),
-  limit: z.number().optional().default(10).describe("Maximum results to return"),
+  limit: z.number().optional().prefault(10).describe("Maximum results to return"),
   weights: z.object({
     semantic: z.number().optional(),
     lexical: z.number().optional(),
