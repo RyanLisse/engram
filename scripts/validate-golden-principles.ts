@@ -1,5 +1,4 @@
 #!/usr/bin/env tsx
-// @ts-nocheck
 /**
  * Golden Principles Validator
  *
