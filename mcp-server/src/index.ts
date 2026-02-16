@@ -53,17 +53,25 @@ console.error("[engram-mcp] Starting Engram MCP Server (v2 agent-native)...");
 console.error(`[engram-mcp] Agent ID: ${AGENT_ID}`);
 console.error(`[engram-mcp] Convex URL: ${process.env.CONVEX_URL}`);
 
-// Start event bus polling from Convex
-eventBus.startPolling(async (watermark) => {
-  const result = await convex.pollEvents({ agentId: AGENT_ID, watermark, limit: 50 });
-  return (result?.events ?? []).map((e: any) => ({
-    type: e.type ?? "unknown",
-    agentId: e.agentId ?? AGENT_ID,
-    scopeId: e.scopeId,
-    payload: e,
-    timestamp: e.createdAt ?? Date.now(),
-  }));
-}, 2000);
+const convexUrl = process.env.CONVEX_URL || "";
+const isPlaceholderConvexUrl = convexUrl.includes("your-deployment.convex.cloud");
+const disableEventBus = process.env.ENGRAM_DISABLE_EVENT_BUS === "1" || isPlaceholderConvexUrl;
+
+if (disableEventBus) {
+  console.error("[engram-mcp] Event bus polling disabled (test or placeholder configuration)");
+} else {
+  // Start event bus polling from Convex
+  eventBus.startPolling(async (watermark) => {
+    const result = await convex.pollEvents({ agentId: AGENT_ID, watermark, limit: 50 });
+    return (result?.events ?? []).map((e: any) => ({
+      type: e.type ?? "unknown",
+      agentId: e.agentId ?? AGENT_ID,
+      scopeId: e.scopeId,
+      payload: e,
+      timestamp: e.createdAt ?? Date.now(),
+    }));
+  }, 2000);
+}
 
 // Optionally start SSE HTTP server for real-time streaming
 const SSE_PORT = process.env.ENGRAM_SSE_PORT ? parseInt(process.env.ENGRAM_SSE_PORT, 10) : undefined;

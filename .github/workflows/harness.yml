@@ -1,0 +1,40 @@
+name: Harness Quality
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build mcp-server
+        working-directory: mcp-server
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run harness checks
+        run: make harness-check
+
+      - name: Validate golden principles
+        run: mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts
+        continue-on-error: true
+
+      - name: Run tests
+        run: npm test

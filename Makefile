@@ -8,13 +8,15 @@ OPENCLAW_HOOKS_HOME ?= $(HOME)/.openclaw/hooks
 FORCE ?= 0
 CLAUDE_HOOK_SOURCE := plugins/claude-code/hooks
 
-.PHONY: help hooks-install-claude hooks-install-openclaw hooks-install-both
+.PHONY: help hooks-install-claude hooks-install-openclaw hooks-install-both harness-check harness-validate harness-install-pre-commit
 
 help:
 	@echo "Targets:"
 	@echo "  make hooks-install-claude [CLAUDE_DEST=/path/to/.claude]"
 	@echo "  make hooks-install-openclaw [OPENCLAW_PLUGIN_DIR=plugins/openclaw] [FORCE=1]"
 	@echo "  make hooks-install-both [CLAUDE_DEST=...] [OPENCLAW_PLUGIN_DIR=...]"
+	@echo "  make harness-validate       - Run golden principles validation"
+	@echo "  make harness-install-pre-commit - Install pre-commit hook for validation"
 
 hooks-install-claude:
 	mkdir -p "$(CLAUDE_DEST)/hooks/scripts"
@@ -36,3 +38,23 @@ hooks-install-openclaw:
 
 hooks-install-both: hooks-install-claude hooks-install-openclaw
 	@echo "Installed both Claude and OpenClaw hooks"
+
+harness-check:
+	@test -f AGENTS.md || { echo "Missing AGENTS.md"; exit 1; }
+	@test -f GOLDEN_PRINCIPLES.md || { echo "Missing GOLDEN_PRINCIPLES.md"; exit 1; }
+	@tmpdir="$$(mktemp -d)"; \
+		make hooks-install-claude CLAUDE_DEST="$$tmpdir/.claude"; \
+		test -f "$$tmpdir/.claude/hooks/hooks.json"; \
+		test -x "$$tmpdir/.claude/hooks/scripts/session-start.sh"; \
+		rm -rf "$$tmpdir"
+	@echo "Harness checks passed"
+
+harness-validate:
+	mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts
+
+harness-install-pre-commit:
+	@mkdir -p .git/hooks
+	@echo '#!/bin/bash' > .git/hooks/pre-commit
+	@echo 'mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts' >> .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "Pre-commit hook installed at .git/hooks/pre-commit"

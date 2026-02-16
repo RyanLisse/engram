@@ -1,0 +1,105 @@
+name: Golden Principle Violation
+description: Report a violation of Engram's golden principles
+title: "[GP-XXX]: "
+labels: ["harness-engineering", "golden-principle"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a golden principle violation! This helps keep Engram's codebase agent-optimized.
+
+  - type: dropdown
+    id: principle
+    attributes:
+      label: Golden Principle
+      description: Which principle is being violated?
+      options:
+        - GP-001 (Single Source of Truth - Tool Registry)
+        - GP-002 (Convex Function Paths - Type-Safe References)
+        - GP-003 (Atomic Primitives Only)
+        - GP-004 (MCP Server Logging - stderr Only)
+        - GP-005 (Structured Logging - Component Prefix)
+        - GP-006 (Scope-Based Access Control)
+        - GP-007 (Async Enrichment Pattern)
+        - GP-008 (API Reference Auto-Generation)
+        - GP-009 (Institutional Learnings)
+        - GP-010 (Immutable Facts)
+        - GP-011 (Test Coverage for All Tools)
+        - GP-012 (Cron Jobs Must Be Idempotent)
+        - Other (New Principle Needed)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this violation?
+      options:
+        - Critical (Breaks core functionality)
+        - High (Creates technical debt)
+        - Medium (Code quality issue)
+        - Low (Minor inconsistency)
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Location
+      description: Where is the violation? (file paths, line numbers)
+      placeholder: |
+        mcp-server/src/tools/my-tool.ts:45
+        convex/functions/myFunction.ts:120-135
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the violation
+      placeholder: |
+        The tool uses console.log instead of console.error, which corrupts the MCP protocol.
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: Proposed Fix
+      description: How should this be fixed?
+      placeholder: |
+        Replace all console.log calls with console.error in the MCP server.
+
+        ```typescript
+        // Before
+        console.log('[tool] Debug info');
+
+        // After
+        console.error('[tool] Debug info');
+        ```
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: automated
+    attributes:
+      label: Automation
+      description: Can this be fixed automatically?
+      options:
+        - label: This violation can be auto-fixed by a script
+        - label: This should trigger an automated cleanup PR
+        - label: This should be added to validation checks
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: |
+        This was introduced in PR #123 and affects X files.
+    validations:
+      required: false

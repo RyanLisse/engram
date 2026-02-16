@@ -307,4 +307,30 @@ export default defineSchema({
     .index("by_watermark", ["watermark"])
     .index("by_agent_watermark", ["agentId", "watermark"])
     .index("by_scope_watermark", ["scopeId", "watermark"]),
+
+  // ─── agent_performance ────────────────────────────────────────────
+  // Tracks completion outcomes and pattern effectiveness for feedback loops.
+  agent_performance: defineTable({
+    agentId: v.string(),
+    taskType: v.string(),
+    startTime: v.number(),
+    endTime: v.number(),
+    success: v.boolean(),
+    linesChanged: v.number(),
+    testsAdded: v.number(),
+    violations: v.array(v.string()),
+    qualityGradeBefore: v.string(),
+    qualityGradeAfter: v.string(),
+    templateUsed: v.optional(v.string()),
+    patternsFollowed: v.array(v.string()),
+    patternsViolated: v.array(v.string()),
+    mergedAt: v.optional(v.number()),
+    reviewTime: v.optional(v.number()),
+    rollbackRequired: v.boolean(),
+    wasHelpful: v.optional(v.boolean()),
+    reusedCount: v.number(),
+  })
+    .index("by_agent", ["agentId", "startTime"])
+    .index("by_task_type", ["taskType", "success"])
+    .index("by_success", ["success", "endTime"]),
 });

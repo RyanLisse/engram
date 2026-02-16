@@ -113,6 +113,59 @@ bd graph <root-bead-id>
 bd ready  # Shows next actionable bead (all deps satisfied)
 ```
 
+## Template 7: Convex Table Addition
+
+```
+[root] Add <table> to Convex schema
+  ├── [1] Design schema
+  │     └── Define fields, indexes, search/vector indexes in convex/schema.ts
+  ├── [2] Add CRUD functions (depends: 1)
+  │     └── convex/functions/<table>.ts — query, mutation, action as needed
+  ├── [3] Add PATHS constants (depends: 2)
+  │     └── mcp-server/src/lib/convex-paths.ts — type-safe function refs
+  ├── [4] Add convex-client wrappers (depends: 3)
+  │     └── mcp-server/src/lib/convex-client.ts — typed helper functions
+  ├── [5] Wire MCP tool (depends: 4, if user-facing)
+  │     └── Tool handler + registry entry + Zod schema
+  └── [6] Verify & document (depends: 5)
+        └── npx tsc --noEmit, update API-REFERENCE.md
+```
+
+**Checklist:**
+- [ ] Indexes cover all query patterns (no full-table scans)
+- [ ] Search index if text search needed
+- [ ] Vector index if embedding-based recall needed
+- [ ] PATHS constant added (GP-002 compliance)
+- [ ] Golden principles validation passes
+
+## Template 8: Cron Job (Detailed)
+
+```
+[root] Add <cron-name> scheduled job
+  ├── [1] Design
+  │     ├── What does it do? (single responsibility)
+  │     ├── Schedule: daily/weekly/interval?
+  │     └── Check CRONS.md for schedule conflicts
+  ├── [2] Implement handler (depends: 1)
+  │     └── convex/crons/<name>.ts
+  │         ├── Use internalMutation or internalAction
+  │         ├── Batch processing with limits
+  │         └── console.log for observability (Convex runtime)
+  ├── [3] Register in crons.ts (depends: 2)
+  │     └── crons.daily("name", ...) or crons.interval(...)
+  ├── [4] Update CRONS.md (depends: 3)
+  │     └── Add to summary table + detail section
+  └── [5] Test (depends: 3)
+        └── Call handler directly via Convex dashboard or test
+```
+
+**Checklist:**
+- [ ] Handler is idempotent (safe to re-run)
+- [ ] Processing is batched (avoid timeout on large datasets)
+- [ ] No console.log with "debug" or "TODO" (GP-007)
+- [ ] CRONS.md updated with schedule and purpose
+- [ ] No schedule conflict with existing crons
+
 ## Principles
 
 1. **Depth-first execution**: Always complete leaf tasks before parents

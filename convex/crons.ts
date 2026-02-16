@@ -79,4 +79,11 @@ crons.weekly(
   internal.crons.learningSynthesis.runLearningSynthesis
 );
 
+// Weekly: Promote successful patterns into candidate golden principles (Monday 8:00 UTC)
+crons.weekly(
+  "update-golden-principles",
+  { dayOfWeek: "monday", hourUTC: 8, minuteUTC: 0 },
+  internal.crons.updateGoldenPrinciples.runUpdateGoldenPrinciples
+);
+
 export default crons;
