@@ -44,6 +44,10 @@ Mechanical rules enforced by tooling. Not guidelines — constraints.
 | Rate limit | 200 req/min/agent | MCP server rate limiter |
 | JSON response overhead | Compact (no pretty-print) | Token count |
 
+## Validator-Mapped Principle IDs
+
+- **GP-013: Compact JSON Responses** — MCP server responses must use compact JSON (no pretty-print args in `JSON.stringify`) to reduce token overhead and response size.
+
 ## Enforcement
 
 - **Pre-commit**: TypeScript compilation (`npx tsc --noEmit`)

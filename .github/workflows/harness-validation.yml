@@ -82,6 +82,11 @@ jobs:
           script: |
             const fs = require('fs');
             const results = JSON.parse(fs.readFileSync('validation-results.json', 'utf8'));
+            const groupedViolations = results.violations.reduce((acc, v) => {
+              if (!acc[v.principle]) acc[v.principle] = [];
+              acc[v.principle].push(v);
+              return acc;
+            }, {});
 
             const conclusion = results.summary.critical > 0 ? 'failure' :
                               results.summary.high > 5 ? 'neutral' : 'success';
@@ -102,17 +107,7 @@ jobs:
             const details = results.violations.length > 0 ? `
             ### Violations by Principle
 
-            ${results.violations.reduce((acc, v) => {
-              if (!acc[v.principle]) acc[v.principle] = [];
-              acc[v.principle].push(v);
-              return acc;
-            }, Object.create(null))}
-
-            ${Object.entries(results.violations.reduce((acc, v) => {
-              if (!acc[v.principle]) acc[v.principle] = [];
-              acc[v.principle].push(v);
-              return acc;
-            }, Object.create(null))).map(([principle, violations]) => `
+            ${Object.entries(groupedViolations).map(([principle, violations]) => `
             #### ${principle} (${violations.length} violation${violations.length > 1 ? 's' : ''})
 
             ${violations.slice(0, 5).map(v => `

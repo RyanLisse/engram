@@ -17,6 +17,18 @@ import { join, relative } from "path";
 
 const ROOT = process.cwd();
 
+// Canonical validator mapping (keep in sync with GOLDEN_PRINCIPLES.md)
+// GP-002: Type-safe Convex paths
+// GP-003: Tool file legibility limits
+// GP-004: No stdout logging in MCP server
+// GP-005: Structured stderr logging
+// GP-007: Remove debug/TODO cron logs
+// GP-008: AGENTS.md size constraint
+// GP-009: Required docs exist
+// GP-010: Required pattern docs exist
+// GP-011: Tool parameter limits
+// GP-013: Compact JSON responses (no pretty-print)
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Violation {
@@ -80,13 +92,13 @@ function checkStdoutLogging(): Violation[] {
 
 function checkPrettyPrintJson(): Violation[] {
   const violations: Violation[] = [];
-  // GP-006: JSON responses must be compact (no pretty-print)
+  // GP-013: JSON responses must be compact (no pretty-print)
   for (const file of walkTs("mcp-server/src")) {
     const lines = readLines(file);
     lines.forEach((line, idx) => {
       if (line.match(/JSON\.stringify\([^)]+,\s*null\s*,\s*2\s*\)/) && !line.trim().startsWith("//")) {
         violations.push({
-          principle: "GP-006",
+          principle: "GP-013",
           severity: "high",
           file,
           line: idx + 1,

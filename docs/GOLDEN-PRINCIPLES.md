@@ -4,8 +4,6 @@
 
 **Last Updated**: 2026-02-15
 
----
-
 ## How to Use This Document
 
 1. **For Developers**: Read before making changes. Follow all principles marked `MUST`.
@@ -196,12 +194,12 @@ console.error('Connected to deployment');
 
 ---
 
-## GP-006: Compact JSON Responses (No Pretty-Print)
+## GP-006: Scope-Based Access Control
 
-**Category**: Performance
+**Category**: Data Modeling
 **Severity**: High
 
-**Rule**: MCP responses MUST use compact JSON (`JSON.stringify(data)`), never pretty-printed JSON.
+**Rule**: Every stored fact MUST include `scopeId` and all reads/writes MUST respect scope membership.
 
 **Rationale**:
 - Multi-agent memory isolation — agents can't see each other's private memory
@@ -230,6 +228,33 @@ await storeFact({
   content: "Meeting notes"
   // scopeId missing
 });
+```
+
+---
+
+## GP-013: Compact JSON Responses (No Pretty-Print)
+
+**Category**: Performance
+**Severity**: High
+
+**Rule**: MCP responses MUST use compact JSON (`JSON.stringify(data)`), never pretty-printed JSON.
+
+**Rationale**:
+- Reduces token usage in tool responses
+- Improves response throughput and parsing speed
+
+**Enforcement**:
+```bash
+grep -R "JSON.stringify(.*null, 2" mcp-server/src
+```
+
+**Examples**:
+```typescript
+// ✅ CORRECT
+JSON.stringify(result)
+
+// ❌ WRONG
+JSON.stringify(result, null, 2)
 ```
 
 ---
@@ -478,8 +503,9 @@ export const cleanupStale = internalMutation({
 | GP-010 | 🟢 Passing | 0 | 0 |
 | GP-011 | 🟡 Partial | 2 tool-schema required-param violations | 0 |
 | GP-012 | 🟢 Passing | 0 | 0 |
+| GP-013 | 🟢 Passing | 0 | 0 |
 
-**Overall Grade**: A (11/12 passing, 1 partial)
+**Overall Grade**: A (12/13 passing, 1 partial)
 
 ---
 
