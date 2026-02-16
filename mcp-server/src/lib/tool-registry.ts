@@ -1017,7 +1017,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     },
     zodSchema: z.object({
       category: z.string().optional(),
-      format: z.enum(["list", "table", "json"]).optional().default("list"),
+      format: z.enum(["list", "table", "json"]).optional().prefault("list"),
     }),
     handler: async (args) => {
       const categories: Record<string, string[]> = {

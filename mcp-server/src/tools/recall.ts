@@ -18,14 +18,14 @@ import type { SearchStrategy } from "../lib/ranking.js";
 
 export const recallSchema = z.object({
   query: z.string().describe("Search query for semantic recall"),
-  limit: z.number().optional().default(10).describe("Maximum number of facts to return"),
+  limit: z.number().optional().prefault(10).describe("Maximum number of facts to return"),
   scopeId: z.string().optional().describe("Scope ID or name to search within"),
   factType: z.string().optional().describe("Filter by fact type"),
   minImportance: z.number().optional().describe("Minimum importance score (0-1)"),
   searchStrategy: z
     .enum(["vector-only", "text-only", "hybrid"])
     .optional()
-    .default("hybrid")
+    .prefault("hybrid")
     .describe("Recall strategy"),
 });
 

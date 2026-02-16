@@ -18,7 +18,7 @@ export const searchSchema = z.object({
     .optional()
     .describe("Filter by creation date range"),
   scopeId: z.string().optional().describe("Scope ID or name to search within"),
-  limit: z.number().optional().default(20).describe("Maximum results"),
+  limit: z.number().optional().prefault(20).describe("Maximum results"),
 });
 
 export type SearchInput = z.infer<typeof searchSchema>;

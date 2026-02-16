@@ -20,8 +20,8 @@ const DEFAULT_VAULT_ROOT = process.env.VAULT_ROOT || path.resolve(process.cwd(),
 
 export const vaultExportSchema = z.object({
   scopeId: z.string().optional().describe("Scope to export (omit for all)"),
-  force: z.boolean().optional().default(false).describe("Force large batch export"),
-  dryRun: z.boolean().optional().default(false).describe("Preview only, no writes"),
+  force: z.boolean().optional().prefault(false).describe("Force large batch export"),
+  dryRun: z.boolean().optional().prefault(false).describe("Preview only, no writes"),
 });
 
 export async function vaultExport(input: z.infer<typeof vaultExportSchema>) {
@@ -53,8 +53,8 @@ export async function vaultExport(input: z.infer<typeof vaultExportSchema>) {
 // ── memory_vault_import ─────────────────────────────
 
 export const vaultImportSchema = z.object({
-  dryRun: z.boolean().optional().default(false).describe("Preview only, no writes"),
-  maxFiles: z.number().optional().default(200).describe("Maximum files to process"),
+  dryRun: z.boolean().optional().prefault(false).describe("Preview only, no writes"),
+  maxFiles: z.number().optional().prefault(200).describe("Maximum files to process"),
 });
 
 export async function vaultImport(input: z.infer<typeof vaultImportSchema>) {
@@ -94,7 +94,7 @@ export async function vaultImport(input: z.infer<typeof vaultImportSchema>) {
 // ── memory_vault_list_files ─────────────────────────
 
 export const vaultListFilesSchema = z.object({
-  maxFiles: z.number().optional().default(50).describe("Maximum files to list"),
+  maxFiles: z.number().optional().prefault(50).describe("Maximum files to list"),
 });
 
 export async function vaultListFiles(input: z.infer<typeof vaultListFilesSchema>) {

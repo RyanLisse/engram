@@ -8,9 +8,9 @@ import { reconcileFileEdit } from "../lib/vault-reconciler.js";
 const DEFAULT_VAULT_ROOT = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
 
 export const vaultSyncSchema = z.object({
-  direction: z.enum(["export", "import", "both"]).default("both"),
-  force: z.boolean().optional().default(false),
-  dryRun: z.boolean().optional().default(false),
+  direction: z.enum(["export", "import", "both"]).prefault("both"),
+  force: z.boolean().optional().prefault(false),
+  dryRun: z.boolean().optional().prefault(false),
   scopeId: z.string().optional(),
 });
 

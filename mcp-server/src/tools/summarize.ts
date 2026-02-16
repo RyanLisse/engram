@@ -9,7 +9,7 @@ import { markFactsMerged, searchFactsPrimitive } from "./primitive-retrieval.js"
 export const summarizeSchema = z.object({
   topic: z.string().describe("Topic to summarize"),
   scopeId: z.string().optional().describe("Scope to search within"),
-  maxFacts: z.number().optional().default(50).describe("Maximum facts to consolidate"),
+  maxFacts: z.number().optional().prefault(50).describe("Maximum facts to consolidate"),
 });
 
 export type SummarizeInput = z.infer<typeof summarizeSchema>;

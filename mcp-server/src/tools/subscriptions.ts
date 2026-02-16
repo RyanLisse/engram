@@ -19,7 +19,7 @@ const MAX_BUFFER_SIZE = 100;
 export const subscribeSchema = z.object({
   eventTypes: z.array(z.string()).optional().describe("Event types to subscribe to (e.g., fact_stored, recall, signal_recorded)"),
   scopeIds: z.array(z.string()).optional().describe("Scope IDs to watch"),
-  bufferSize: z.number().optional().default(50).describe("Max events to buffer before oldest are dropped"),
+  bufferSize: z.number().optional().prefault(50).describe("Max events to buffer before oldest are dropped"),
 });
 
 export async function subscribe(
@@ -94,8 +94,8 @@ export async function listSubscriptions(
 
 export const pollSubscriptionSchema = z.object({
   subscriptionId: z.string().describe("Subscription ID to poll events from"),
-  limit: z.number().optional().default(20).describe("Max events to return"),
-  flush: z.boolean().optional().default(true).describe("Clear returned events from buffer"),
+  limit: z.number().optional().prefault(20).describe("Max events to return"),
+  flush: z.boolean().optional().prefault(true).describe("Clear returned events from buffer"),
 });
 
 export async function pollSubscription(input: z.infer<typeof pollSubscriptionSchema>) {

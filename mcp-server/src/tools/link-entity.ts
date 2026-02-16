@@ -11,7 +11,7 @@ export const linkEntitySchema = z.object({
   type: z
     .string()
     .describe("Entity type (person, project, company, concept, tool)"),
-  metadata: z.record(z.any()).optional().describe("Additional entity metadata"),
+  metadata: z.record(z.string(), z.any()).optional().describe("Additional entity metadata"),
   relationships: z
     .array(
       z.object({

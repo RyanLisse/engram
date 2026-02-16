@@ -5,7 +5,7 @@ export const pollEventsSchema = z.object({
   watermark: z.number().optional(),
   agentId: z.string().optional(),
   scopeId: z.string().optional(),
-  limit: z.number().optional().default(100),
+  limit: z.number().optional().prefault(100),
 });
 export async function pollEvents(input: z.infer<typeof pollEventsSchema>, currentAgentId: string) {
   return await convex.pollEvents({

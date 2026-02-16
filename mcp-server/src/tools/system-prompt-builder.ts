@@ -19,12 +19,12 @@ import { getNotifications } from "./primitive-retrieval.js";
 
 export const buildFullSystemPromptSchema = z.object({
   agentId: z.string().optional().describe("Agent ID (defaults to current agent)"),
-  includeActivity: z.boolean().optional().default(true).describe("Include activity stats"),
-  includeConfig: z.boolean().optional().default(true).describe("Include config context"),
-  includeWorkspace: z.boolean().optional().default(true).describe("Include workspace info"),
-  includeNotifications: z.boolean().optional().default(true).describe("Include recent notifications"),
-  includeHandoffs: z.boolean().optional().default(true).describe("Include recent handoffs"),
-  format: z.enum(["markdown", "xml", "plain"]).optional().default("markdown").describe("Output format"),
+  includeActivity: z.boolean().optional().prefault(true).describe("Include activity stats"),
+  includeConfig: z.boolean().optional().prefault(true).describe("Include config context"),
+  includeWorkspace: z.boolean().optional().prefault(true).describe("Include workspace info"),
+  includeNotifications: z.boolean().optional().prefault(true).describe("Include recent notifications"),
+  includeHandoffs: z.boolean().optional().prefault(true).describe("Include recent handoffs"),
+  format: z.enum(["markdown", "xml", "plain"]).optional().prefault("markdown").describe("Output format"),
 });
 
 export async function buildFullSystemPrompt(

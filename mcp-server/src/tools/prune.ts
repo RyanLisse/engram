@@ -8,13 +8,13 @@ import { listStaleFacts, markFactsPruned } from "./primitive-retrieval.js";
 
 export const pruneSchema = z.object({
   scopeId: z.string().optional().describe("Scope to prune (defaults to agent's private scope)"),
-  olderThanDays: z.number().optional().default(90).describe("Prune facts older than N days"),
+  olderThanDays: z.number().optional().prefault(90).describe("Prune facts older than N days"),
   maxForgetScore: z
     .number()
     .optional()
-    .default(0.3)
+    .prefault(0.3)
     .describe("Maximum forget score (0-1) to prune"),
-  dryRun: z.boolean().optional().default(true).describe("If true, only report what would be pruned"),
+  dryRun: z.boolean().optional().prefault(true).describe("If true, only report what would be pruned"),
 });
 
 export type PruneInput = z.infer<typeof pruneSchema>;

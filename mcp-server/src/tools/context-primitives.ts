@@ -35,10 +35,10 @@ export async function resolveScopes(
 
 export const loadBudgetedFactsSchema = z.object({
   query: z.string().describe("Topic or search query"),
-  tokenBudget: z.number().optional().default(4000).describe("Max token budget"),
+  tokenBudget: z.number().optional().prefault(4000).describe("Max token budget"),
   scopeId: z.string().optional().describe("Scope ID to search within"),
-  maxFacts: z.number().optional().default(20).describe("Maximum facts to load"),
-  profile: z.enum(["default", "planning", "incident", "handoff"]).optional().default("default").describe("Context profile"),
+  maxFacts: z.number().optional().prefault(20).describe("Maximum facts to load"),
+  profile: z.enum(["default", "planning", "incident", "handoff"]).optional().prefault("default").describe("Context profile"),
 });
 export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsSchema>) {
   const profileBudgetMultiplier =
@@ -75,8 +75,8 @@ export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsS
 
 export const searchDailyNotesSchema = z.object({
   query: z.string().describe("Text to search for in daily notes"),
-  maxFiles: z.number().optional().default(5).describe("Maximum files to scan"),
-  snippetLength: z.number().optional().default(160).describe("Max snippet characters"),
+  maxFiles: z.number().optional().prefault(5).describe("Maximum files to scan"),
+  snippetLength: z.number().optional().prefault(160).describe("Max snippet characters"),
 });
 export async function searchDailyNotes(input: z.infer<typeof searchDailyNotesSchema>) {
   const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
@@ -100,7 +100,7 @@ export async function searchDailyNotes(input: z.infer<typeof searchDailyNotesSch
 export const getGraphNeighborsSchema = z.object({
   entityIds: z.array(z.string()).describe("Entity IDs to find connected facts for"),
   scopeIds: z.array(z.string()).optional().describe("Scope IDs to search within"),
-  limit: z.number().optional().default(20).describe("Maximum results"),
+  limit: z.number().optional().prefault(20).describe("Maximum results"),
 });
 export async function getGraphNeighbors(input: z.infer<typeof getGraphNeighborsSchema>) {
   const entitySet = new Set(input.entityIds);
@@ -127,7 +127,7 @@ export async function getGraphNeighbors(input: z.infer<typeof getGraphNeighborsS
 }
 export const getActivityStatsSchema = z.object({
   agentId: z.string().optional().describe("Agent ID (defaults to current agent)"),
-  periodHours: z.number().optional().default(24).describe("Lookback period in hours"),
+  periodHours: z.number().optional().prefault(24).describe("Lookback period in hours"),
 });
 export async function getActivityStats(
   input: z.infer<typeof getActivityStatsSchema>,
