@@ -1,7 +1,13 @@
 #!/usr/bin/env tsx
-// @ts-nocheck
-import { readFileSync } from "fs";
-import { join } from "path";
+export {};
+declare const require: (moduleName: string) => any;
+declare const process: {
+  cwd: () => string;
+  exit: (code: number) => never;
+};
+
+const { readFileSync } = require("fs");
+const { join } = require("path");
 
 const gradeScore: Record<string, number> = {
   A: 9,

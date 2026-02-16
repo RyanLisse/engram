@@ -1,6 +1,12 @@
 #!/usr/bin/env tsx
-// @ts-nocheck
+export {};
 import { ConvexHttpClient } from "convex/browser";
+
+declare const process: {
+  argv: string[];
+  env: Record<string, string | undefined>;
+  exit: (code: number) => never;
+};
 
 type Metrics = {
   startTime: number;

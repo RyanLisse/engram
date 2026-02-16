@@ -32,7 +32,7 @@ jobs:
 
       - name: Run validation
         run: |
-          npx tsx scripts/validate-golden-principles.ts --json > current-validation.json
+          mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts --json > current-validation.json
 
       - name: Generate quality report
         run: |

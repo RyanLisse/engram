@@ -90,7 +90,7 @@ await convex.mutation("api.functions.storeFact", { content: "..." });
 **Category**: Architecture
 **Severity**: High
 
-**Rule**: MCP tool files MUST stay under 200 lines. Agents compose workflows via prompts, not code.
+**Rule**: MCP tool files SHOULD stay under 200 lines and remain atomic in behavior (single responsibility per tool operation).
 
 **Rationale**:
 - Maximizes composability — agents can combine primitives in novel ways
@@ -490,7 +490,9 @@ export const cleanupStale = internalMutation({
 
 ## Validation Status
 
-> **Note**: This table shows current validation results. Run `make harness-validate` to see the latest status.
+Baseline source: `docs/QUALITY-BASELINE.json` (captured 2026-02-16, grade A).
+
+> **Note**: Run `make harness-validate` to refresh this table before release.
 
 | Principle | Current Status | Violations | Target |
 |-----------|---------------|-----------|--------|

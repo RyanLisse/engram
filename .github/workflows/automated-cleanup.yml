@@ -41,7 +41,7 @@ jobs:
       - name: Run validation to find violations
         id: validate
         run: |
-          npx tsx scripts/validate-golden-principles.ts --json > violations.json
+          mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts --json > violations.json
           cat violations.json
 
           TOTAL=$(jq -r '.violations | length' violations.json)

@@ -1,8 +1,13 @@
 #!/usr/bin/env tsx
-// @ts-nocheck
-import { execSync } from "child_process";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
-import { join } from "path";
+export {};
+declare const require: (moduleName: string) => any;
+declare const process: {
+  cwd: () => string;
+};
+
+const { execSync } = require("child_process");
+const { mkdirSync, readFileSync, readdirSync, writeFileSync } = require("fs");
+const { join } = require("path");
 
 type Severity = "critical" | "high" | "medium" | "low";
 

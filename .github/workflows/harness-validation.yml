@@ -39,7 +39,7 @@ jobs:
       - name: Run Golden Principles Validation
         id: validate
         run: |
-          npx tsx scripts/validate-golden-principles.ts --json > validation-results.json
+          mcp-server/node_modules/.bin/tsx scripts/validate-golden-principles.ts --json > validation-results.json
           cat validation-results.json
         continue-on-error: true
 
@@ -91,34 +91,43 @@ jobs:
             const conclusion = results.summary.critical > 0 ? 'failure' :
                               results.summary.high > 5 ? 'neutral' : 'success';
 
-            const summary = `## Golden Principles Validation
+            const summary = [
+              '## Golden Principles Validation',
+              '',
+              `**Overall Grade**: ${results.grade}`,
+              `**Total Violations**: ${results.violations.length}`,
+              '',
+              '| Severity | Count |',
+              '|----------|-------|',
+              `| Critical | ${results.summary.critical} |`,
+              `| High | ${results.summary.high} |`,
+              `| Medium | ${results.summary.medium} |`,
+              `| Low | ${results.summary.low} |`,
+            ].join('\n');
 
-            **Overall Grade**: ${results.grade}
-            **Total Violations**: ${results.violations.length}
-
-            | Severity | Count |
-            |----------|-------|
-            | Critical | ${results.summary.critical} |
-            | High | ${results.summary.high} |
-            | Medium | ${results.summary.medium} |
-            | Low | ${results.summary.low} |
-            `;
-
-            const details = results.violations.length > 0 ? `
-            ### Violations by Principle
-
-            ${Object.entries(groupedViolations).map(([principle, violations]) => `
-            #### ${principle} (${violations.length} violation${violations.length > 1 ? 's' : ''})
-
-            ${violations.slice(0, 5).map(v => `
-            - **${v.severity.toUpperCase()}**: \`${v.file}${v.line ? ':' + v.line : ''}\`
-              - ${v.message}
-              ${v.fix ? `- **Fix**: ${v.fix}` : ''}
-            `).join('\n')}
-
-            ${violations.length > 5 ? `\n_...and ${violations.length - 5} more_` : ''}
-            `).join('\n')}
-            ` : '\n✅ No violations found!';
+            const details = results.violations.length > 0
+              ? [
+                  '### Violations by Principle',
+                  '',
+                  ...Object.entries(groupedViolations).flatMap(([principle, violations]) => {
+                    const rows = [
+                      `#### ${principle} (${violations.length} violation${violations.length > 1 ? 's' : ''})`,
+                      '',
+                      ...violations.slice(0, 5).flatMap((v) => {
+                        const lines = [
+                          `- **${v.severity.toUpperCase()}**: \`${v.file}${v.line ? ':' + v.line : ''}\``,
+                          `  - ${v.message}`,
+                        ];
+                        if (v.fix) lines.push(`  - **Fix**: ${v.fix}`);
+                        return lines;
+                      }),
+                    ];
+                    if (violations.length > 5) rows.push('', `_...and ${violations.length - 5} more_`);
+                    rows.push('');
+                    return rows;
+                  }),
+                ].join('\n')
+              : '✅ No violations found!';
 
             await github.rest.checks.create({
               owner: context.repo.owner,
@@ -141,49 +150,58 @@ jobs:
           script: |
             const fs = require('fs');
             const results = JSON.parse(fs.readFileSync('validation-results.json', 'utf8'));
-
-            const body = `## 🔍 Golden Principles Validation
-
-            **Overall Grade**: ${results.grade}
-            **Total Violations**: ${results.violations.length}
-
-            | Severity | Count |
-            |----------|-------|
-            | 🔴 Critical | ${results.summary.critical} |
-            | 🟠 High | ${results.summary.high} |
-            | 🟡 Medium | ${results.summary.medium} |
-            | 🔵 Low | ${results.summary.low} |
-
-            ${results.summary.critical > 0 ? `
-            ### ⚠️ Action Required: Critical Violations
-
-            This PR introduces ${results.summary.critical} critical violation(s) that must be fixed before merge.
-            ` : ''}
-
-            ${results.violations.length > 0 ? `
-            <details>
-            <summary>View all violations</summary>
-
-            ${Object.entries(results.violations.reduce((acc, v) => {
+            const groupedViolations = results.violations.reduce((acc, v) => {
               if (!acc[v.principle]) acc[v.principle] = [];
               acc[v.principle].push(v);
               return acc;
-            }, {})).map(([principle, violations]) => `
-            #### ${principle}
-            ${violations.map(v => `
-            - **${v.severity}**: \`${v.file}${v.line ? ':' + v.line : ''}\`
-              - ${v.message}
-              ${v.fix ? `- Fix: ${v.fix}` : ''}
-            `).join('\n')}
-            `).join('\n')}
+            }, {});
 
-            </details>
-            ` : '✅ No violations introduced by this PR!'}
-
-            ---
-
-            📚 **Reference**: [Golden Principles](../blob/main/docs/GOLDEN-PRINCIPLES.md) | [Validation Tool](../blob/main/scripts/validate-golden-principles.ts)
-            `;
+            const body = [
+              '## 🔍 Golden Principles Validation',
+              '',
+              `**Overall Grade**: ${results.grade}`,
+              `**Total Violations**: ${results.violations.length}`,
+              '',
+              '| Severity | Count |',
+              '|----------|-------|',
+              `| 🔴 Critical | ${results.summary.critical} |`,
+              `| 🟠 High | ${results.summary.high} |`,
+              `| 🟡 Medium | ${results.summary.medium} |`,
+              `| 🔵 Low | ${results.summary.low} |`,
+              '',
+              ...(results.summary.critical > 0
+                ? [
+                    '### ⚠️ Action Required: Critical Violations',
+                    '',
+                    `This PR introduces ${results.summary.critical} critical violation(s) that must be fixed before merge.`,
+                    '',
+                  ]
+                : []),
+              ...(results.violations.length > 0
+                ? [
+                    '<details>',
+                    '<summary>View all violations</summary>',
+                    '',
+                    ...Object.entries(groupedViolations).flatMap(([principle, violations]) => [
+                      `#### ${principle}`,
+                      ...violations.flatMap((v) => {
+                        const lines = [
+                          `- **${v.severity}**: \`${v.file}${v.line ? ':' + v.line : ''}\``,
+                          `  - ${v.message}`,
+                        ];
+                        if (v.fix) lines.push(`  - Fix: ${v.fix}`);
+                        return lines;
+                      }),
+                      '',
+                    ]),
+                    '</details>',
+                  ]
+                : ['✅ No violations introduced by this PR!']),
+              '',
+              '---',
+              '',
+              '📚 **Reference**: [Golden Principles](../blob/main/docs/GOLDEN-PRINCIPLES.md) | [Validation Tool](../blob/main/scripts/validate-golden-principles.ts)',
+            ].join('\n');
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -210,8 +228,18 @@ jobs:
                 return acc;
               }, {});
 
+              const { data: openIssues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'harness-engineering,critical,automated',
+                per_page: 100,
+              });
+
               for (const [principle, violations] of Object.entries(grouped)) {
                 const title = `🚨 Critical: ${principle} violations (${violations.length})`;
+                const alreadyOpen = openIssues.some((issue) => issue.title === title);
+                if (alreadyOpen) continue;
                 const body = `## Critical Golden Principle Violations
 
             **Principle**: ${principle}

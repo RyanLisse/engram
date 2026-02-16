@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+export {};
 /**
  * Golden Principles Validator
  *
@@ -11,8 +12,15 @@
  *   npx tsx scripts/validate-golden-principles.ts --json # JSON output
  */
 
-import { readFileSync, readdirSync, existsSync } from "fs";
-import { join, relative } from "path";
+declare const require: (moduleName: string) => any;
+declare const process: {
+  cwd: () => string;
+  argv: string[];
+  exit: (code: number) => never;
+};
+
+const { readFileSync, readdirSync, existsSync } = require("fs");
+const { join, relative } = require("path");
 
 const ROOT = process.cwd();
 
