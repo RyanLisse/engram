@@ -112,7 +112,7 @@ jobs:
           git push || echo "No changes to push"
 
       - name: Create quality issue if grade dropped
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
