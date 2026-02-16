@@ -15,9 +15,9 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
 
-  # Convex dependencies
+  # Root dependencies (including Convex-related packages)
   - package-ecosystem: "npm"
-    directory: "/convex"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
