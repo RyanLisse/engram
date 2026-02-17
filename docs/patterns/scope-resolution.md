@@ -31,9 +31,24 @@ Agent provides scopeId (name or ID)
 
 ## Implementation
 - `memory_resolve_scopes` — Resolves name→ID, or returns all permitted scopes
-- `convex/functions/scopes.ts:getByName` — Name lookup
-- `convex/functions/scopes.ts:getPermitted` — Agent access list
+- `convex/functions/scopes.ts:getByName` — Name lookup (by_name index)
+- `convex/functions/scopes.ts:getPermitted` — Agent access list via join table
 - `convex/functions/scopes.ts:checkWriteAccessHelper` — Write permission check
+
+## getPermitted — Join Table Architecture (2026-02-17)
+
+`getPermitted` now uses `scope_memberships` as a join table for O(memberships) lookup
+instead of scanning all scopes and filtering by member array:
+
+```
+scope_memberships.by_agent[agentId]   → member scope IDs  (O(memberships))
+memory_scopes.by_read_policy["all"]   → public scope IDs  (O(public scopes))
+                    ↓
+             deduplicate + return
+```
+
+The MCP client caches this result for 5 minutes (scopes rarely change).
+When scope mutations happen (create/addMember/deleteScope), the cache is cleared.
 
 ## Common Mistakes
 1. Passing scope name where scope ID is expected → Use `memory_resolve_scopes` first

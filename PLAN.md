@@ -537,6 +537,47 @@ Agent never waits for steps 2-9. Step 1 returns immediately.
 - [ ] Import facts_schema.json → Convex (with rate limiting) — deferred to migration phase
 - [ ] Performance benchmarks (< 300ms recall target) — deferred to production
 
+### Phase 7: Performance Optimizations ✅
+
+Systematic sweep completed 2026-02-17. All items below verified fixed and pushed.
+
+#### Convex Backend
+- [x] `vectorRecallAction` parallelized with `Promise.all` across scopes (was sequential)
+- [x] `scope_memberships` join table added — `getPermitted` now O(memberships) not O(all scopes)
+- [x] `forget` cron pre-loads scope facts once per scope (O(scopes), not O(facts²))
+- [x] `contradictsWith` pre-computed at enrichment time — forget cron reads cached field
+- [x] `bumpAccess` batched into single `bumpAccessBatch` mutation (eliminates N round-trips per recall)
+- [x] `cleanup` cron uses `by_lifecycle` index (was full scope scan)
+- [x] `sync.ts:getFactsSince` uses compound index `by_scope[scopeId, timestamp]` (was full scan + in-memory filter)
+- [x] `rules.ts` unbounded `.collect()` replaced with `.take(500)` + self-scheduling continuation
+- [x] `cleanup.ts` sync_log full scan replaced with `.take(100)`
+- [x] `consolidate.ts` N+1 theme lookup fixed — themes loaded once outside loop, O(1) map lookup inside
+- [x] `checkContradictions` unbounded collect replaced with `.take(200)` cap
+- [x] `learningSynthesis.ts` wrong fact lookup (`query().filter(id)`) replaced with `ctx.db.get(id)` — O(1)
+- [x] `entities.ts:validateBacklinks` and `rebuildBacklinks` — bounded `.take(N)` limits added
+- [x] `usageAnalytics.ts` wrong field `event.type` fixed to `event.eventType`
+- [x] Dead `PATHS.facts.vectorRecall` entry pointing to deleted function removed
+
+#### Missing Functions Added (crons were calling non-existent internals)
+- [x] `agents.ts:listAgents` — internalQuery alias (agentHealth cron was failing silently)
+- [x] `notifications.ts:createNotification` — internalMutation for system notifications
+- [x] `events.ts:getEventsByAgent` — internalQuery (usageAnalytics cron was failing silently)
+- [x] `events.ts:recordEvent` — internalMutation (usageAnalytics cron was failing silently)
+- [x] `facts.ts:listFactsMissingEmbeddings` — internalQuery (embeddingBackfill cron was failing silently)
+
+#### New Indexes
+- [x] `recall_feedback.by_created: ["createdAt"]` — time-windowed weekly synthesis query
+- [x] `memory_scopes.by_read_policy: ["readPolicy"]` — public-scope lookup without full table scan
+
+#### LanceDB Daemon
+- [x] Exponential backoff on idle: 30s → doubles up to 5 min max after 3 empty syncs, resets on new facts
+- [x] Per-scope error resilience: try/catch per scope, partial failures logged, other scopes continue
+- [x] `any` types reduced to `unknown` with typed casts at use sites
+
+#### Security
+- [x] `.mcp.json` added to `.gitignore` (contained API key)
+- [x] `.env.*` wildcard and `*.local` added to `.gitignore`
+
 ---
 
 ## Success Metrics

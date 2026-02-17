@@ -48,11 +48,32 @@ The following diagrams contain outdated counts and need updating:
 
 ## Summary of Changes Needed
 
-| Component | Old Value | New Value |
-|-----------|-----------|-----------|
-| MCP Tools | 12 | 69 |
-| Convex Tables | 10 | 14 |
-| Cron Jobs | 7 | 14 |
+| Component | Old Value | New Value | Notes |
+|-----------|-----------|-----------|-------|
+| MCP Tools | 12 | 69 | All `.svg` files still show 12 |
+| Convex Tables | 10 | 16 | `scope_memberships` + `agent_performance` added (Feb 2026) |
+| Cron Jobs | 7 | 14 | usageAnalytics, agentHealth, qualityScan, learningSynthesis, updateGoldenPrinciples, embeddingBackfill, regenerateIndices added |
+
+## Additional Changes (2026-02-17 Optimization Sweep)
+
+The architecture diagrams should also reflect:
+
+1. **Parallel vector search** — `vectorRecallAction` now runs `Promise.all` across scopes (was sequential).
+2. **Join-table scope lookup** — `scope_memberships` table is the new first step in scope resolution, bypassing a full `memory_scopes` table scan.
+3. **Contradiction pre-computation** — `contradictsWith` field is now populated by the enrichment pipeline at write time, not computed on-the-fly in the forget cron.
+4. **Batch `bumpAccess`** — recall now makes 1 round-trip for all fact access bumps instead of N.
+5. **LanceDB idle backoff** — sync daemon uses exponential backoff (30s → 5min) when no new facts are found.
+
+### Files requiring SVG regeneration
+
+All SVGs in `docs/diagrams/` and `docs/diagrams/light/` — the Mermaid source is now in `docs/diagrams/architecture.md`.
+
+| File | Stale Values | Should Show |
+|------|-------------|-------------|
+| `overview.svg` | 12 tools, 10 tables, 7 crons | 69 tools, 16 tables, 14 crons |
+| `light/overview.svg` | 10 tables, 7 crons | 16 tables, 14 crons |
+| `architecture.svg` | 10 Tables, 12 MCP Tools | 16 Tables, 69 MCP Tools |
+| `light/architecture.svg` | 12 Memory Tools, 10 Tables | 69 Memory Tools, 16 Tables |
 
 ---
 

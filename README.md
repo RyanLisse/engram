@@ -180,6 +180,23 @@ npx mcporter call engram.memory_store_fact content="Remember this"
 
 See [docs/MCPORTER-CLI.md](docs/MCPORTER-CLI.md) for full usage.
 
+## Performance
+
+Key optimizations shipped as of Feb 2026:
+
+| Optimization | Where | Impact |
+|---|---|---|
+| Parallel vector search across scopes | `vectorRecallAction` | Concurrent `Promise.all` per scope vs sequential |
+| Join-table scope lookup | `scope_memberships` + `getPermitted` | O(memberships) vs O(all scopes) full scan |
+| O(n) forget cron | `crons/forget.ts` | Pre-load scope facts once, reuse for all scope members |
+| Contradiction pre-computation | `enrichFact` pipeline | Checks at write time, not read time |
+| Batch `bumpAccess` | `bumpAccessBatch` mutation | 1 round-trip per recall vs N |
+| Index-based `getFactsSince` | `sync.ts` | `by_scope[scopeId, timestamp]` — skips old facts entirely |
+| Backoff on idle sync | `lance-sync.ts` | 30s → up to 5 min when no new facts |
+| `by_read_policy` index | `memory_scopes` | Public-scope lookup without full table scan |
+| `by_created` index | `recall_feedback` | Time-windowed weekly synthesis query |
+| Per-scope error resilience | `syncOnce()` | Bad scope doesn't abort other scopes |
+
 ## Architecture
 
 > Diagrams available in [dark (tokyo-night)](docs/diagrams/) and [light (github-light)](docs/diagrams/light/) themes.
@@ -236,8 +253,8 @@ Engram integrates with Claude Code's lifecycle via hooks for automated memory op
 
 ## MCP Tools (69)
 
-Engram currently registers 69 `memory_*` tools (workflow-compatible wrappers + atomic primitives + admin/health/event tools).
-For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFERENCE.md`.
+Engram registers 69 `memory_*` tools: workflow wrappers, atomic primitives, admin, health, and event tools.
+For full schemas and examples, see `docs/API-REFERENCE.md`.
 
 | Tool | Description |
 |------|-------------|
@@ -257,13 +274,13 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 
 ## Tech Stack
 
-- **Convex** — Cloud backend (15 tables, native vector search, scheduled functions, crons)
-- **LanceDB** — Local vector search (sub-10ms, offline, mergeInsert sync)
+- **Convex** — Cloud backend (16 tables, native vector search, scheduled functions, crons)
+- **LanceDB** — Local vector search (sub-10ms, offline, mergeInsert sync, idle backoff)
 - **TypeScript** — MCP server + Convex functions
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim: `embed-v4.0`)
 - **MCP SDK** — `@modelcontextprotocol/sdk` v1.x (stdio transport)
 
-## Convex Schema (14 Tables)
+## Convex Schema (16 Tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -273,14 +290,16 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 | `sessions` | Agent session tracking |
 | `agents` | Agent registry with capabilities and telos |
 | `memory_scopes` | Scope-based access control with policies |
+| `scope_memberships` | Join table for O(memberships) scope lookup (vs O(all scopes)) |
 | `signals` | Feedback loop (ratings + sentiment) |
 | `themes` | Thematic fact clusters (consolidated memory) |
 | `sync_log` | Per-node LanceDB sync tracking |
 | `notifications` | Agent-routing notifications |
-| `recall_feedback` | Recall outcome tracking |
+| `recall_feedback` | Recall outcome tracking (with `by_created` index) |
 | `system_config` | Runtime configuration |
 | `memory_policies` | Scope-level policy overrides |
 | `memory_events` | Watermark-ordered event stream |
+| `agent_performance` | Task outcome tracking for golden principle synthesis |
 
 ## Cron Jobs (14 Scheduled)
 
@@ -311,9 +330,9 @@ For full schemas and examples, see `/Users/cortex-air/Tools/engram/docs/API-REFE
 
 ## Philosophy and Research
 
-- Philosophy: `/Users/cortex-air/Tools/engram/docs/PHILOSOPHY.md`
-- Research index: `/Users/cortex-air/Tools/engram/docs/research/README.md`
-- Research synthesis to implementation: `/Users/cortex-air/Tools/engram/docs/research/SYNTHESIS.md`
+- Philosophy: `docs/docs/PHILOSOPHY.md`
+- Research index: `docs/docs/research/README.md`
+- Research synthesis to implementation: `docs/docs/research/SYNTHESIS.md`
 
 ## Project Structure
 
@@ -351,9 +370,9 @@ Phases 1-6 complete. Core system operational. See [PLAN.md](./PLAN.md) for detai
 
 ## Setup Guides
 
-- OpenClaw setup guide: `/Users/cortex-air/Tools/engram/docs/setup/OPENCLAW-SETUP.md`
-- Claude Code setup guide: `/Users/cortex-air/Tools/engram/docs/setup/CLAUDE-CODE-SETUP.md`
-- Shared agent ID pattern: `/Users/cortex-air/Tools/engram/docs/setup/SHARED-AGENT-ID-PATTERN.md`
+- OpenClaw setup guide: `docs/docs/setup/OPENCLAW-SETUP.md`
+- Claude Code setup guide: `docs/docs/setup/CLAUDE-CODE-SETUP.md`
+- Shared agent ID pattern: `docs/docs/setup/SHARED-AGENT-ID-PATTERN.md`
 
 ## License
 

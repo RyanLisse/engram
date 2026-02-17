@@ -1,6 +1,6 @@
 # Engram Current State
 
-**Last Updated:** 2026-02-15 19:55 UTC
+**Last Updated:** 2026-02-17 (optimization sweep)
 
 This document provides the authoritative count of all engram components. Use this as the single source of truth when updating documentation.
 
@@ -10,7 +10,7 @@ This document provides the authoritative count of all engram components. Use thi
 
 | Component | Count | Location | Notes |
 |-----------|-------|----------|-------|
-| **Convex Tables** | 14 | `convex/schema.ts` | facts, entities, conversations, sessions, agents, memory_scopes, signals, themes, sync_log, notifications, recall_feedback, system_config, memory_policies, memory_events |
+| **Convex Tables** | 16 | `convex/schema.ts` | facts, entities, conversations, sessions, agents, memory_scopes, scope_memberships, signals, themes, sync_log, notifications, recall_feedback, system_config, memory_policies, memory_events, agent_performance |
 | **Cron Jobs** | 14 | `convex/crons.ts` | 10 daily, 2 weekly, 2 interval-based |
 | **MCP Tools** | 69 | `mcp-server/src/lib/tool-registry.ts` | All `memory_*` tools |
 | **Claude Code Hooks** | 8 events | `.claude/settings.json` | SessionStart, UserPromptSubmit, PostToolUse, Notification, PreToolUse, Stop, PreCompact, SessionEnd |
@@ -20,7 +20,7 @@ This document provides the authoritative count of all engram components. Use thi
 
 ## 📊 Detailed Breakdowns
 
-### Convex Tables (14)
+### Convex Tables (16)
 
 ```typescript
 // Core Memory
@@ -30,20 +30,24 @@ This document provides the authoritative count of all engram components. Use thi
 4. sessions             — Agent session tracking
 5. agents               — Agent registry with capabilities and telos
 6. memory_scopes        — Scope-based access control with policies
+7. scope_memberships    — Join table for O(memberships) scope lookup (by_agent index)
 
 // Signals & Learning
-7. signals              — Feedback loop (ratings + sentiment)
-8. recall_feedback      — Recall outcome tracking (ALMA)
-9. themes               — Thematic fact clusters (consolidated memory)
+8. signals              — Feedback loop (ratings + sentiment)
+9. recall_feedback      — Recall outcome tracking, by_created index (ALMA)
+10. themes              — Thematic fact clusters (consolidated memory)
 
 // Configuration & Events
-10. system_config       — Runtime configuration (prompt-native)
-11. memory_policies     — Scope-level policy overrides
-12. memory_events       — Watermark-ordered event stream
+11. system_config       — Runtime configuration (prompt-native)
+12. memory_policies     — Scope-level policy overrides
+13. memory_events       — Watermark-ordered event stream
 
 // Infrastructure
-13. sync_log            — Per-node LanceDB sync tracking
-14. notifications       — Agent-routing notifications
+14. sync_log            — Per-node LanceDB sync tracking
+15. notifications       — Agent-routing notifications
+
+// Performance & Quality
+16. agent_performance   — Task outcome tracking for golden principle synthesis
 ```
 
 ### Cron Jobs (14)
@@ -105,7 +109,7 @@ This document provides the authoritative count of all engram components. Use thi
 
 ### v2.0.0 (Current - Agent-Native Architecture)
 - **Tools:** 69 (was 52 → 65 → 69)
-- **Tables:** 14 (unchanged)
+- **Tables:** 16 (+2: scope_memberships join table, agent_performance)
 - **Crons:** 14 (was 11 → 14)
 - **Hooks:** 8 events, 9 scripts (new in v2.0)
 - **Architecture:** Refactored to agent-native primitives
