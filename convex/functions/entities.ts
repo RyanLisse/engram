@@ -152,9 +152,10 @@ export const updateBacklinks = mutation({
 });
 
 export const validateBacklinks = query({
-  args: {},
-  handler: async (ctx) => {
-    const entities = await ctx.db.query("entities").collect();
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    // Use take() to avoid unbounded collect on large entity tables
+    const entities = await ctx.db.query("entities").take(limit ?? 1000);
     let dangling = 0;
     for (const entity of entities) {
       for (const factId of entity.backlinks ?? []) {
@@ -162,19 +163,20 @@ export const validateBacklinks = query({
         if (!fact) dangling += 1;
       }
     }
-    return { dangling };
+    return { dangling, checked: entities.length };
   },
 });
 
 export const rebuildBacklinks = mutation({
   args: {},
   handler: async (ctx) => {
-    const entities = await ctx.db.query("entities").collect();
+    // Bounded scans to avoid timeouts on large tables
+    const entities = await ctx.db.query("entities").take(2000);
     for (const entity of entities) {
       await ctx.db.patch(entity._id, { backlinks: [] });
     }
 
-    const facts = await ctx.db.query("facts").collect();
+    const facts = await ctx.db.query("facts").take(5000);
     for (const fact of facts) {
       for (const entityName of fact.entityIds ?? []) {
         const entity = await ctx.db

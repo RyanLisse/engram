@@ -2,6 +2,9 @@ node_modules/
 dist/
 .env
 .env.local
+.env.*
+.mcp.json
+*.local
 .lance/
 *.lance/
 .DS_Store

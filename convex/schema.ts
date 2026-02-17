@@ -198,7 +198,9 @@ export default defineSchema({
         })
       )
     ),
-  }).index("by_name", ["name"]),
+  })
+    .index("by_name", ["name"])
+    .index("by_read_policy", ["readPolicy"]),
 
   // ─── signals ─────────────────────────────────────────────────────────
   // PAI feedback loop. Explicit ratings + implicit sentiment.
@@ -271,7 +273,8 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
   })
     .index("by_recall", ["recallId", "createdAt"])
-    .index("by_fact", ["factId"]),
+    .index("by_fact", ["factId"])
+    .index("by_created", ["createdAt"]),
 
   // ─── system_config ────────────────────────────────────────────────
   system_config: defineTable({

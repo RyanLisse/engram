@@ -29,7 +29,8 @@ export const runUsageAnalytics = internalAction({
 
         const stats: Record<string, number> = {};
         for (const event of events) {
-          const type = event.type ?? "unknown";
+          // memory_events stores eventType, not type
+          const type = event.eventType ?? "unknown";
           stats[type] = (stats[type] ?? 0) + 1;
         }
 

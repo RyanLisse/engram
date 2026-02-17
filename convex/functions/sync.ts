@@ -9,12 +9,14 @@ export const getFactsSince = query({
   },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 100;
-    const facts = await ctx.db
+    // Use compound index [scopeId, timestamp] to skip old facts without full scan
+    return await ctx.db
       .query("facts")
-      .withIndex("by_scope", (q) => q.eq("scopeId", args.scopeId))
+      .withIndex("by_scope", (q) =>
+        q.eq("scopeId", args.scopeId).gt("timestamp", args.since)
+      )
       .order("asc")
-      .collect();
-    return facts.filter((f) => f.timestamp > args.since).slice(0, limit);
+      .take(limit);
   },
 });
 

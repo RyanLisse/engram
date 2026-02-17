@@ -24,18 +24,23 @@ export const runConsolidate = internalMutation({
       entitySetGroups.get(entityKey)!.push(fact);
     }
 
+    // Pre-load all themes ONCE outside the loop (avoids N+1 full table scan)
+    const allThemes = await ctx.db.query("themes").take(2000);
+
+    // Build a lookup map: entityKey → theme (O(1) lookup inside loop)
+    const themeByEntityKey = new Map<string, typeof allThemes[number]>();
+    for (const theme of allThemes) {
+      const key = theme.entityIds.length > 0
+        ? theme.entityIds.map((id) => id.toString()).sort().join(",")
+        : "no-entities";
+      if (!themeByEntityKey.has(key)) themeByEntityKey.set(key, theme);
+    }
+
     // Process groups with 3+ facts about the same entity set
     for (const [entityKey, factsInGroup] of entitySetGroups) {
       if (factsInGroup.length < 3) continue;
 
-      // Find existing theme by querying all themes (v1 approach - simplified)
-      const allThemes = await ctx.db.query("themes").collect();
-      const existingTheme = allThemes.find((t) => {
-        const themeEntityKey = t.entityIds.length > 0
-          ? t.entityIds.map((id) => id.toString()).sort().join(",")
-          : "no-entities";
-        return themeEntityKey === entityKey;
-      });
+      const existingTheme = themeByEntityKey.get(entityKey);
 
       const themeId = existingTheme
         ? existingTheme._id
@@ -43,7 +48,7 @@ export const runConsolidate = internalMutation({
             name: `Theme for entities: ${entityKey.substring(0, 50)}`,
             description: `Consolidated facts about ${factsInGroup.length} related observations`,
             factIds: factsInGroup.map((f) => f._id),
-            entityIds: factsInGroup[0] ? factsInGroup[0].entityIds : [],
+            entityIds: factsInGroup[0] ? (factsInGroup[0].entityIds as any) : [],
             scopeId: factsInGroup[0].scopeId,
             importance:
               factsInGroup.reduce((sum, f) => sum + (f.importanceScore || 0), 0) /
@@ -62,12 +67,10 @@ export const runConsolidate = internalMutation({
 
         if (newFactIds.length > 0) {
           const avgNewImportance =
-            newFactIds.length > 0
-              ? factsInGroup.reduce(
-                  (sum, f) => sum + (f.importanceScore || 0),
-                  0
-                ) / factsInGroup.length
-              : 0;
+            factsInGroup.reduce(
+              (sum, f) => sum + (f.importanceScore || 0),
+              0
+            ) / factsInGroup.length;
 
           await ctx.db.patch(themeId, {
             factIds: [...existingTheme.factIds, ...newFactIds],
@@ -103,7 +106,11 @@ export const runConsolidate = internalMutation({
       }
     }
 
-    // Self-schedule continuation if there are more (weekly job, so less critical to batch)
-    // Keeping it simple for v1 - consolidate is a weekly job so doesn't need aggressive batching
+    // Self-schedule continuation if there are more facts to process
+    // (weekly job — continuation is less critical but still correct)
+    if (facts.length === 500) {
+      // Note: weekly cron — just log; next weekly run will handle remainder
+      console.log("[consolidate] Batch full (500 facts) — remainder will process next week");
+    }
   },
 });

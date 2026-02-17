@@ -19,7 +19,8 @@ export const runAgentHealth = internalAction({
 
     let staleCount = 0;
     for (const agent of agents) {
-      const lastActive = agent.lastActiveAt ?? agent._creationTime;
+      // agents table uses lastSeen, not lastActiveAt
+      const lastActive = agent.lastSeen ?? agent._creationTime;
       if (now - lastActive > STALE_THRESHOLD_MS) {
         staleCount++;
         // Create a notification for active agents about the stale one

@@ -1,4 +1,5 @@
 import { internalMutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 export const runRules = internalMutation({
   args: {},
@@ -10,19 +11,21 @@ export const runRules = internalMutation({
     }
 
     // Find error/correction facts with low relevance (candidates for steering rules)
+    // Use .take(500) to avoid unbounded full table scans
     const errorFacts = await ctx.db
       .query("facts")
       .withIndex("by_type", (q) => q.eq("factType", "error"))
-      .collect();
+      .take(500);
 
     const correctionFacts = await ctx.db
       .query("facts")
       .withIndex("by_type", (q) => q.eq("factType", "correction"))
-      .collect();
+      .take(500);
 
     const candidates = [...errorFacts, ...correctionFacts];
 
     // Process facts with low relevance (< 0.3)
+    let processed = 0;
     for (const fact of candidates) {
       if (fact.relevanceScore < 0.3) {
         // Extract pattern from error/correction fact
@@ -50,7 +53,15 @@ export const runRules = internalMutation({
           lifecycleState: "archived",
           updatedAt: Date.now(),
         });
+        processed++;
       }
     }
+
+    // Self-schedule continuation if either batch was full (more may remain)
+    if (errorFacts.length === 500 || correctionFacts.length === 500) {
+      await ctx.scheduler.runAfter(0, internal.crons.rules.runRules, {});
+    }
+
+    return { processed };
   },
 });

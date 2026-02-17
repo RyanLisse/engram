@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "../_generated/server";
+import { internalMutation, internalQuery, query } from "../_generated/server";
+import type { QueryCtx, MutationCtx } from "../_generated/server";
 
 export const emit = internalMutation({
   args: {
@@ -49,7 +50,42 @@ export const poll = query({
   },
 });
 
-async function getNextWatermark(ctx: any): Promise<number> {
+/** Get events for a specific agent since a timestamp (used by usage analytics cron). */
+export const getEventsByAgent = internalQuery({
+  args: {
+    agentId: v.string(),
+    since: v.number(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { agentId, since, limit }) => {
+    return await ctx.db
+      .query("memory_events")
+      .withIndex("by_agent_watermark", (q) => q.eq("agentId", agentId))
+      .filter((q) => q.gte(q.field("createdAt"), since))
+      .take(limit ?? 1000);
+  },
+});
+
+/** Record an event explicitly (used by usage analytics cron to store daily rollups). */
+export const recordEvent = internalMutation({
+  args: {
+    agentId: v.string(),
+    type: v.string(),
+    payload: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
+  },
+  handler: async (ctx, args) => {
+    const watermark = await getNextWatermark(ctx);
+    return await ctx.db.insert("memory_events", {
+      eventType: args.type,
+      agentId: args.agentId,
+      payload: args.payload,
+      watermark,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+async function getNextWatermark(ctx: QueryCtx | MutationCtx): Promise<number> {
   const latest = await ctx.db.query("memory_events").withIndex("by_watermark").order("desc").first();
   const next = (latest?.watermark ?? 0) + 1;
   return Math.max(next, Date.now());

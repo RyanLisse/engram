@@ -34,12 +34,13 @@ export const runCleanup = internalMutation({
     }
 
     // Clean old sync_log entries (> 30 days)
+    // sync_log is small (one row per node) — take(100) is sufficient
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const oldSyncLogs = await ctx.db
+    const allSyncLogs = await ctx.db
       .query("sync_log")
-      .collect();
+      .take(100);
 
-    for (const log of oldSyncLogs) {
+    for (const log of allSyncLogs) {
       if (log.lastSyncTimestamp < thirtyDaysAgo) {
         await ctx.db.delete(log._id);
       }

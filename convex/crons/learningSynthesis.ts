@@ -16,14 +16,11 @@ export const runLearningSynthesis = internalMutation({
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
 
     // 1. Analyze recall feedback from the past week
-    const recentFeedback = await ctx.db
+    // Use by_created index to retrieve only recent entries without a full scan
+    const weeklyFeedback = await ctx.db
       .query("recall_feedback")
-      .order("desc")
+      .withIndex("by_created", (q) => q.gte("createdAt", weekAgo))
       .take(500);
-
-    const weeklyFeedback = recentFeedback.filter(
-      (f) => f._creationTime > weekAgo
-    );
 
     let totalUsed = 0;
     let totalUnused = 0;
@@ -46,15 +43,11 @@ export const runLearningSynthesis = internalMutation({
       ? Math.round((totalUsed / (totalUsed + totalUnused)) * 100)
       : 0;
 
-    // 2. Analyze signal patterns
-    const recentSignals = await ctx.db
+    // 2. Analyze signal patterns — bounded scan, most recent 500
+    const weeklySignals = await ctx.db
       .query("signals")
       .order("desc")
       .take(500);
-
-    const weeklySignals = recentSignals.filter(
-      (s) => s._creationTime > weekAgo
-    );
 
     const signalsByType: Record<string, { count: number; avgValue: number; totalValue: number }> = {};
     for (const sig of weeklySignals) {
@@ -72,19 +65,17 @@ export const runLearningSynthesis = internalMutation({
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10);
 
-    // Boost relevance of frequently-used facts by looking them up in the facts table
+    // Boost relevance of frequently-used facts using direct ID lookup (O(1) per fact)
     let boostedCount = 0;
     for (const [factIdStr] of topFacts) {
       try {
-        // Look up the fact directly — factId references are from recall_feedback.factId
-        const fact = await ctx.db
-          .query("facts")
-          .filter((q) => q.eq(q.field("_id"), factIdStr as any))
-          .first();
-        if (fact && fact.relevanceScore < 0.9) {
-          await ctx.db.patch(fact._id, {
-            relevanceScore: Math.min(1.0, fact.relevanceScore + 0.1),
-            updatedAt: now,
+        // Direct get by ID — no full table scan
+        // Cast: factId comes from recall_feedback.factId which is Id<"facts">
+        const factDoc = await ctx.db.get(factIdStr as any) as { _id: any; relevanceScore: number } | null;
+        if (factDoc && factDoc.relevanceScore < 0.9) {
+          await ctx.db.patch(factDoc._id, {
+            relevanceScore: Math.min(1.0, factDoc.relevanceScore + 0.1),
+              updatedAt: now,
           });
           boostedCount++;
         }

@@ -204,6 +204,20 @@ export const listByLifecycle = internalQuery({
   },
 });
 
+/** List active facts missing embeddings (used by embedding backfill cron). */
+export const listFactsMissingEmbeddings = internalQuery({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { limit }) => {
+    const facts = await ctx.db
+      .query("facts")
+      .withIndex("by_lifecycle", (q) => q.eq("lifecycleState", "active"))
+      .take(limit ?? 50);
+    return facts.filter((f) => !f.embedding || f.embedding.length === 0);
+  },
+});
+
 // ─── Mutations ───────────────────────────────────────────────────────
 
 export const storeFact = mutation({
@@ -441,7 +455,7 @@ export const checkContradictions = internalMutation({
           q.gt(q.field("importanceScore"), fact.importanceScore ?? 0)
         )
       )
-      .collect();
+      .take(200);
 
     const contradictions = scopeFacts
       .filter(

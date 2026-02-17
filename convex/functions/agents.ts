@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "../_generated/server";
+import { query, mutation, internalQuery } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 
 // ─── Helper Functions ────────────────────────────────────────────────
@@ -55,6 +55,14 @@ export const list = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     return await ctx.db.query("agents").take(limit ?? 50);
+  },
+});
+
+/** Internal alias used by crons (agentHealth, usageAnalytics). */
+export const listAgents = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    return await ctx.db.query("agents").take(limit ?? 200);
   },
 });
 

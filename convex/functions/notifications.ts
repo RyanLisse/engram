@@ -2,6 +2,30 @@ import { v } from "convex/values";
 import { mutation, query, internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 
+const metadataValue = v.union(v.string(), v.number(), v.boolean(), v.null());
+
+/**
+ * Generic notification creation for crons (agent-health, etc.).
+ * Does NOT require a factId — stores a system notification as a memory event only.
+ */
+export const createNotification = internalMutation({
+  args: {
+    agentId: v.string(),
+    type: v.string(),
+    title: v.string(),
+    payload: v.optional(v.record(v.string(), metadataValue)),
+  },
+  handler: async (ctx, args) => {
+    // Store as memory event (no factId required for system notifications)
+    await ctx.runMutation(internal.functions.events.emit, {
+      eventType: `notification.${args.type}`,
+      agentId: args.agentId,
+      payload: { title: args.title, ...args.payload },
+    });
+    return { created: true };
+  },
+});
+
 export const create = internalMutation({
   args: {
     agentId: v.string(),

@@ -14,7 +14,7 @@ export const PATHS = {
     getByIds: "functions/facts:getByIds",
     searchFacts: "functions/facts:searchFacts",
     searchFactsMulti: "functions/facts:searchFactsMulti",
-    vectorRecall: "functions/facts:vectorRecall",
+    // vectorRecall was removed — use actions/vectorSearch:vectorRecallAction directly
     listByScopePublic: "functions/facts:listByScopePublic",
     getUnmirrored: "functions/facts:getUnmirrored",
     getRecentHandoffs: "functions/facts:getRecentHandoffs",

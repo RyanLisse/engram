@@ -66,7 +66,7 @@ export const getPermitted = query({
       Promise.all(memberScopeIds.map((id) => ctx.db.get(id))),
       ctx.db
         .query("memory_scopes")
-        .filter((q) => q.eq(q.field("readPolicy"), "all"))
+        .withIndex("by_read_policy", (q) => q.eq("readPolicy", "all"))
         .collect(),
     ]);
 
