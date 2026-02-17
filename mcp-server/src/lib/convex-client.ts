@@ -140,7 +140,9 @@ export async function vectorRecall(args: {
   scopeIds: string[];
   limit?: number;
 }) {
-  return await query(PATHS.facts.vectorRecall, args);
+  // vectorRecall is an action (ctx.vectorSearch is action-only in Convex)
+  // Lives at actions/vectorSearch:vectorRecallAction — NOT a query
+  return await action("actions/vectorSearch:vectorRecallAction", args);
 }
 
 export async function listFactsByScope(args: {
@@ -173,6 +175,10 @@ export async function boostRelevance(args: { factId: string; boost?: number }) {
 
 export async function bumpAccess(factId: string) {
   return await mutate(PATHS.facts.bumpAccess, { factId });
+}
+
+export async function bumpAccessBatch(factIds: string[]) {
+  return await mutate("functions/facts:bumpAccessBatch", { factIds });
 }
 
 export async function getRecentHandoffs(
@@ -259,16 +265,30 @@ export async function getAgentByAgentId(agentId: string) {
 // Scopes API
 // ========================================
 
+const scopeCache = new Map<string, { value: any; expiresAt: number }>();
+const SCOPE_TTL_MS = 5 * 60 * 1000; // 5 min TTL — scopes rarely change
+
 export async function getScopeByName(name: string) {
-  return await query(PATHS.scopes.getByName, { name });
+  const cacheKey = `scope:name:${name}`;
+  const hit = scopeCache.get(cacheKey);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
+  const value = await query("functions/scopes:getByName", { name });
+  scopeCache.set(cacheKey, { value, expiresAt: Date.now() + SCOPE_TTL_MS });
+  return value;
 }
 
 export async function getPermittedScopes(agentId: string) {
-  return await query(PATHS.scopes.getPermitted, { agentId });
+  const cacheKey = `scope:permitted:${agentId}`;
+  const hit = scopeCache.get(cacheKey);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
+  const value = await query("functions/scopes:getPermitted", { agentId });
+  scopeCache.set(cacheKey, { value, expiresAt: Date.now() + SCOPE_TTL_MS });
+  return value;
 }
 
 export async function deleteScope(args: { scopeId: string; hardDelete?: boolean; force?: boolean }) {
-  return await mutate(PATHS.scopes.deleteScope, args);
+  scopeCache.clear();
+  return await mutate("functions/scopes:deleteScope", args);
 }
 
 export async function createScope(args: {
@@ -279,14 +299,16 @@ export async function createScope(args: {
   writePolicy: string;
   retentionDays?: number;
 }) {
-  return await mutate(PATHS.scopes.create, args);
+  scopeCache.clear();
+  return await mutate("functions/scopes:create", args);
 }
 
 export async function addScopeMember(args: {
   scopeId: string;
   agentId: string;
 }) {
-  return await mutate(PATHS.scopes.addMember, args);
+  scopeCache.clear();
+  return await mutate("functions/scopes:addMember", args);
 }
 
 // ========================================

@@ -20,10 +20,8 @@ export async function searchFactsPrimitive(input: z.infer<typeof searchFactsSche
 
 export const bumpAccessSchema = z.object({ factIds: z.array(z.string()) });
 export async function bumpAccessBatch(input: z.infer<typeof bumpAccessSchema>) {
-  for (const factId of input.factIds) {
-    await convex.bumpAccess(factId);
-  }
-  return { bumped: input.factIds.length };
+  // Single mutation round-trip instead of N sequential calls
+  return await convex.bumpAccessBatch(input.factIds);
 }
 
 export const recordRecallSchema = z.object({ recallId: z.string(), factIds: z.array(z.string()) });

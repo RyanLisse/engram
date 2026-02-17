@@ -94,36 +94,8 @@ export const searchFactsMulti = query({
   },
 });
 
-export const vectorRecall = query({
-  args: {
-    embedding: v.array(v.float64()),
-    scopeIds: v.array(v.id("memory_scopes")),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { embedding, scopeIds, limit }) => {
-    if (scopeIds.length === 0) return [];
-    const all: any[] = [];
-    const perScopeLimit = Math.max(5, Math.ceil((limit ?? 20) / scopeIds.length));
-
-    for (const scopeId of scopeIds) {
-      try {
-        const rows = await (ctx as any).vectorSearch("facts", "vector_search", {
-          vector: embedding,
-          limit: perScopeLimit,
-          filter: (q: any) => q.eq("scopeId", scopeId),
-        });
-        all.push(...rows);
-      } catch (err) {
-        // Older/limited runtimes may not expose vectorSearch in query context.
-        // Degrade gracefully so callers can still combine with lexical search.
-        console.error("[facts.vectorRecall] vectorSearch unavailable, returning partial results:", err);
-      }
-    }
-
-    all.sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
-    return all.slice(0, limit ?? 20);
-  },
-});
+// vectorRecall moved to actions/vectorSearch.ts as vectorRecallAction
+// vectorSearch() is action-only in Convex and cannot live in a query/mutation file
 
 /**
  * Get recent session handoff summaries from other agents.
@@ -380,6 +352,26 @@ export const bumpAccess = mutation({
   },
 });
 
+/** Batch bump access counts in a single mutation (avoids N+1 round-trips). */
+export const bumpAccessBatch = mutation({
+  args: { factIds: v.array(v.id("facts")) },
+  handler: async (ctx, { factIds }) => {
+    const now = Date.now();
+    let bumped = 0;
+    for (const factId of factIds) {
+      const fact = await ctx.db.get(factId);
+      if (!fact) continue;
+      await ctx.db.patch(factId, {
+        accessedCount: fact.accessedCount + 1,
+        relevanceScore: Math.min(fact.relevanceScore + 0.1, 2.0),
+        updatedAt: now,
+      });
+      bumped++;
+    }
+    return { bumped };
+  },
+});
+
 // ─── Internal Mutations ──────────────────────────────────────────────
 
 /** Enrichment pipeline writes back embeddings, summaries, entities, importance. */
@@ -403,6 +395,68 @@ export const updateEnrichment = internalMutation({
     if (fields.importanceScore !== undefined) patch.importanceScore = fields.importanceScore;
 
     await ctx.db.patch(factId, patch);
+  },
+});
+
+// Helper used in contradiction detection (also used by forget cron)
+function normalizeContent(content: string): string {
+  return content.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function detectContradictionInFact(a: string, b: string): boolean {
+  const left = normalizeContent(a);
+  const right = normalizeContent(b);
+  const polarityPairs: Array<[string, string]> = [
+    ["enabled", "disabled"],
+    ["allow", "deny"],
+    ["approved", "rejected"],
+    ["success", "failed"],
+    ["true", "false"],
+    ["active", "inactive"],
+    ["on", "off"],
+  ];
+  for (const [positive, negative] of polarityPairs) {
+    if (
+      (left.includes(positive) && right.includes(negative)) ||
+      (left.includes(negative) && right.includes(positive))
+    ) return true;
+  }
+  return false;
+}
+
+/** Pre-compute contradictions at enrichment time (called from enrichFact action). */
+export const checkContradictions = internalMutation({
+  args: { factId: v.id("facts") },
+  handler: async (ctx, { factId }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact || !fact.entityIds?.length) return;
+
+    const scopeFacts = await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", fact.scopeId))
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("_id"), factId),
+          q.eq(q.field("lifecycleState"), "active"),
+          q.gt(q.field("importanceScore"), fact.importanceScore ?? 0)
+        )
+      )
+      .collect();
+
+    const contradictions = scopeFacts
+      .filter(
+        (other) =>
+          fact.entityIds.some((e: string) => (other.entityIds ?? []).includes(e)) &&
+          detectContradictionInFact(fact.content, other.content)
+      )
+      .map((other) => other._id);
+
+    if (contradictions.length > 0) {
+      await ctx.db.patch(factId, {
+        contradictsWith: contradictions,
+        lastContradictionCheck: Date.now(),
+      });
+    }
   },
 });
 

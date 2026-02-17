@@ -76,7 +76,12 @@ export const enrichFact = internalAction({
       }
     );
 
-    // 5. Write enrichment results back
+    // 5. Pre-compute contradictions with existing facts in same scope
+    await ctx.runMutation(internal.functions.facts.checkContradictions, {
+      factId,
+    });
+
+    // 6. Write enrichment results back
     await ctx.runMutation(internal.functions.facts.updateEnrichment, {
       factId,
       embedding,
@@ -90,7 +95,7 @@ export const enrichFact = internalAction({
       payload: { importanceScore },
     });
 
-    // 6. Route fact notifications to relevant agents
+    // 7. Route fact notifications to relevant agents
     await ctx.scheduler.runAfter(0, internal.actions.route.routeToAgents, {
       factId,
     });

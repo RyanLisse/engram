@@ -154,7 +154,9 @@ export class LanceSyncDaemon {
 
     let query = this.table.search(embedding).limit(limit);
     if (scopeId) {
-      query = query.where(`scopeId = '${scopeId}'`);
+      // Sanitize: Convex IDs are alphanumeric with underscores only
+      const sanitized = scopeId.replace(/[^a-zA-Z0-9_]/g, "");
+      query = query.where(`scopeId = '${sanitized}'`);
     }
     return await query.toArray();
   }

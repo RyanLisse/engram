@@ -11,23 +11,24 @@ export const runCleanup = internalMutation({
       if (scope.retentionDays) {
         const cutoffTime = Date.now() - scope.retentionDays * 24 * 60 * 60 * 1000;
 
-        // Find archived facts beyond retention
+        // Use by_lifecycle index to only scan archived facts, then filter by scope
         const archivedFacts = await ctx.db
           .query("facts")
-          .withIndex("by_scope", (q) => q.eq("scopeId", scope._id))
-          .collect();
+          .withIndex("by_lifecycle", (q) => q.eq("lifecycleState", "archived"))
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("scopeId"), scope._id),
+              q.lt(q.field("timestamp"), cutoffTime)
+            )
+          )
+          .take(500);
 
+        const now = Date.now();
         for (const fact of archivedFacts) {
-          if (
-            fact.lifecycleState === "archived" &&
-            fact.timestamp < cutoffTime
-          ) {
-            // Mark as pruned instead of deleting (never true-delete)
-            await ctx.db.patch(fact._id, {
-              lifecycleState: "pruned",
-              updatedAt: Date.now(),
-            });
-          }
+          await ctx.db.patch(fact._id, {
+            lifecycleState: "pruned",
+            updatedAt: now,
+          });
         }
       }
     }

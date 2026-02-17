@@ -54,11 +54,30 @@ export const getByName = query({
 export const getPermitted = query({
   args: { agentId: v.string() },
   handler: async (ctx, { agentId }) => {
-    const allScopes = await ctx.db.query("memory_scopes").collect();
-    return allScopes.filter(
-      (scope) =>
-        scope.readPolicy === "all" || scope.members.includes(agentId)
-    );
+    // Get scopes via join table (O(memberships) instead of O(all scopes))
+    const memberships = await ctx.db
+      .query("scope_memberships")
+      .withIndex("by_agent", (q) => q.eq("agentId", agentId))
+      .collect();
+
+    const memberScopeIds = memberships.map((m) => m.scopeId);
+
+    const [memberScopes, publicScopes] = await Promise.all([
+      Promise.all(memberScopeIds.map((id) => ctx.db.get(id))),
+      ctx.db
+        .query("memory_scopes")
+        .filter((q) => q.eq(q.field("readPolicy"), "all"))
+        .collect(),
+    ]);
+
+    const validMemberScopes = memberScopes.filter(Boolean) as any[];
+    // Deduplicate (public scopes may overlap with member scopes)
+    const seen = new Set(validMemberScopes.map((s) => s._id));
+    const deduped = [
+      ...validMemberScopes,
+      ...publicScopes.filter((s) => !seen.has(s._id)),
+    ];
+    return deduped;
   },
 });
 
@@ -144,7 +163,18 @@ export const create = mutation({
     if (existing) {
       throw new Error(`Scope "${args.name}" already exists`);
     }
-    return await ctx.db.insert("memory_scopes", args);
+    const scopeId = await ctx.db.insert("memory_scopes", args);
+    await Promise.all(
+      args.members.map((agentId, idx) =>
+        ctx.db.insert("scope_memberships", {
+          agentId,
+          scopeId,
+          role: idx === 0 ? "creator" : "member",
+          createdAt: Date.now(),
+        })
+      )
+    );
+    return scopeId;
   },
 });
 
@@ -177,6 +207,21 @@ export const addMember = mutation({
     await ctx.db.patch(scopeId, {
       members: [...scope.members, agentId],
     });
+
+    const existing = await ctx.db
+      .query("scope_memberships")
+      .withIndex("by_agent_scope", (q) =>
+        q.eq("agentId", agentId).eq("scopeId", scopeId)
+      )
+      .unique();
+    if (!existing) {
+      await ctx.db.insert("scope_memberships", {
+        agentId,
+        scopeId,
+        role: "member",
+        createdAt: Date.now(),
+      });
+    }
   },
 });
 
@@ -207,6 +252,14 @@ export const removeMember = mutation({
     await ctx.db.patch(scopeId, {
       members: scope.members.filter((m: string) => m !== agentId),
     });
+
+    const membership = await ctx.db
+      .query("scope_memberships")
+      .withIndex("by_agent_scope", (q) =>
+        q.eq("agentId", agentId).eq("scopeId", scopeId)
+      )
+      .unique();
+    if (membership) await ctx.db.delete(membership._id);
 
     // Security hardening: remove routed notifications tied to this scope
     await ctx.runMutation(api.functions.notifications.deleteByAgentAndScope, {

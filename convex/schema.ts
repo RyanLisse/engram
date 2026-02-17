@@ -46,6 +46,10 @@ export default defineSchema({
     emotionalContext: v.optional(v.string()), // frustrated|proud|embarrassed|surprised|confident
     emotionalWeight: v.optional(v.float64()), // 0.0-1.0, affects decay resistance
 
+    // Contradiction tracking (pre-computed by enrichment pipeline)
+    lastContradictionCheck: v.optional(v.number()),
+    contradictsWith: v.optional(v.array(v.id("facts"))),
+
     // Multi-graph links (MAGMA)
     temporalLinks: v.optional(
       v.array(
@@ -333,4 +337,16 @@ export default defineSchema({
     .index("by_agent", ["agentId", "startTime"])
     .index("by_task_type", ["taskType", "success"])
     .index("by_success", ["success", "endTime"]),
+
+  // ─── scope_memberships ────────────────────────────────────────────
+  // Join table for fast scope membership lookups (O(memberships) not O(all scopes)).
+  scope_memberships: defineTable({
+    agentId: v.string(),
+    scopeId: v.id("memory_scopes"),
+    role: v.union(v.literal("creator"), v.literal("member")),
+    createdAt: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_scope", ["scopeId"])
+    .index("by_agent_scope", ["agentId", "scopeId"]),
 });
