@@ -7,8 +7,7 @@
  * Install: openclaw plugins install @engram/openclaw-plugin
  */
 
-import { TOOL_REGISTRY, routeToolCall } from "../../../mcp-server/src/lib/tool-registry.js";
-import { registerPluginHooksFromDir } from "openclaw/plugin-sdk";
+import { TOOL_REGISTRY, routeToolCall } from "../../../mcp-server/dist/lib/tool-registry.js";
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -44,9 +43,6 @@ export default function register(api: any) {
       },
     });
   }
-
-  // Register plugin-managed hooks from package-local hooks directory.
-  registerPluginHooksFromDir(api, "../hooks");
 
   console.error(`[engram-openclaw] Registered ${TOOL_REGISTRY.length} memory tools for agent: ${AGENT_ID}`);
 }
