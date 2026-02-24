@@ -29,7 +29,7 @@ A shared memory layer for AI agents. Store atomic facts, recall context via sema
 
 - Node.js 18+
 - A Convex deployment (`npx convex dev`)
-- Cohere API key (optional — falls back to zero vectors without it)
+- Cohere API key (optional — falls back to local Ollama, then text-only search)
 
 ### Install
 
@@ -139,7 +139,7 @@ engram search "OpenClaw" --json | jq '.[].content'
 }
 ```
 
-## MCP Tools (69)
+## MCP Tools (73)
 
 ### Core (6)
 `memory_store_fact` · `memory_recall` · `memory_search` · `memory_observe` · `memory_link_entity` · `memory_get_context`
@@ -196,11 +196,11 @@ engram search "OpenClaw" --json | jq '.[].content'
 
 ## Architecture
 
-- **Convex Cloud** — 14 tables, native vector search, 11 cron jobs, async enrichment
+- **Convex Cloud** — 17 tables, native vector search, 19 cron jobs, async enrichment
 - **MCP Server** — 73 tools over stdio + optional SSE, TypeScript, Convex HTTP client
 - **SSE Server** — Real-time event streaming via `ENGRAM_SSE_PORT` (webhooks + SSE)
 - **Dashboard** — Next.js agent monitoring UI (`dashboard/`)
 - **Tool Registry** — Single source of truth: `mcp-server/src/lib/tool-registry.ts`
-- **Cohere Embed 4** — 1024-dim multimodal embeddings (text + images + code)
+- **Embeddings** — Cohere Embed v4 (1024-dim MRL) → Ollama mxbai-embed-large → zero vector fallback
 - **Async Pipeline** — Facts stored in <50ms, enrichment runs asynchronously
 - **Memory Lifecycle** — 5-state machine: active → dormant → merged → archived → pruned

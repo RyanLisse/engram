@@ -6,7 +6,7 @@
       "env": {
         "CONVEX_URL": "https://accurate-cardinal-287.convex.cloud",
         "ENGRAM_AGENT_ID": "indy",
-        "COHERE_API_KEY": "SET_VIA_ENVIRONMENT"
+        "COHERE_API_KEY": "${COHERE_API_KEY}"
       },
       "description": "Engram multi-agent memory system — 73 tools for storing, recalling, and sharing knowledge"
     }

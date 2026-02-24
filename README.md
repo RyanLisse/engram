@@ -275,7 +275,7 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 
 ## Tech Stack
 
-- **Convex** — Cloud backend (18 tables, native vector search, scheduled functions, crons)
+- **Convex** — Cloud backend (17 tables, native vector search, scheduled functions, crons)
 - **TypeScript** — MCP server + Convex functions
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim: `embed-v4.0`)
 - **MCP SDK** — `@modelcontextprotocol/sdk` v1.x (stdio transport)
@@ -345,7 +345,7 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 ```
 engram/
 ├── convex/                  # Convex backend
-│   ├── schema.ts            # 18 tables with indexes
+│   ├── schema.ts            # 17 tables with indexes
 │   ├── functions/           # CRUD + search (9 modules)
 │   ├── actions/             # Async: embed, importance, vectorSearch, enrich
 │   ├── crons.ts             # 19 cron job configuration

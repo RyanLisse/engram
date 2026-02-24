@@ -98,7 +98,7 @@ Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/gen
 
 ```
 convex/               # Convex backend
-  schema.ts           # 18 table definitions with indexes
+  schema.ts           # 17 table definitions with indexes
   functions/          # CRUD + search
   actions/            # Async: enrich, embed, importance, vectorSearch
   crons.ts            # 19 cron job definitions

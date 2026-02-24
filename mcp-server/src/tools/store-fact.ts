@@ -56,12 +56,11 @@ export async function storeFact(
       resolvedScopeId = scope._id;
     }
 
-    const entityNames: string[] = [];
-    for (const entityId of input.entityIds ?? []) {
-      const entity = await convex.getEntityByEntityId(entityId);
-      if (entity?.name) entityNames.push(entity.name);
-      else entityNames.push(entityId);
-    }
+    const entityIds = input.entityIds ?? [];
+    const entities = await Promise.all(
+      entityIds.map((id) => convex.getEntityByEntityId(id))
+    );
+    const entityNames = entityIds.map((id, i) => entities[i]?.name ?? id);
     const linkedContent = autoLinkEntities(input.content, entityNames);
 
     // Store the fact

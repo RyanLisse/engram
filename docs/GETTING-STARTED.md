@@ -141,7 +141,7 @@ This uses `memory_observe` to quietly log context without interrupting your work
 ## Common Questions
 
 **What if I don't have a Cohere API key?**
-Engram works without one. Memory storage, retrieval, and all tools function normally. The difference is that semantic search (finding memories by meaning) will be less precise. You can always add a Cohere key later -- no data is lost.
+Engram works without one. The embedding fallback chain is: Cohere (best) → Ollama mxbai-embed-large (good, local) → zero vector (text-only search). If you have Ollama installed (`ollama pull mxbai-embed-large`), semantic search works locally without any API keys. You can always add a Cohere key later -- no data is lost.
 
 **Can multiple agents share memory?**
 Yes, that is Engram's main purpose. Each agent gets its own ID (like `my-assistant` or `code-helper`), and memories can be scoped as private (only that agent), team (a group of agents), project (everyone on a project), or public (all agents). Agents only see memories they have permission to access.

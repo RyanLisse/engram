@@ -8,7 +8,8 @@ Complete guide for setting up Engram from scratch.
 - **bun** ≥ 1.0 (optional, for faster builds)
 - **npm** ≥ 9.x (alternative to bun)
 - **Convex account** (free tier available at convex.dev)
-- **Cohere API key** (optional, for real embeddings)
+- **Cohere API key** (optional, for best-quality embeddings)
+- **Ollama** (optional, local fallback — `ollama pull mxbai-embed-large`)
 
 ## Quick Install
 
@@ -49,7 +50,9 @@ Create `.env.local` in the project root (already gitignored):
 ```bash
 CONVEX_URL=https://your-deployment.convex.cloud
 ENGRAM_AGENT_ID=your-agent-name
-COHERE_API_KEY=your-cohere-api-key  # Optional: for local embedding tests
+COHERE_API_KEY=your-cohere-api-key  # Optional: best-quality embeddings
+# Embedding fallback chain: Cohere → Ollama (mxbai-embed-large) → zero vector
+# If Ollama is running locally, it will be used automatically when Cohere is unavailable
 ```
 
 ### 3. MCP Client Configuration

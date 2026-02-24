@@ -73,21 +73,22 @@ export const searchFactsMulti = query({
   },
   handler: async (ctx, args) => {
     if (args.scopeIds.length === 0) return [];
-    const merged: any[] = [];
     const perScopeLimit = Math.max(5, Math.ceil((args.limit ?? 20) / args.scopeIds.length));
 
-    for (const scopeId of args.scopeIds) {
-      const rows = await ctx.db
-        .query("facts")
-        .withSearchIndex("search_content", (q) => {
-          let s = q.search("content", args.query).eq("scopeId", scopeId);
-          if (args.factType) s = s.eq("factType", args.factType);
-          if (args.createdBy) s = s.eq("createdBy", args.createdBy);
-          return s;
-        })
-        .take(perScopeLimit);
-      merged.push(...rows);
-    }
+    const results = await Promise.all(
+      args.scopeIds.map((scopeId) =>
+        ctx.db
+          .query("facts")
+          .withSearchIndex("search_content", (q) => {
+            let s = q.search("content", args.query).eq("scopeId", scopeId);
+            if (args.factType) s = s.eq("factType", args.factType);
+            if (args.createdBy) s = s.eq("createdBy", args.createdBy);
+            return s;
+          })
+          .take(perScopeLimit)
+      )
+    );
+    const merged = results.flat();
 
     merged.sort((a, b) => (b.importanceScore ?? 0) - (a.importanceScore ?? 0));
     return merged.slice(0, args.limit ?? 20);
