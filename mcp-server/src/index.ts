@@ -60,7 +60,7 @@ const disableEventBus = process.env.ENGRAM_DISABLE_EVENT_BUS === "1" || isPlaceh
 if (disableEventBus) {
   console.error("[engram-mcp] Event bus polling disabled (test or placeholder configuration)");
 } else {
-  // Start event bus polling from Convex
+  // Register event bus poll function (demand-driven — only polls when subscriptions exist)
   eventBus.startPolling(async (watermark) => {
     const result = await convex.pollEvents({ agentId: AGENT_ID, watermark, limit: 50 });
     return (result?.events ?? []).map((e: any) => ({
@@ -70,7 +70,7 @@ if (disableEventBus) {
       payload: e,
       timestamp: e.createdAt ?? Date.now(),
     }));
-  }, 2000);
+  }, 5000);
 }
 
 // Optionally start SSE HTTP server for real-time streaming

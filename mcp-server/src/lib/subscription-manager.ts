@@ -52,6 +52,9 @@ class SubscriptionManager {
     this.listeners.set(id, handler);
     eventBus.on("event", handler);
 
+    // Activate demand-driven polling now that someone is listening
+    eventBus.ensurePolling();
+
     console.error(`[subscriptions] Created ${id} for agent ${agentId}`);
     return id;
   }
@@ -66,7 +69,14 @@ class SubscriptionManager {
     }
     this.listeners.delete(subscriptionId);
     this.callbacks.delete(subscriptionId);
-    return this.subscriptions.delete(subscriptionId);
+    const removed = this.subscriptions.delete(subscriptionId);
+
+    // Pause polling if no subscribers remain (saves Convex calls)
+    if (this.subscriptions.size === 0) {
+      eventBus.pauseIfIdle();
+    }
+
+    return removed;
   }
 
   /**
