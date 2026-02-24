@@ -1,13 +1,15 @@
 /**
- * memory_recall — Tri-pathway retrieval (semantic + symbolic + topological)
+ * memory_recall — Quad-pathway retrieval (semantic + symbolic + topological + local-cache)
  *
- * Combines three retrieval pathways using Reciprocal Rank Fusion (RRF):
- *   1. Semantic — vector search via Cohere embeddings
+ * Combines up to four retrieval pathways using Reciprocal Rank Fusion (RRF):
+ *   1. Semantic — vector search via Cohere embeddings (remote Convex)
  *   2. Symbolic — full-text search via Convex
  *   3. Topological — graph expansion via entity edges (conditional)
+ *   4. Local-cache — LanceDB local embedding cache (conditional)
  *
  * The graph pathway only activates when initial results contain entity links,
- * avoiding unnecessary work for simple queries.
+ * avoiding unnecessary work for simple queries. The local-cache pathway only
+ * activates when LanceDB is enabled and returns results.
  */
 
 import { z } from "zod";
@@ -45,7 +47,7 @@ export async function recall(
   agentId: string
 ): Promise<{ facts: any[]; recallId: string; pathways: string[] } | { isError: true; message: string }> {
   try {
-    console.error("[deprecation] memory_recall is a compatibility wrapper over primitive tools");
+    console.error("[deprecation] memory_recall is a compatibility wrapper over primitive tools (quad-pathway)");
     const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
     const indexPath = path.join(vaultRoot, ".index", "vault-index.md");
     let queryText = input.query;
@@ -88,15 +90,20 @@ export async function recall(
       }
     }
 
+    // ── Separate local-cache results from remote vector results ──
+    const localCacheResults = vectorResults.filter((r: any) => r._source === "local-cache");
+    const remoteVectorResults = vectorResults.filter((r: any) => r._source !== "local-cache");
+
     // ── Track which pathways contributed ──
     const pathways: string[] = [];
 
-    if (vectorResults.length > 0) pathways.push("semantic");
+    if (remoteVectorResults.length > 0) pathways.push("semantic");
     if ((textResults as any[]).length > 0) pathways.push("symbolic");
+    if (localCacheResults.length > 0) pathways.push("local-cache");
 
     // ── Pathway 3: Topological (graph expansion) ──
     // Only invoke when initial results contain entity links to avoid useless work.
-    const allInitialResults = [...(textResults as any[]), ...vectorResults];
+    const allInitialResults = [...(textResults as any[]), ...remoteVectorResults, ...localCacheResults];
     const entityIds = extractEntityIds(allInitialResults);
 
     let graphResults: any[] = [];
@@ -121,14 +128,17 @@ export async function recall(
     // Build ranked lists for RRF. Each pathway contributes its own ordering.
     const rrfInputSets: Array<Array<{ _id: string; [key: string]: any }>> = [];
 
-    if (vectorResults.length > 0) {
-      rrfInputSets.push(vectorResults as any[]);
+    if (remoteVectorResults.length > 0) {
+      rrfInputSets.push(remoteVectorResults as any[]);
     }
     if ((textResults as any[]).length > 0) {
       rrfInputSets.push(textResults as any[]);
     }
     if (graphResults.length > 0) {
       rrfInputSets.push(graphResults);
+    }
+    if (localCacheResults.length > 0) {
+      rrfInputSets.push(localCacheResults as any[]);
     }
 
     let results: any[];
@@ -148,7 +158,7 @@ export async function recall(
       // Single pathway or no results: fall back to the existing merge logic
       const byId = new Map<string, any>();
       for (const row of textResults as any[]) byId.set(row._id, { ...row, lexicalScore: 1 });
-      for (const row of vectorResults as any[]) {
+      for (const row of remoteVectorResults as any[]) {
         const id = row._id;
         const merged = byId.get(id);
         if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
@@ -156,6 +166,12 @@ export async function recall(
       }
       for (const row of graphResults) {
         if (!byId.has(row._id)) byId.set(row._id, row);
+      }
+      for (const row of localCacheResults) {
+        const id = row._id;
+        const merged = byId.get(id);
+        if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
+        else byId.set(id, row);
       }
       const ranked = await rankCandidatesPrimitive({
         query: input.query,

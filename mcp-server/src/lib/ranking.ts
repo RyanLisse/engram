@@ -6,6 +6,7 @@ export interface RankCandidate {
   timestamp: number;
   importanceScore?: number;
   outcomeScore?: number;
+  relevanceScore?: number;
   _score?: number;
   lexicalScore?: number;
 }
@@ -14,9 +15,18 @@ function clamp(value: number, min = 0, max = 1): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function freshnessScore(timestamp: number): number {
+export function freshnessScore(timestamp: number, relevanceScore?: number): number {
   const ageDays = (Date.now() - timestamp) / (24 * 60 * 60 * 1000);
-  return clamp(1 - ageDays / 30);
+  const timeFreshness = clamp(1 - ageDays / 30);
+
+  // If relevanceScore available (from decay cron), blend it in.
+  // This gives decisions/steering_rules higher freshness even when old.
+  if (relevanceScore !== undefined && relevanceScore !== null) {
+    const decayFreshness = clamp(relevanceScore);
+    return 0.6 * timeFreshness + 0.4 * decayFreshness;
+  }
+
+  return timeFreshness;
 }
 
 function lexicalScore(query: string, content: string | undefined): number {
@@ -36,7 +46,7 @@ export function rankCandidates(query: string, candidates: RankCandidate[]): Rank
       const semantic = clamp(c._score ?? 0);
       const lexical = clamp(c.lexicalScore ?? lexicalScore(query, c.content));
       const importance = clamp(c.importanceScore ?? 0);
-      const freshness = freshnessScore(c.timestamp);
+      const freshness = freshnessScore(c.timestamp, c.relevanceScore);
       const outcome = clamp(c.outcomeScore ?? 0.5);
       const hybridScore =
         0.45 * semantic +

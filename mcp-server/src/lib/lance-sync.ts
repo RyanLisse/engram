@@ -1,4 +1,6 @@
 import { ConvexHttpClient } from "convex/browser";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { PATHS } from "./convex-paths.js";
 
 // LanceDB sync daemon - pulls facts from Convex, stores locally
@@ -16,6 +18,26 @@ interface SyncState {
   factsSynced: number;
   status: "idle" | "syncing" | "error";
   errorMessage?: string;
+}
+
+interface CursorData {
+  lastSyncTimestamp: number;
+  nodeId: string;
+}
+
+export interface LanceSearchResult {
+  id: string;
+  content: string;
+  factType: string;
+  scopeId: string;
+  importanceScore: number;
+  relevanceScore: number;
+  lifecycleState: string;
+  timestamp: number;
+  createdBy: string;
+  entityIds: string;
+  tags: string;
+  _distance?: number;
 }
 
 // Backoff constants
@@ -50,8 +72,39 @@ export class LanceSyncDaemon {
 
   async start(): Promise<void> {
     console.error(`[lance-sync] Starting sync daemon (base interval: ${this.config.syncIntervalMs}ms)`);
+    this.restoreCursor();
     await this.initDb();
     await this.syncAndSchedule();
+  }
+
+  private get cursorPath(): string {
+    return join(this.config.dbPath, ".lance-cursor.json");
+  }
+
+  private restoreCursor(): void {
+    try {
+      const raw = readFileSync(this.cursorPath, "utf-8");
+      const cursor: CursorData = JSON.parse(raw);
+      if (cursor.lastSyncTimestamp > 0) {
+        this.state.lastSyncTimestamp = cursor.lastSyncTimestamp;
+        console.error(`[lance-sync] Restored cursor: lastSync=${new Date(cursor.lastSyncTimestamp).toISOString()}`);
+      }
+    } catch {
+      // No cursor file or invalid — start from 0
+    }
+  }
+
+  private persistCursor(): void {
+    try {
+      mkdirSync(this.config.dbPath, { recursive: true });
+      const cursor: CursorData = {
+        lastSyncTimestamp: this.state.lastSyncTimestamp,
+        nodeId: `lance-${this.config.agentId}`,
+      };
+      writeFileSync(this.cursorPath, JSON.stringify(cursor, null, 2));
+    } catch (err) {
+      console.error("[lance-sync] Failed to persist cursor:", err);
+    }
   }
 
   stop(): void {
@@ -138,7 +191,7 @@ export class LanceSyncDaemon {
             scopeId: scope._id,
             since: this.state.lastSyncTimestamp,
             limit: 100,
-          }) as Array<{ _id: string; content: string; embedding?: number[]; factType: string; scopeId: string; importanceScore: number; timestamp: number; createdBy: string }>;
+          }) as Array<{ _id: string; content: string; embedding?: number[]; factType: string; scopeId: string; importanceScore: number; relevanceScore: number; lifecycleState: string; timestamp: number; createdBy: string; entityIds?: string[]; tags?: string[] }>;
 
           if (facts.length > 0 && this.db) {
             // Filter facts that have embeddings
@@ -152,8 +205,12 @@ export class LanceSyncDaemon {
                 factType: f.factType,
                 scopeId: f.scopeId,
                 importanceScore: f.importanceScore,
+                relevanceScore: f.relevanceScore,
+                lifecycleState: f.lifecycleState,
                 timestamp: f.timestamp,
                 createdBy: f.createdBy,
+                entityIds: JSON.stringify(f.entityIds ?? []),
+                tags: JSON.stringify(f.tags ?? []),
               }));
 
               const db = this.db as { createTable: (name: string, records: unknown[]) => Promise<unknown> };
@@ -177,13 +234,19 @@ export class LanceSyncDaemon {
         }
       }
 
-      this.state.lastSyncTimestamp = Date.now();
       this.state.factsSynced += totalSynced;
       this.state.status = scopeErrors.length > 0 ? "error" : "idle";
       if (scopeErrors.length > 0) {
         this.state.errorMessage = `Partial failure: ${scopeErrors.join("; ")}`;
       } else {
         this.state.errorMessage = undefined;
+      }
+
+      // Only advance cursor if at least some facts were synced or no errors occurred
+      // Prevents permanently skipping facts after transient failures
+      if (scopeErrors.length === 0 || totalSynced > 0) {
+        this.state.lastSyncTimestamp = Date.now();
+        this.persistCursor();
       }
 
       // Update sync log in Convex
@@ -206,18 +269,22 @@ export class LanceSyncDaemon {
   }
 
   // Local vector search fallback
-  async search(embedding: number[], limit = 10, scopeId?: string): Promise<unknown[]> {
+  async search(embedding: number[], limit = 10, scopeId?: string): Promise<LanceSearchResult[]> {
     if (!this.table) return [];
 
+    // Lifecycle filter: exclude archived and pruned facts
+    const lifecycleFilter = "lifecycleState != 'archived' AND lifecycleState != 'pruned'";
+
     // Cast to access LanceDB query API
-    const tbl = this.table as { search: (vec: number[]) => { limit: (n: number) => { where: (filter: string) => { toArray: () => Promise<unknown[]> }; toArray: () => Promise<unknown[]> } } };
-    let query = tbl.search(embedding).limit(limit);
+    const tbl = this.table as { search: (vec: number[]) => { limit: (n: number) => { where: (filter: string) => { toArray: () => Promise<LanceSearchResult[]> } } } };
     if (scopeId) {
       // Sanitize: Convex IDs are alphanumeric with underscores only
       const sanitized = scopeId.replace(/[^a-zA-Z0-9_]/g, "");
-      return await query.where(`scopeId = '${sanitized}'`).toArray();
+      return await tbl.search(embedding).limit(limit)
+        .where(`${lifecycleFilter} AND scopeId = '${sanitized}'`).toArray();
     }
-    return await query.toArray();
+    return await tbl.search(embedding).limit(limit)
+      .where(lifecycleFilter).toArray();
   }
 
   getState(): SyncState {

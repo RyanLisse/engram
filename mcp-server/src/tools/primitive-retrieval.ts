@@ -1,11 +1,29 @@
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 import { generateEmbedding } from "../lib/embeddings.js";
+import { isLanceCacheEnabled, searchLocalCache } from "../lib/lance-cache.js";
 
 export const vectorSearchSchema = z.object({ query: z.string(), scopeIds: z.array(z.string()), limit: z.number().optional().prefault(10) });
 export async function vectorSearch(input: z.infer<typeof vectorSearchSchema>) {
+  const effectiveLimit = input.limit ?? 10;
   const embedding = await generateEmbedding(input.query, "search_query");
-  return await convex.vectorRecall({ embedding, scopeIds: input.scopeIds, limit: input.limit });
+
+  // Run remote Convex vector search and local LanceDB cache in parallel
+  const [remoteResults, localResults] = await Promise.all([
+    convex.vectorRecall({ embedding, scopeIds: input.scopeIds, limit: effectiveLimit }),
+    isLanceCacheEnabled()
+      ? searchLocalCache(embedding, effectiveLimit) // No scope filter — LanceDB only syncs permitted scopes
+      : Promise.resolve([]),
+  ]);
+
+  // Tag remote results with source for downstream pathway separation
+  const taggedRemote = (remoteResults as any[]).map((r: any) => ({
+    ...r,
+    _source: r._source ?? "convex",
+  }));
+
+  // Local results already carry _source: "local-cache"
+  return [...taggedRemote, ...localResults];
 }
 
 export const textSearchSchema = z.object({ query: z.string(), scopeIds: z.array(z.string()), limit: z.number().optional().prefault(10), factType: z.string().optional() });
