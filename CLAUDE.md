@@ -13,7 +13,7 @@ Engram is a unified multi-agent memory system. It provides a shared memory layer
 - **Convex** — Cloud backend (schema, CRUD, vector search, scheduled functions)
 - **TypeScript** — All code (MCP server + Convex functions + CLI + plugins)
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim, text + images + code)
-- **MCP (Model Context Protocol)** — Agent-facing interface (69 tools)
+- **MCP (Model Context Protocol)** — Agent-facing interface (72 tools)
 - **SSE HTTP Server** — Real-time event streaming (optional, via `ENGRAM_SSE_PORT`)
 - **Next.js** — Agent dashboard (real-time monitoring)
 - **Commander.js** — CLI framework
@@ -49,7 +49,7 @@ Defined in `.claude/settings.json`. Also distributable via `plugins/claude-code/
 | `pre-compact-checkpoint.sh` | `PreCompact` | Checkpoint state before context compaction |
 | `session-end.sh` | `SessionEnd` | Create a durable session checkpoint fact |
 
-## Convex Cron Jobs (14)
+## Convex Cron Jobs (19)
 
 | Schedule | Job | Purpose |
 |----------|-----|---------|
@@ -67,8 +67,13 @@ Defined in `.claude/settings.json`. Also distributable via `plugins/claude-code/
 | Every 5m | `vault-regenerate-indices` | Vault index regeneration |
 | Every 15m | `embedding-backfill` | Re-embed failed facts |
 | Every 30m | `agent-health` | Stale agent detection + notifications |
+| Every 10m | `observer-sweep` | Observer/Reflector threshold check |
+| Every 15m | `action-recommendations` | Suggest actions from recent facts |
+| Daily 1:00 | `quality-scan` | Fact quality scoring |
+| Daily 5:00 | `learning-synthesis` | Extract learning patterns |
+| Weekly Mon 4:00 | `update-golden-principles` | Refresh golden rules |
 
-## MCP Tools (69 primitives)
+## MCP Tools (72 primitives)
 
 All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
 Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/generate-api-reference.ts`).
@@ -85,6 +90,7 @@ Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/gen
 ### Delete (5): delete_entity, delete_scope, delete_conversation, delete_session, delete_theme
 ### Composition (4): summarize, prune, create_theme, query_raw
 ### Vault (9): vault_sync, vault_export, vault_import, vault_list_files, vault_reconcile, query_vault, export_graph, checkpoint, wake
+### Observation Memory (3): om_status, observe_compress, reflect
 ### Discovery (1): list_capabilities
 ### Health (1): health
 
@@ -92,18 +98,18 @@ Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/gen
 
 ```
 convex/               # Convex backend
-  schema.ts           # 14 table definitions with indexes
+  schema.ts           # 17 table definitions with indexes
   functions/          # CRUD + search
   actions/            # Async: enrich, embed, importance, vectorSearch
-  crons.ts            # 14 cron job definitions
-  crons/              # 13 cron implementations
+  crons.ts            # 19 cron job definitions
+  crons/              # 19 cron implementations
 .claude/
   settings.json       # 6 Claude Code hook definitions
   hooks/              # Hook scripts (session-start, auto-recall, etc.)
 mcp-server/src/       # MCP server (v2 agent-native)
   index.ts            # Entry point — stdio + event bus + optional SSE
   lib/
-    tool-registry.ts  # ★ Single source of truth for all 69 tools
+    tool-registry.ts  # ★ Single source of truth for all 72 tools
     convex-client.ts  # Convex HTTP client (string-based paths)
     embeddings.ts     # Cohere Embed 4 client
     event-bus.ts      # Internal pub/sub event bus
@@ -130,7 +136,7 @@ docs/
 ## Key Implementation Details
 
 ### Tool Registry (Single Source of Truth)
-`mcp-server/src/lib/tool-registry.ts` defines all 69 tools declaratively:
+`mcp-server/src/lib/tool-registry.ts` defines all 72 tools declaratively:
 - `TOOL_REGISTRY` — array of `{ tool, zodSchema, handler }` entries
 - `routeToolCall(name, args, agentId)` — validates + dispatches any tool
 - `getToolDefinitions()` — returns MCP `Tool[]` for ListTools

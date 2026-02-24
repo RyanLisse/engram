@@ -5,7 +5,28 @@
  * - Observer: compresses raw observations into dense priority-tagged summaries
  * - Reflector: condenses accumulated summaries with escalating compression
  * - Assertion classifier: fast heuristic for assertion/question/neutral
+ *
+ * NOTE: The Convex action at convex/actions/observer.ts has its own inline copy
+ * of the observer prompt. Changes here must be manually synced there.
  */
+
+/**
+ * The 9 structured extraction categories for observer output.
+ * Based on Mastra's observational memory research.
+ */
+export const OBSERVATION_CATEGORIES = {
+  PREF:  "Preferences — user likes/dislikes, style preferences, tool preferences",
+  PROJ:  "Projects — active work, codebases, repos, deployments",
+  TECH:  "Technical — stack choices, configurations, versions, APIs",
+  DEC:   "Decisions — choices made with rationale, trade-offs evaluated",
+  REL:   "Relationships — people, teams, organizations, collaborators",
+  EVENT: "Events — meetings, deadlines, milestones, releases",
+  EMO:   "Emotions — frustration, excitement, concerns, morale",
+  LEARN: "Learning — new concepts, corrections, insights, discoveries",
+  STATE: "State Changes — X changed from A to B, migrations, updates",
+} as const;
+
+export type ObservationCategory = keyof typeof OBSERVATION_CATEGORIES | "OTHER";
 
 interface ObserverPromptInput {
   observations: Array<{ content: string; timestamp: number; observationTier?: string }>;
@@ -48,6 +69,10 @@ export function buildObserverPrompt(input: ObserverPromptInput): string {
     ? `\n<previous_summary>\n${previousSummary}\n</previous_summary>\n`
     : "";
 
+  const categoryBlock = Object.entries(OBSERVATION_CATEGORIES)
+    .map(([code, desc]) => `- **${code}** — ${desc}`)
+    .join("\n");
+
   return `You are the Observer in a memory compression pipeline. Your job is to compress raw observations into a dense, structured observation log.
 
 ## Rules
@@ -58,9 +83,16 @@ export function buildObserverPrompt(input: ObserverPromptInput): string {
 5. Never invent information not present in the observations
 6. ${COMPRESSION_GUIDANCE[compressionLevel] ?? COMPRESSION_GUIDANCE[0]}
 
+## Categories
+Each observation MUST be tagged with one of these category codes:
+${categoryBlock}
+- **OTHER** — observations that don't fit any category above
+
 ## Format
 Output a single dense observation log. Each line should be:
-<emoji> <category>: <compressed observation>
+<emoji> [CATEGORY] <compressed observation>
+
+Where CATEGORY is one of: PREF, PROJ, TECH, DEC, REL, EVENT, EMO, LEARN, STATE, OTHER.
 
 Group related observations. Merge duplicates. Drop noise.
 ${previousBlock}
@@ -150,6 +182,43 @@ export function extractStateChanges(content: string): Array<{ subject: string; f
 }
 
 /**
+ * Sanitize observation content before storage.
+ * - Strip XML-like tags that could cause prompt injection
+ * - Normalize consecutive whitespace
+ * - Cap line length at 500 chars
+ * - Trim leading/trailing whitespace
+ */
+export function sanitizeObservation(content: string): string {
+  const XML_TAG_RE = /<\/?[a-zA-Z][\w-]*(?:\s[^>]*)?\s*>/g;
+
+  // Split on triple-backtick fences to preserve code blocks
+  const parts = content.split(/(```[\s\S]*?```)/);
+
+  const sanitized = parts
+    .map((part, i) => {
+      // Odd indices are code blocks (captured groups) — leave them alone
+      if (i % 2 === 1) return part;
+
+      // Strip XML-like tags from non-code parts
+      return part.replace(XML_TAG_RE, "");
+    })
+    .join("");
+
+  return (
+    sanitized
+      // Normalize consecutive spaces/tabs (not newlines) to single space
+      .replace(/[ \t]+/g, " ")
+      // Normalize 3+ consecutive newlines to 2
+      .replace(/\n{3,}/g, "\n\n")
+      // Cap each line at 500 characters
+      .split("\n")
+      .map((line) => (line.length > 500 ? line.slice(0, 497) + "..." : line))
+      .join("\n")
+      .trim()
+  );
+}
+
+/**
  * Compute a lightweight content fingerprint for an observation window.
  * Uses DJB2 hash of sorted, normalized content strings (timestamp-independent).
  * Returns hex string.
@@ -167,4 +236,71 @@ export function computeObservationFingerprint(
     hash = ((hash << 5) + hash + normalized.charCodeAt(i)) | 0;
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * Detect degenerate repetition in an observation window.
+ * Uses sliding window approach: extract overlapping windows from
+ * concatenated observations and check for duplicate content.
+ *
+ * Returns { degenerate: boolean, overlapRatio: number, matchedWindows: number, totalWindows: number }
+ */
+export function detectDegenerateRepetition(
+  observations: Array<{ content: string }>,
+  previousSummary?: string,
+  windowSize: number = 200,
+  threshold: number = 0.4,
+): { degenerate: boolean; overlapRatio: number; matchedWindows: number; totalWindows: number } {
+  if (observations.length === 0) {
+    return { degenerate: false, overlapRatio: 0, matchedWindows: 0, totalWindows: 0 };
+  }
+
+  const concatenated = observations.map(o => o.content).join("\n");
+
+  // Not enough content to form even one window — not degenerate
+  if (concatenated.length < windowSize) {
+    return { degenerate: false, overlapRatio: 0, matchedWindows: 0, totalWindows: 0 };
+  }
+
+  let reference: string;
+  let candidate: string;
+
+  if (previousSummary) {
+    // Compare current observations against the previous summary
+    reference = previousSummary;
+    candidate = concatenated;
+  } else {
+    // Split observations: first half as reference, second half as candidate
+    const midpoint = Math.floor(concatenated.length / 2);
+    reference = concatenated.slice(0, midpoint);
+    candidate = concatenated.slice(midpoint);
+  }
+
+  // Extract sliding windows from candidate with 50% overlap (step = windowSize / 2)
+  const step = Math.max(1, Math.floor(windowSize / 2));
+  const windows: string[] = [];
+  for (let i = 0; i <= candidate.length - windowSize; i += step) {
+    windows.push(candidate.slice(i, i + windowSize));
+  }
+
+  if (windows.length === 0) {
+    return { degenerate: false, overlapRatio: 0, matchedWindows: 0, totalWindows: 0 };
+  }
+
+  // Count how many candidate windows appear as exact substrings in the reference
+  let matchedWindows = 0;
+  for (const window of windows) {
+    if (reference.includes(window)) {
+      matchedWindows++;
+    }
+  }
+
+  const overlapRatio = matchedWindows / windows.length;
+
+  return {
+    degenerate: overlapRatio > threshold,
+    overlapRatio,
+    matchedWindows,
+    totalWindows: windows.length,
+  };
 }

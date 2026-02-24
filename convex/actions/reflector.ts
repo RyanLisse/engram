@@ -16,10 +16,11 @@ import { v } from "convex/values";
 import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 
+// Returns { system, user } for prompt caching — system is stable, user is dynamic.
 function buildReflectorPrompt(
   summaries: Array<{ content: string; timestamp: number }>,
   compressionLevel: number
-): string {
+): { system: string; user: string } {
   const guidance: Record<number, string> = {
     0: "Preserve all meaningful details. Use concise sentences. Target 60% compression ratio.",
     1: "Merge related observations. Drop redundant details. Target 40% of input length.",
@@ -27,14 +28,7 @@ function buildReflectorPrompt(
     3: "Maximum density. Extract only the essential state snapshot. Target 15% of input length.",
   };
 
-  const summaryBlock = summaries
-    .map((s, i) => {
-      const date = new Date(s.timestamp).toISOString().slice(0, 19);
-      return `[Summary ${i + 1}] ${date}:\n${s.content}`;
-    })
-    .join("\n\n");
-
-  return `You are the Reflector in a memory compression pipeline. You receive observation summaries (already compressed once) and must produce an even denser digest.
+  const system = `You are the Reflector in a memory compression pipeline. You receive observation summaries (already compressed once) and must produce an even denser digest.
 
 ## Rules
 1. Maintain priority emojis: 🔴 critical, 🟡 notable, 🟢 background
@@ -48,40 +42,59 @@ function buildReflectorPrompt(
 Output a single observation digest. This is the agent's compressed memory of all observations to date.
 Use the same emoji format. Group by theme rather than chronology.
 
-<summaries>
-${summaryBlock}
-</summaries>
-
 Produce the compressed observation digest now. Output ONLY the digest, no preamble.`;
+
+  const summaryBlock = summaries
+    .map((s, i) => {
+      const date = new Date(s.timestamp).toISOString().slice(0, 19);
+      return `[Summary ${i + 1}] ${date}:\n${s.content}`;
+    })
+    .join("\n\n");
+
+  const user = `<summaries>
+${summaryBlock}
+</summaries>`;
+
+  return { system, user };
 }
 
 async function callLLM(
-  prompt: string,
+  systemMsg: string,
+  userMsg: string,
   apiKey: string,
   model: string
-): Promise<{ content: string; success: boolean; error?: string }> {
+): Promise<{ content: string; success: boolean; promptCached: boolean; error?: string }> {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
     },
     body: JSON.stringify({
       model,
       max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
+      system: [
+        {
+          type: "text",
+          text: systemMsg,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: userMsg }],
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    return { content: "", success: false, error: `${response.status} ${errorText}` };
+    return { content: "", success: false, promptCached: false, error: `${response.status} ${errorText}` };
   }
 
   const result = await response.json() as any;
   const content = result.content?.[0]?.text ?? "";
-  return { content, success: !!content };
+  const cached = (result.usage?.cache_read_input_tokens ?? 0) > 0;
+  return { content, success: !!content, promptCached: cached };
 }
 
 export const runReflector = internalAction({
@@ -112,8 +125,8 @@ export const runReflector = internalAction({
     const level = Math.min(currentLevel + 1, 3);
     const generation = (session?.reflectorGeneration ?? 0) + 1;
 
-    // 3. Build prompt
-    const prompt = buildReflectorPrompt(
+    // 3. Build prompt (split system/user for prompt caching)
+    const { system, user } = buildReflectorPrompt(
       summaries.map((s) => ({
         content: s.content,
         timestamp: s.timestamp,
@@ -129,11 +142,14 @@ export const runReflector = internalAction({
     const model = process.env.ENGRAM_OBSERVER_MODEL ?? "claude-haiku-4-20250414";
 
     // 4. Call LLM
-    let result = await callLLM(prompt, apiKey, model);
+    let result = await callLLM(system, user, apiKey, model);
     if (!result.success) {
       console.error(`[reflector] LLM call failed: ${result.error}`);
       return { skipped: true, reason: `LLM error: ${result.error}` };
     }
+
+    let promptCached = result.promptCached;
+    let retried = false;
 
     // 5. Validate compression: output tokens < input tokens
     const inputTokens = summaries.reduce(
@@ -143,15 +159,17 @@ export const runReflector = internalAction({
 
     if (outputTokens >= inputTokens && level < 3) {
       // Retry at higher compression level (max 1 retry)
-      console.log(`[reflector] Output (${outputTokens}t) ≥ input (${inputTokens}t), retrying at level ${level + 1}`);
+      retried = true;
+      console.log(`[reflector] Output (${outputTokens}t) >= input (${inputTokens}t), retrying at level ${level + 1}`);
       const retryPrompt = buildReflectorPrompt(
         summaries.map((s) => ({ content: s.content, timestamp: s.timestamp })),
         Math.min(level + 1, 3)
       );
-      result = await callLLM(retryPrompt, apiKey, model);
+      result = await callLLM(retryPrompt.system, retryPrompt.user, apiKey, model);
       if (!result.success) {
         return { skipped: true, reason: `LLM retry failed: ${result.error}` };
       }
+      promptCached = result.promptCached;
       outputTokens = Math.ceil(result.content.length / 4);
     }
 
@@ -193,6 +211,8 @@ export const runReflector = internalAction({
       digestFactId: digestFactId.factId,
       compressionLevel: level,
       generation,
+      retried,
+      promptCached,
     };
   },
 });

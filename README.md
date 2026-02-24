@@ -4,7 +4,7 @@
 
 An elephant never forgets. Neither should your agents.
 
-Engram is a shared memory layer that any OpenClaw agent can plug into. Local-first vector search via LanceDB, cloud-synced through Convex, with full agent-native architecture.
+Engram is a shared memory layer that any OpenClaw agent can plug into. Cloud-synced through Convex with native vector search and full agent-native architecture.
 
 ## What It Does
 
@@ -14,6 +14,7 @@ Engram is a shared memory layer that any OpenClaw agent can plug into. Local-fir
 - **Decay** gracefully — old memories fade but never disappear
 - **Sync** across devices — Mac Mini, MacBook Air, MacBook Pro all see the same brain
 - **Enrich** automatically — embeddings, importance scoring, lifecycle management
+- **Recall** three ways — semantic vector search + symbolic text + graph expansion, fused via Reciprocal Rank Fusion
 
 ## Quick Start
 
@@ -97,7 +98,7 @@ Engram is the shared memory layer for this project. Use it to store facts, recal
 | Search (structured/filters) | `memory_search` |
 | Warm-start context | `memory_get_context` |
 | Register this agent | `memory_register_agent` |
-| Discover all tools | `memory_list_capabilities` (69 tools) |
+| Discover all tools | `memory_list_capabilities` (72 tools) |
 
 ### Navigation
 - Architecture & design → `CLAUDE.md`
@@ -134,7 +135,7 @@ See **Add Engram to your agent (easy guide)** above for short setup. Full detail
 | Editor | Setup | Features |
 |--------|-------|----------|
 | **Claude Code** | Add `engram` to `.mcp.json` (see easy guide) or `cp plugins/claude-code/.mcp.json ~/.claude/settings.json` | 8 lifecycle hooks, auto-recall, session checkpoints |
-| **OpenClaw** | Same MCP block in OpenClaw MCP config (see easy guide) | 69 tools; optional native plugin |
+| **OpenClaw** | Same MCP block in OpenClaw MCP config (see easy guide) | 72 tools; optional native plugin |
 | **Windsurf** | `./plugins/windsurf/setup.sh` | Full MCP access, real-time events |
 | **Any MCP Client** | Same `command` / `args` / `env` as above | Standard MCP protocol |
 
@@ -174,7 +175,7 @@ See **Add Engram to your agent (easy guide)** above for short setup. Full detail
 Call Engram from the terminal without an AI client:
 
 ```bash
-npm run mcp:list                    # List all 52 tools
+npm run mcp:list                    # List all 72 tools
 npx mcporter call engram.memory_store_fact content="Remember this"
 ```
 
@@ -251,9 +252,9 @@ Engram integrates with Claude Code's lifecycle via hooks for automated memory op
 - Setup guide: `/docs/SETUP-HOOKS.md` (7KB)
 - Quick reference: `/docs/HOOKS-QUICK-REFERENCE.md` (6.5KB)
 
-## MCP Tools (69)
+## MCP Tools (72)
 
-Engram registers 69 `memory_*` tools: workflow wrappers, atomic primitives, admin, health, and event tools.
+Engram registers 72 `memory_*` tools: workflow wrappers, atomic primitives, admin, health, and event tools.
 For full schemas and examples, see `docs/API-REFERENCE.md`.
 
 | Tool | Description |
@@ -274,13 +275,12 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 
 ## Tech Stack
 
-- **Convex** — Cloud backend (16 tables, native vector search, scheduled functions, crons)
-- **LanceDB** — Local vector search (sub-10ms, offline, mergeInsert sync, idle backoff)
+- **Convex** — Cloud backend (17 tables, native vector search, scheduled functions, crons)
 - **TypeScript** — MCP server + Convex functions
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim: `embed-v4.0`)
 - **MCP SDK** — `@modelcontextprotocol/sdk` v1.x (stdio transport)
 
-## Convex Schema (16 Tables)
+## Convex Schema (17 Tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -300,8 +300,9 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 | `memory_policies` | Scope-level policy overrides |
 | `memory_events` | Watermark-ordered event stream |
 | `agent_performance` | Task outcome tracking for golden principle synthesis |
+| `observation_sessions` | Per-scope, per-agent Observer/Reflector compression state |
 
-## Cron Jobs (14 Scheduled)
+## Cron Jobs (19 Scheduled)
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
@@ -319,6 +320,11 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 | vault-regenerate-indices | Every 5 min | Trigger vault index regeneration |
 | embedding-backfill | Every 15 min | Re-embed failed facts |
 | agent-health | Every 30 min | Stale agent detection + notifications |
+| quality-scan | Daily 4:30 UTC | Golden principles quality scan |
+| learning-synthesis | Weekly Sun 7:30 UTC | Feedback signal synthesis |
+| update-golden-principles | Weekly Mon 8:00 UTC | Promote patterns into golden principles |
+| observer-sweep | Every 10 min | Observer/Reflector threshold sweep |
+| action-recommendations | Every 15 min | Proactive action recommendations |
 
 ## Agent-Native Principles
 
@@ -339,14 +345,14 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 ```
 engram/
 ├── convex/                  # Convex backend
-│   ├── schema.ts            # 15 tables with indexes
+│   ├── schema.ts            # 17 tables with indexes
 │   ├── functions/           # CRUD + search (9 modules)
 │   ├── actions/             # Async: embed, importance, vectorSearch, enrich
-│   ├── crons.ts             # 10 cron job configuration
+│   ├── crons.ts             # 19 cron job configuration
 │   └── crons/               # Cron implementations
 ├── mcp-server/              # MCP server (TypeScript)
 │   ├── src/
-│   │   ├── index.ts         # Server entry point (52 tools)
+│   │   ├── index.ts         # Server entry point (72 tools)
 │   │   ├── tools/           # Tool implementations + primitives
 │   │   └── lib/             # convex-client, lance-sync, embeddings
 │   └── package.json

@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { sanitizeObservation } from "../lib/observer-prompts.js";
 
 export const observeSchema = z.object({
   observation: z.string().describe("Observation to record"),
@@ -51,9 +52,12 @@ export async function observe(
       resolvedScopeId = scope._id;
     }
 
+    // Sanitize before storage (strip injection vectors, normalize whitespace)
+    const sanitized = sanitizeObservation(input.observation);
+
     // Store as observation fact (fire-and-forget)
     const stored = await convex.storeFact({
-      content: input.observation,
+      content: sanitized,
       source: "observation",
       createdBy: agentId,
       scopeId: resolvedScopeId as string,

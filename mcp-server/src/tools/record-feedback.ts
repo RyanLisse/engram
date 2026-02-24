@@ -52,6 +52,61 @@ export async function recordFeedback(
       );
     }
 
+    // Feedback -> Decision Decay Loop
+    // Boost or decay importance of decision/insight facts based on usefulness.
+    // This creates a read-write loop: recall -> feedback -> importance adjustment
+    // so future recalls favor facts that proved useful.
+    const DECAY_ELIGIBLE_TYPES = new Set(["decision", "insight"]);
+    const BOOST_AMOUNT = 0.05;
+
+    try {
+      const allFactIds = [
+        ...input.usedFactIds.map((id) => ({ id, boost: BOOST_AMOUNT })),
+        ...(input.unusedFactIds ?? []).map((id) => ({ id, boost: -BOOST_AMOUNT })),
+      ];
+
+      // Fetch all facts in parallel to check their types
+      const factsWithBoost = await Promise.all(
+        allFactIds.map(async ({ id, boost }) => {
+          try {
+            const fact = await convex.getFact(id);
+            return { id, boost, factType: fact?.factType };
+          } catch {
+            return { id, boost, factType: undefined };
+          }
+        })
+      );
+
+      // Filter to only decision/insight types, then apply boosts
+      const eligible = factsWithBoost.filter(
+        (f) => f.factType && DECAY_ELIGIBLE_TYPES.has(f.factType)
+      );
+
+      let boosted = 0;
+      let decayed = 0;
+
+      await Promise.all(
+        eligible.map(async ({ id, boost }) => {
+          try {
+            await convex.boostRelevance({ factId: id, boost });
+            if (boost > 0) boosted++;
+            else decayed++;
+          } catch {
+            // Best-effort: don't fail the feedback recording
+          }
+        })
+      );
+
+      if (boosted > 0 || decayed > 0) {
+        console.error(
+          `[record-feedback] Decay loop: boosted ${boosted}, decayed ${decayed} decision/insight facts`
+        );
+      }
+    } catch (decayError) {
+      // Best-effort: log but don't fail the overall feedback recording
+      console.warn("[record-feedback] Decay loop error (non-fatal):", decayError);
+    }
+
     return { ack: true };
   } catch (error: any) {
     console.error("[record-feedback] Error:", error);
