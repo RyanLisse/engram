@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { rankCandidates } from "../src/lib/ranking.js";
 
 describe("ranking", () => {

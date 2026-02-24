@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { extractWikiLinks, parseFrontmatter, renderVaultDocument } from "../src/lib/vault-format.js";
 
 describe("vault-format", () => {

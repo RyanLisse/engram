@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { autoLinkEntities } from "../src/lib/auto-linker.js";
 
 describe("auto-linker", () => {

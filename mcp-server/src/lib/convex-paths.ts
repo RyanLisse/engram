@@ -27,6 +27,7 @@ export const PATHS = {
     markPruned: "functions/facts:markPruned",
     listStaleFacts: "functions/facts:listStaleFacts",
     markFactsMerged: "functions/facts:markFactsMerged",
+    bumpAccessBatch: "functions/facts:bumpAccessBatch",
     getObservationSession: "functions/facts:getObservationSession",
     listObservationSummariesPublic: "functions/facts:listObservationSummariesPublic",
     incrementPendingTokensPublic: "functions/facts:incrementPendingTokensPublic",
@@ -122,6 +123,7 @@ export const PATHS = {
 
   // Actions
   actions: {
+    vectorRecallAction: "actions/vectorSearch:vectorRecallAction",
     enrich: "actions/enrich:enrichFact",
     embed: "actions/embed:embed",
     classifyObservation: "actions/classifyObservation:classifyObservation",

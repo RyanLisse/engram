@@ -1,5 +1,6 @@
 import * as convex from "../lib/convex-client.js";
 import { metrics } from "../lib/metrics.js";
+import { getEmbeddingProvider } from "../lib/embeddings.js";
 
 export async function health() {
   const now = Date.now();
@@ -12,6 +13,7 @@ export async function health() {
   return {
     ok: true,
     now,
+    embeddingProvider: getEmbeddingProvider(),
     latestEventAt: latest ?? null,
     eventLagMs: latest ? now - latest : null,
     metrics: {
