@@ -31,3 +31,6 @@ docs-site/.turbo/
 .claude/.env
 .claude/engram-hook-log.jsonl
 .claude/engram-subagent-log.txt
+
+# Plugin artifacts
+plugins/openclaw/package-lock.json

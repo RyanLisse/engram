@@ -104,7 +104,7 @@ export async function recordFeedback(
       }
     } catch (decayError) {
       // Best-effort: log but don't fail the overall feedback recording
-      console.warn("[record-feedback] Decay loop error (non-fatal):", decayError);
+      console.error("[record-feedback] Decay loop error (non-fatal):", decayError);
     }
 
     return { ack: true };

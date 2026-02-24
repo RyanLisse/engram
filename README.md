@@ -98,7 +98,7 @@ Engram is the shared memory layer for this project. Use it to store facts, recal
 | Search (structured/filters) | `memory_search` |
 | Warm-start context | `memory_get_context` |
 | Register this agent | `memory_register_agent` |
-| Discover all tools | `memory_list_capabilities` (72 tools) |
+| Discover all tools | `memory_list_capabilities` (73 tools) |
 
 ### Navigation
 - Architecture & design → `CLAUDE.md`
@@ -135,7 +135,7 @@ See **Add Engram to your agent (easy guide)** above for short setup. Full detail
 | Editor | Setup | Features |
 |--------|-------|----------|
 | **Claude Code** | Add `engram` to `.mcp.json` (see easy guide) or `cp plugins/claude-code/.mcp.json ~/.claude/settings.json` | 8 lifecycle hooks, auto-recall, session checkpoints |
-| **OpenClaw** | Same MCP block in OpenClaw MCP config (see easy guide) | 72 tools; optional native plugin |
+| **OpenClaw** | Same MCP block in OpenClaw MCP config (see easy guide) | 73 tools; optional native plugin |
 | **Windsurf** | `./plugins/windsurf/setup.sh` | Full MCP access, real-time events |
 | **Any MCP Client** | Same `command` / `args` / `env` as above | Standard MCP protocol |
 
@@ -175,7 +175,7 @@ See **Add Engram to your agent (easy guide)** above for short setup. Full detail
 Call Engram from the terminal without an AI client:
 
 ```bash
-npm run mcp:list                    # List all 72 tools
+npm run mcp:list                    # List all 73 tools
 npx mcporter call engram.memory_store_fact content="Remember this"
 ```
 
@@ -275,7 +275,7 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 
 ## Tech Stack
 
-- **Convex** — Cloud backend (17 tables, native vector search, scheduled functions, crons)
+- **Convex** — Cloud backend (18 tables, native vector search, scheduled functions, crons)
 - **TypeScript** — MCP server + Convex functions
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim: `embed-v4.0`)
 - **MCP SDK** — `@modelcontextprotocol/sdk` v1.x (stdio transport)
@@ -345,14 +345,14 @@ For full schemas and examples, see `docs/API-REFERENCE.md`.
 ```
 engram/
 ├── convex/                  # Convex backend
-│   ├── schema.ts            # 17 tables with indexes
+│   ├── schema.ts            # 18 tables with indexes
 │   ├── functions/           # CRUD + search (9 modules)
 │   ├── actions/             # Async: embed, importance, vectorSearch, enrich
 │   ├── crons.ts             # 19 cron job configuration
 │   └── crons/               # Cron implementations
 ├── mcp-server/              # MCP server (TypeScript)
 │   ├── src/
-│   │   ├── index.ts         # Server entry point (72 tools)
+│   │   ├── index.ts         # Server entry point (73 tools)
 │   │   ├── tools/           # Tool implementations + primitives
 │   │   └── lib/             # convex-client, lance-sync, embeddings
 │   └── package.json

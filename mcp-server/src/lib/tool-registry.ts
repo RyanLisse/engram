@@ -88,6 +88,8 @@ import {
   reflect, reflectSchema,
 } from "../tools/observation-memory.js";
 
+import { hierarchicalRecall, hierarchicalRecallSchema } from "../tools/hierarchical-recall.js";
+
 import {
   bumpAccessBatch, bumpAccessSchema,
   getEntitiesPrimitive, getEntitiesPrimitiveSchema,
@@ -1054,6 +1056,27 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     handler: (args) => pollSubscription(args),
   },
 
+  // ── Hierarchical Recall ──────────────────────────
+  {
+    tool: {
+      name: "memory_hierarchical_recall",
+      description: "PageIndex-inspired graph traversal retrieval. Traverses entity→fact backlinks→relationships→temporal links for structured knowledge retrieval. Falls back to text search when no entities match.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query — matched against entity names and fact content" },
+          scopeId: { type: "string", description: "Scope ID or name to filter results" },
+          entityTypes: { type: "array", items: { type: "string" }, description: "Filter root entities by type (person|project|tool|concept|company)" },
+          maxDepth: { type: "number", description: "Max traversal depth (0=entities only, 1=+relationships, 2=+temporal links, default: 2)" },
+          limit: { type: "number", description: "Maximum facts to return (default: 15)" },
+        },
+        required: ["query"],
+      },
+    },
+    zodSchema: hierarchicalRecallSchema,
+    handler: (args, agentId) => hierarchicalRecall(args, agentId),
+  },
+
   // ── Discovery ─────────────────────────────────────
   {
     tool: {
@@ -1080,7 +1103,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         events: ["memory_poll_events", "memory_get_notifications", "memory_mark_notifications_read"],
         subscriptions: ["memory_subscribe", "memory_unsubscribe", "memory_list_subscriptions", "memory_poll_subscription"],
         config: ["memory_get_config", "memory_list_configs", "memory_set_config", "memory_set_scope_policy"],
-        retrieval: ["memory_vector_search", "memory_text_search", "memory_rank_candidates", "memory_bump_access", "memory_get_observations", "memory_get_entities", "memory_get_themes", "memory_get_handoffs", "memory_search_facts", "memory_search_entities", "memory_search_themes"],
+        retrieval: ["memory_vector_search", "memory_text_search", "memory_rank_candidates", "memory_bump_access", "memory_get_observations", "memory_get_entities", "memory_get_themes", "memory_get_handoffs", "memory_search_facts", "memory_search_entities", "memory_search_themes", "memory_hierarchical_recall"],
         delete: ["memory_delete_entity", "memory_delete_scope", "memory_delete_conversation", "memory_delete_session", "memory_delete_theme"],
         observation: ["memory_om_status", "memory_observe_compress", "memory_reflect"],
         composition: ["memory_summarize", "memory_prune", "memory_create_theme", "memory_query_raw"],
@@ -1132,6 +1155,28 @@ export function getToolDefinitions(): Tool[] {
   return TOOL_REGISTRY.map((entry) => entry.tool);
 }
 
+/**
+ * Coerce string values to numbers/booleans based on JSON Schema type hints.
+ * MCP clients (especially via JSON-RPC) sometimes serialize all values as strings.
+ * Without this, Zod rejects "20" for a z.number() field.
+ */
+function coerceArgs(args: unknown, inputSchema: Record<string, any>): unknown {
+  if (!args || typeof args !== "object" || !inputSchema?.properties) return args;
+  const coerced = { ...(args as Record<string, unknown>) };
+  for (const [key, prop] of Object.entries(inputSchema.properties as Record<string, any>)) {
+    if (!(key in coerced) || coerced[key] === undefined || coerced[key] === null) continue;
+    const val = coerced[key];
+    if (prop.type === "number" && typeof val === "string") {
+      const n = Number(val);
+      if (!Number.isNaN(n)) coerced[key] = n;
+    } else if (prop.type === "boolean" && typeof val === "string") {
+      if (val === "true") coerced[key] = true;
+      else if (val === "false") coerced[key] = false;
+    }
+  }
+  return coerced;
+}
+
 /** Route a tool call: validate + execute. Throws on unknown tool. */
 export async function routeToolCall(
   toolName: string,
@@ -1140,6 +1185,7 @@ export async function routeToolCall(
 ): Promise<any> {
   const entry = TOOL_MAP.get(toolName);
   if (!entry) throw new Error(`Unknown tool: ${toolName}`);
-  const validated = entry.zodSchema.parse(args);
+  const coerced = coerceArgs(args, entry.tool.inputSchema as Record<string, any>);
+  const validated = entry.zodSchema.parse(coerced);
   return await entry.handler(validated, agentId);
 }

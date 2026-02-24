@@ -3,7 +3,7 @@
 /**
  * Engram MCP Server — Agent-Native Architecture
  *
- * 72 memory tools: primitives for facts, entities, scopes, sessions,
+ * 73 memory tools: primitives for facts, entities, scopes, sessions,
  * conversations, signals, events, config, agent identity, vault, and health.
  *
  * All tool definitions and routing live in lib/tool-registry.ts.

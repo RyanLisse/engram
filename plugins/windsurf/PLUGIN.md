@@ -6,7 +6,7 @@
 
 ## Overview
 
-Complete Windsurf IDE integration for Engram's multi-agent memory system. Provides automated setup, configuration management, and full MCP server access (72 tools).
+Complete Windsurf IDE integration for Engram's multi-agent memory system. Provides automated setup, configuration management, and full MCP server access (73 tools).
 
 ## Files
 
@@ -29,7 +29,7 @@ Complete Windsurf IDE integration for Engram's multi-agent memory system. Provid
 ## Features
 
 ### Core Capabilities
-- ✅ Full access to 72 memory tools
+- ✅ Full access to 73 memory tools
 - ✅ Semantic search and recall
 - ✅ Entity relationship graphs
 - ✅ Real-time event subscriptions

@@ -69,7 +69,7 @@ This document provides the authoritative count of all engram components. Use thi
 | **Every 15 min** | embedding-backfill | Re-embed failed facts |
 | **Every 30 min** | agent-health | Stale agent detection + notifications |
 
-### MCP Tools (72 primitives)
+### MCP Tools (73 primitives)
 
 **Categories:**
 - **Core (6):** store_fact, recall, search, observe, link_entity, get_context

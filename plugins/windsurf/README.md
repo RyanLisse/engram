@@ -101,7 +101,7 @@ Close and reopen Windsurf to load the new MCP server.
 
 ## Available Tools (72 Total)
 
-Engram provides 72 memory tools organized into categories:
+Engram provides 73 memory tools organized into categories:
 
 ### Core Operations
 - `memory_store_fact` — Store atomic facts with auto-enrichment

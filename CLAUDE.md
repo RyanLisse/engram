@@ -13,7 +13,7 @@ Engram is a unified multi-agent memory system. It provides a shared memory layer
 - **Convex** — Cloud backend (schema, CRUD, vector search, scheduled functions)
 - **TypeScript** — All code (MCP server + Convex functions + CLI + plugins)
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim, text + images + code)
-- **MCP (Model Context Protocol)** — Agent-facing interface (72 tools)
+- **MCP (Model Context Protocol)** — Agent-facing interface (73 tools)
 - **SSE HTTP Server** — Real-time event streaming (optional, via `ENGRAM_SSE_PORT`)
 - **Next.js** — Agent dashboard (real-time monitoring)
 - **Commander.js** — CLI framework
@@ -73,7 +73,7 @@ Defined in `.claude/settings.json`. Also distributable via `plugins/claude-code/
 | Daily 5:00 | `learning-synthesis` | Extract learning patterns |
 | Weekly Mon 4:00 | `update-golden-principles` | Refresh golden rules |
 
-## MCP Tools (72 primitives)
+## MCP Tools (73 primitives)
 
 All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
 Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/generate-api-reference.ts`).
@@ -85,7 +85,7 @@ Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/gen
 ### Events (3): poll_events, get_notifications, mark_notifications_read
 ### Subscriptions (4): subscribe, unsubscribe, list_subscriptions, poll_subscription
 ### Config (4): get_config, list_configs, set_config, set_scope_policy
-### Retrieval (11): vector_search, text_search, rank_candidates, bump_access, get_observations, get_entities, get_themes, get_handoffs, search_facts, search_entities, search_themes
+### Retrieval (12): vector_search, text_search, rank_candidates, bump_access, get_observations, get_entities, get_themes, get_handoffs, search_facts, search_entities, search_themes, hierarchical_recall
 ### Context (7): resolve_scopes, load_budgeted_facts, search_daily_notes, get_graph_neighbors, get_activity_stats, get_workspace_info, build_system_prompt
 ### Delete (5): delete_entity, delete_scope, delete_conversation, delete_session, delete_theme
 ### Composition (4): summarize, prune, create_theme, query_raw
@@ -98,7 +98,7 @@ Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/gen
 
 ```
 convex/               # Convex backend
-  schema.ts           # 17 table definitions with indexes
+  schema.ts           # 18 table definitions with indexes
   functions/          # CRUD + search
   actions/            # Async: enrich, embed, importance, vectorSearch
   crons.ts            # 19 cron job definitions
@@ -109,7 +109,7 @@ convex/               # Convex backend
 mcp-server/src/       # MCP server (v2 agent-native)
   index.ts            # Entry point — stdio + event bus + optional SSE
   lib/
-    tool-registry.ts  # ★ Single source of truth for all 72 tools
+    tool-registry.ts  # ★ Single source of truth for all 73 tools
     convex-client.ts  # Convex HTTP client (string-based paths)
     embeddings.ts     # Cohere Embed 4 client
     event-bus.ts      # Internal pub/sub event bus
@@ -136,7 +136,7 @@ docs/
 ## Key Implementation Details
 
 ### Tool Registry (Single Source of Truth)
-`mcp-server/src/lib/tool-registry.ts` defines all 72 tools declaratively:
+`mcp-server/src/lib/tool-registry.ts` defines all 73 tools declaratively:
 - `TOOL_REGISTRY` — array of `{ tool, zodSchema, handler }` entries
 - `routeToolCall(name, args, agentId)` — validates + dispatches any tool
 - `getToolDefinitions()` — returns MCP `Tool[]` for ListTools

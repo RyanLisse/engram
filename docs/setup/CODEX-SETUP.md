@@ -364,7 +364,7 @@ Full API: `/docs/API-REFERENCE.md`
 
 ## Documentation
 
-- **API Reference:** `/docs/API-REFERENCE.md` (all 72 tools)
+- **API Reference:** `/docs/API-REFERENCE.md` (all 73 tools)
 - **Current State:** `/docs/CURRENT-STATE.md`
 - **Architecture:** [README.md](../../README.md)
 

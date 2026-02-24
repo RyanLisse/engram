@@ -305,7 +305,7 @@ node dist/index.js
 **Check:**
 ```bash
 fastmcp status engram  # Should show "running"
-fastmcp tools engram   # Should list all 72 tools
+fastmcp tools engram   # Should list all 73 tools
 ```
 
 **Fix:** Restart MCP server:
@@ -445,7 +445,7 @@ Full API: `/docs/API-REFERENCE.md`
 
 ## Documentation
 
-- **API Reference:** `/docs/API-REFERENCE.md` (all 72 tools)
+- **API Reference:** `/docs/API-REFERENCE.md` (all 73 tools)
 - **Current State:** `/docs/CURRENT-STATE.md`
 - **Architecture:** [README.md](../../README.md)
 
