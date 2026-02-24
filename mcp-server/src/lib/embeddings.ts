@@ -22,6 +22,7 @@ export async function generateEmbedding(
       model: "embed-v4.0",
       input_type: inputType,
       embedding_types: ["float"],
+      output_dimension: 1024,
     }),
   });
 
@@ -60,6 +61,7 @@ export async function generateBatchEmbeddings(
         model: "embed-v4.0",
         input_type: inputType,
         embedding_types: ["float"],
+        output_dimension: 1024,
       }),
     });
 

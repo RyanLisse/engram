@@ -2,7 +2,7 @@ export type SearchStrategy = "vector-only" | "text-only" | "hybrid";
 
 export interface RankCandidate {
   _id: string;
-  content: string;
+  content?: string;
   timestamp: number;
   importanceScore?: number;
   outcomeScore?: number;
@@ -19,7 +19,8 @@ function freshnessScore(timestamp: number): number {
   return clamp(1 - ageDays / 30);
 }
 
-function lexicalScore(query: string, content: string): number {
+function lexicalScore(query: string, content: string | undefined): number {
+  if (!content) return 0;
   const q = query.toLowerCase();
   const c = content.toLowerCase();
   if (!q.trim()) return 0;

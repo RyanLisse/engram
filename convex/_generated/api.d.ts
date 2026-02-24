@@ -22,6 +22,7 @@ import type * as actions_regenerateIndices from "../actions/regenerateIndices.js
 import type * as actions_route from "../actions/route.js";
 import type * as actions_vectorSearch from "../actions/vectorSearch.js";
 import type * as crons from "../crons.js";
+import type * as crons_actionRecommendations from "../crons/actionRecommendations.js";
 import type * as crons_agentHealth from "../crons/agentHealth.js";
 import type * as crons_cleanup from "../crons/cleanup.js";
 import type * as crons_compact from "../crons/compact.js";
@@ -45,6 +46,7 @@ import type * as functions_conversations from "../functions/conversations.js";
 import type * as functions_entities from "../functions/entities.js";
 import type * as functions_events from "../functions/events.js";
 import type * as functions_facts from "../functions/facts.js";
+import type * as functions_hierarchicalRecall from "../functions/hierarchicalRecall.js";
 import type * as functions_notifications from "../functions/notifications.js";
 import type * as functions_performance from "../functions/performance.js";
 import type * as functions_recallFeedback from "../functions/recallFeedback.js";
@@ -55,6 +57,7 @@ import type * as functions_signals from "../functions/signals.js";
 import type * as functions_sync from "../functions/sync.js";
 import type * as functions_themes from "../functions/themes.js";
 import type * as lib_configResolver from "../lib/configResolver.js";
+import type * as lib_temporal from "../lib/temporal.js";
 import type * as migrations_001_seed_system_config from "../migrations/001_seed_system_config.js";
 
 import type {
@@ -78,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   "actions/route": typeof actions_route;
   "actions/vectorSearch": typeof actions_vectorSearch;
   crons: typeof crons;
+  "crons/actionRecommendations": typeof crons_actionRecommendations;
   "crons/agentHealth": typeof crons_agentHealth;
   "crons/cleanup": typeof crons_cleanup;
   "crons/compact": typeof crons_compact;
@@ -101,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   "functions/entities": typeof functions_entities;
   "functions/events": typeof functions_events;
   "functions/facts": typeof functions_facts;
+  "functions/hierarchicalRecall": typeof functions_hierarchicalRecall;
   "functions/notifications": typeof functions_notifications;
   "functions/performance": typeof functions_performance;
   "functions/recallFeedback": typeof functions_recallFeedback;
@@ -111,6 +116,7 @@ declare const fullApi: ApiFromModules<{
   "functions/sync": typeof functions_sync;
   "functions/themes": typeof functions_themes;
   "lib/configResolver": typeof lib_configResolver;
+  "lib/temporal": typeof lib_temporal;
   "migrations/001_seed_system_config": typeof migrations_001_seed_system_config;
 }>;
 

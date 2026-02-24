@@ -13,6 +13,7 @@ interface CohereEmbedRequest {
   model: string;
   input_type: "search_document" | "search_query";
   embedding_types: ["float"];
+  output_dimension?: number;
 }
 
 interface CohereEmbedResponse {
@@ -57,6 +58,7 @@ async function generateEmbeddingWithType(
       model: EMBEDDING_MODEL,
       input_type: inputType,
       embedding_types: ["float"],
+      output_dimension: EMBEDDING_DIMENSIONS,
     };
 
     const response = await fetch(COHERE_API_URL, {
