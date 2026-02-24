@@ -14,13 +14,8 @@
 
 import { z } from "zod";
 import { resolveScopes } from "./context-primitives.js";
-import {
-  entitySearch,
-  getEntityBacklinks,
-  getRelatedEntities,
-  getFactsByIds,
-  getTemporalNeighbors,
-} from "./primitive-retrieval.js";
+import { getEntitiesPrimitive } from "./primitive-retrieval.js";
+import * as convex from "../lib/convex-client.js";
 
 export const hierarchicalRecallSchema = z.object({
   query: z.string().describe("Search query — matched against entity names and fact content"),
@@ -48,6 +43,14 @@ interface ScoredFact {
   path: string[];
 }
 
+/** Batch-fetch facts by ID, skipping any that fail or don't exist. */
+async function getFactsByIds(factIds: string[]): Promise<any[]> {
+  const results = await Promise.all(
+    factIds.map((id) => convex.getFact(id).catch(() => null))
+  );
+  return results.filter(Boolean);
+}
+
 export async function hierarchicalRecall(
   input: HierarchicalRecallInput,
   agentId: string
@@ -68,7 +71,7 @@ export async function hierarchicalRecall(
     // ─── Depth 0: Find root entities ──────────────────────────────
     let entities: any[];
     try {
-      entities = await entitySearch({
+      entities = await getEntitiesPrimitive({
         query: input.query,
         type: input.entityTypes?.length === 1 ? input.entityTypes[0] : undefined,
         limit: 5,
@@ -100,7 +103,7 @@ export async function hierarchicalRecall(
 
       try {
         backlinks = entity.backlinks
-          ? await getFactsByIds({ factIds: entity.backlinks.slice(0, 20) })
+          ? await getFactsByIds(entity.backlinks.slice(0, 20))
           : [];
       } catch {
         backlinks = [];
@@ -129,7 +132,7 @@ export async function hierarchicalRecall(
         for (const rel of entity.relationships.slice(0, 5)) {
           let relatedEntity: any;
           try {
-            const results = await entitySearch({ query: rel.targetId, limit: 1 });
+            const results = await getEntitiesPrimitive({ query: rel.targetId, limit: 1 });
             relatedEntity = results[0];
           } catch {
             continue;
@@ -139,9 +142,9 @@ export async function hierarchicalRecall(
 
           let relBacklinks: any[];
           try {
-            relBacklinks = await getFactsByIds({
-              factIds: relatedEntity.backlinks.slice(0, 10),
-            });
+            relBacklinks = await getFactsByIds(
+              relatedEntity.backlinks.slice(0, 10),
+            );
           } catch {
             continue;
           }
@@ -177,7 +180,7 @@ export async function hierarchicalRecall(
 
           let linked: any;
           try {
-            const results = await getFactsByIds({ factIds: [link.targetFactId] });
+            const results = await getFactsByIds([link.targetFactId]);
             linked = results[0];
           } catch {
             continue;
