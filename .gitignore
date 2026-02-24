@@ -13,6 +13,8 @@ dist/
 
 # Build output
 mcp-server/dist/
+mcp-server/src/**/*.js
+mcp-server/src/**/*.d.ts
 *.tsbuildinfo
 
 # Documentation site
