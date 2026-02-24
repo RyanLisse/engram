@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+#
+# Engram for OpenAI Codex CLI — Automated Setup
+#
+# This script:
+# 1. Builds the MCP server
+# 2. Configures Codex CLI MCP settings
+# 3. Verifies installation
+#
+# Usage:
+#   ./setup.sh                        # Interactive
+#   CONVEX_URL=... ./setup.sh         # Non-interactive
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_header() { echo -e "\n${BLUE}═══════════════════════════════════════════════════${NC}\n${BLUE}  $1${NC}\n${BLUE}═══════════════════════════════════════════════════${NC}\n"; }
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
+print_error()   { echo -e "${RED}✗ $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠ $1${NC}"; }
+print_info()    { echo -e "${BLUE}ℹ $1${NC}"; }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENGRAM_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+MCP_SERVER_DIR="$ENGRAM_ROOT/mcp-server"
+
+print_header "Engram for OpenAI Codex Setup"
+
+# ── Prerequisites ─────────────────────────────────────
+print_info "Checking prerequisites..."
+
+if ! command -v node &>/dev/null; then
+  print_error "Node.js not found. Install Node.js 18+ first."
+  exit 1
+fi
+print_success "Node.js: $(node --version)"
+
+if ! command -v codex &>/dev/null; then
+  print_warning "Codex CLI not found in PATH. Install: npm install -g @openai/codex"
+  print_info "Continuing anyway — you can install Codex later."
+fi
+
+# ── Build MCP Server ──────────────────────────────────
+print_info "Building MCP server..."
+cd "$MCP_SERVER_DIR"
+[ ! -d "node_modules" ] && npm install --silent
+[ ! -f "dist/index.js" ] && npm run build
+print_success "MCP server built"
+
+# ── Resolve CONVEX_URL ────────────────────────────────
+if [ -z "${CONVEX_URL:-}" ]; then
+  for envfile in "$ENGRAM_ROOT/.env" "$MCP_SERVER_DIR/.env"; do
+    if [ -f "$envfile" ]; then
+      url=$(grep -E '^CONVEX_URL=' "$envfile" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'")
+      if [ -n "$url" ]; then
+        CONVEX_URL="$url"
+        print_success "Found CONVEX_URL in $envfile"
+        break
+      fi
+    fi
+  done
+fi
+
+if [ -z "${CONVEX_URL:-}" ]; then
+  echo ""
+  read -rp "Enter your CONVEX_URL: " CONVEX_URL
+fi
+
+if [ -z "$CONVEX_URL" ]; then
+  print_error "CONVEX_URL is required."
+  exit 1
+fi
+
+AGENT_ID="${ENGRAM_AGENT_ID:-codex}"
+
+# ── Configure Codex ───────────────────────────────────
+print_info "Configuring Codex MCP..."
+
+# Codex CLI uses `codex mcp add` or manual config.toml
+CODEX_CONFIG_DIR="$HOME/.codex"
+mkdir -p "$CODEX_CONFIG_DIR"
+
+# Method 1: Try `codex mcp add` (if codex is installed)
+if command -v codex &>/dev/null; then
+  print_info "Registering via 'codex mcp add'..."
+  codex mcp add engram \
+    -- node "$ENGRAM_ROOT/mcp-server/dist/index.js" 2>/dev/null && {
+    print_success "Registered engram MCP server with Codex CLI"
+  } || {
+    print_warning "'codex mcp add' failed — falling back to manual config"
+  }
+fi
+
+# Method 2: Write instructions for manual setup
+CODEX_SNIPPET=$(cat <<EOF
+# Add to ~/.codex/config.toml (or use 'codex mcp add'):
+
+[mcp_servers.engram]
+command = "node"
+args = ["$ENGRAM_ROOT/mcp-server/dist/index.js"]
+
+[mcp_servers.engram.env]
+CONVEX_URL = "$CONVEX_URL"
+ENGRAM_AGENT_ID = "$AGENT_ID"
+COHERE_API_KEY = "${COHERE_API_KEY:-}"
+EOF
+)
+
+# Also generate a .mcp.json for project-level config
+MCP_JSON=$(cat <<EOF
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["$ENGRAM_ROOT/mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "$CONVEX_URL",
+        "ENGRAM_AGENT_ID": "$AGENT_ID",
+        "COHERE_API_KEY": "${COHERE_API_KEY:-}",
+        "ENGRAM_API_KEY": "",
+        "ENGRAM_CLIENT_KEY": ""
+      }
+    }
+  }
+}
+EOF
+)
+
+# ── Verify ────────────────────────────────────────────
+print_info "Verifying installation..."
+
+if [ -f "$ENGRAM_ROOT/mcp-server/dist/index.js" ]; then
+  print_success "MCP server binary found"
+else
+  print_error "MCP server binary not found"
+  exit 1
+fi
+
+# ── Summary ───────────────────────────────────────────
+print_header "Setup Complete!"
+
+echo -e "${GREEN}✓ MCP server built${NC}"
+echo ""
+echo -e "${BLUE}Option A: Codex CLI config (config.toml):${NC}"
+echo ""
+echo "$CODEX_SNIPPET"
+echo ""
+echo -e "${BLUE}Option B: Project-level .mcp.json:${NC}"
+echo ""
+echo "$MCP_JSON"
+echo ""
+echo -e "${BLUE}Next steps:${NC}"
+echo ""
+echo -e "  1. ${YELLOW}Add the config above${NC} to ~/.codex/config.toml or project .mcp.json"
+echo -e "  2. ${YELLOW}Set environment variables${NC} (if not in config):"
+echo -e "     ${BLUE}export CONVEX_URL=\"$CONVEX_URL\"${NC}"
+echo -e "     ${BLUE}export COHERE_API_KEY=\"your-cohere-key\"${NC}"
+echo -e "  3. ${YELLOW}Test:${NC} codex \"Store a fact: Engram works with Codex\""
+echo ""
+echo -e "${BLUE}Available:${NC} 72 memory tools"
+echo -e "${BLUE}Docs:${NC} $ENGRAM_ROOT/docs/API-REFERENCE.md"
+echo ""
+print_success "Ready! 🧠"

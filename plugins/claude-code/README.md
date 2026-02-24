@@ -1,6 +1,6 @@
 # Engram — Claude Code Plugin
 
-Agent-native memory for Claude Code. 69 MCP tools as atomic primitives + 6 lifecycle hooks.
+Agent-native memory for Claude Code. 72 MCP tools as atomic primitives + 6 lifecycle hooks.
 
 ## Quick Setup
 
@@ -43,7 +43,7 @@ Hooks fire automatically at key lifecycle points. Defined in `hooks/hooks.json`.
 
 Hooks require `jq` and `node` in PATH. Set `CONVEX_URL` and `ENGRAM_AGENT_ID` in your `.mcp.json` env.
 
-## Tool Categories (69 tools)
+## Tool Categories (72 tools)
 
 ### Core (6)
 | Tool | Use When |

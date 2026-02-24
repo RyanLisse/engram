@@ -197,7 +197,7 @@ engram search "OpenClaw" --json | jq '.[].content'
 ## Architecture
 
 - **Convex Cloud** — 14 tables, native vector search, 11 cron jobs, async enrichment
-- **MCP Server** — 69 tools over stdio + optional SSE, TypeScript, Convex HTTP client
+- **MCP Server** — 72 tools over stdio + optional SSE, TypeScript, Convex HTTP client
 - **SSE Server** — Real-time event streaming via `ENGRAM_SSE_PORT` (webhooks + SSE)
 - **Dashboard** — Next.js agent monitoring UI (`dashboard/`)
 - **Tool Registry** — Single source of truth: `mcp-server/src/lib/tool-registry.ts`

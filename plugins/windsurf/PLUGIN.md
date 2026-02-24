@@ -6,7 +6,7 @@
 
 ## Overview
 
-Complete Windsurf IDE integration for Engram's multi-agent memory system. Provides automated setup, configuration management, and full MCP server access (69 tools).
+Complete Windsurf IDE integration for Engram's multi-agent memory system. Provides automated setup, configuration management, and full MCP server access (72 tools).
 
 ## Files
 
@@ -29,7 +29,7 @@ Complete Windsurf IDE integration for Engram's multi-agent memory system. Provid
 ## Features
 
 ### Core Capabilities
-- ✅ Full access to 69 memory tools
+- ✅ Full access to 72 memory tools
 - ✅ Semantic search and recall
 - ✅ Entity relationship graphs
 - ✅ Real-time event subscriptions
@@ -101,7 +101,7 @@ All Devices
 
 **Note:** `setup.sh` automatically replaces paths with your actual installation directory.
 
-## Tool Categories (69 Total)
+## Tool Categories (72 Total)
 
 ### Core (6 tools)
 `memory_store_fact`, `memory_recall`, `memory_search`, `memory_observe`, `memory_link_entity`, `memory_get_context`
@@ -166,7 +166,7 @@ node mcp-server/dist/index.js
 | Feature | Claude Code | Windsurf |
 |---------|-------------|----------|
 | Setup time | 2 minutes | 2 minutes |
-| Tool count | 69 | 69 |
+| Tool count | 72 | 72 |
 | Automation | 8 lifecycle hooks | Manual tool calls |
 | Auto-recall | ✅ Every prompt | ❌ Manual |
 | Session checkpoints | ✅ Auto | ✅ Manual |

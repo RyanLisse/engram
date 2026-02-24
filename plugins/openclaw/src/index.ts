@@ -1,7 +1,7 @@
 /**
  * Engram OpenClaw Native Plugin
  *
- * Registers all 69 Engram memory tools as native OpenClaw extensions.
+ * Registers all 72 Engram memory tools as native OpenClaw extensions.
  * Reuses the shared tool registry from mcp-server for zero drift.
  *
  * Install: openclaw plugins install @engram/openclaw-plugin

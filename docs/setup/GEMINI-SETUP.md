@@ -305,7 +305,7 @@ node dist/index.js
 **Check:**
 ```bash
 fastmcp status engram  # Should show "running"
-fastmcp tools engram   # Should list all 69 tools
+fastmcp tools engram   # Should list all 72 tools
 ```
 
 **Fix:** Restart MCP server:
@@ -395,7 +395,7 @@ servers:
 
 ## Features Available
 
-All 69 engram memory tools work with Gemini:
+All 72 engram memory tools work with Gemini:
 
 ### Core Memory
 - `memory_store_fact` — Store atomic facts
@@ -445,7 +445,7 @@ Full API: `/docs/API-REFERENCE.md`
 
 ## Documentation
 
-- **API Reference:** `/docs/API-REFERENCE.md` (all 69 tools)
+- **API Reference:** `/docs/API-REFERENCE.md` (all 72 tools)
 - **Current State:** `/docs/CURRENT-STATE.md`
 - **Architecture:** [README.md](../../README.md)
 
