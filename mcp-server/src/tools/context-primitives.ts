@@ -1,6 +1,6 @@
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
-import { loadBudgetAwareContext, detectQueryIntent } from "../lib/budget-aware-loader.js";
+import { loadBudgetAwareContext, detectQueryIntent, formatFactsAsObservationBlocks } from "../lib/budget-aware-loader.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -39,6 +39,7 @@ export const loadBudgetedFactsSchema = z.object({
   scopeId: z.string().optional().describe("Scope ID to search within"),
   maxFacts: z.number().optional().prefault(20).describe("Maximum facts to load"),
   profile: z.enum(["default", "planning", "incident", "handoff"]).optional().prefault("default").describe("Context profile"),
+  formatted: z.boolean().optional().describe("Return facts as formatted observation blocks"),
 });
 export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsSchema>) {
   const profileBudgetMultiplier =
@@ -46,7 +47,7 @@ export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsS
 
   const budgeted = await loadBudgetAwareContext({
     query: input.query,
-    tokenBudget: Math.floor(input.tokenBudget * profileBudgetMultiplier),
+    tokenBudget: Math.floor((input.tokenBudget ?? 4000) * profileBudgetMultiplier),
     scopeId: input.scopeId,
     maxFacts: input.maxFacts,
   });
@@ -62,7 +63,7 @@ export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsS
     facts = facts.filter((f: any) => f.factType === "session_summary" || f.factType === "decision");
   }
 
-  return {
+  const result: Record<string, any> = {
     facts,
     usedTokens: budgeted.usedTokens,
     tokenBudget: budgeted.tokenBudget,
@@ -71,6 +72,12 @@ export async function loadBudgetedFacts(input: z.infer<typeof loadBudgetedFactsS
     profile: input.profile,
     count: facts.length,
   };
+
+  if (input.formatted) {
+    result.formattedContext = formatFactsAsObservationBlocks(facts);
+  }
+
+  return result;
 }
 
 export const searchDailyNotesSchema = z.object({

@@ -14,6 +14,7 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { formatFactsAsObservationBlocks } from "../lib/budget-aware-loader.js";
 import { getActivityStats } from "./context-primitives.js";
 import { getNotifications } from "./primitive-retrieval.js";
 
@@ -48,12 +49,12 @@ export async function buildFullSystemPrompt(
     `Permitted Scopes: ${scopeList.map((s: any) => s.name).join(", ") || "none"}`,
   ]));
 
-  // 2. Observation Log (most compressed form available)
+  // 2. Observation Log (most compressed form available, with emoji tier prefixes)
   try {
     const scopeIds = scopeList.map((s: any) => s._id);
     const defaultScopeId = scopeIds.length > 0 ? scopeIds[0] : null;
     if (defaultScopeId) {
-      // Prefer observation_digest (most compressed) → fallback to observation_summary
+      // Prefer observation_digest (most compressed) -> fallback to observation_summary
       const digests = await convex.searchFacts({
         query: "observation digest",
         scopeIds: [defaultScopeId],
@@ -63,20 +64,40 @@ export async function buildFullSystemPrompt(
       const digestList = Array.isArray(digests) ? digests : [];
 
       if (digestList.length > 0) {
-        sections.push(formatSection(input.format, "Observation Log", [
-          digestList[0].content,
-        ]));
+        // Format digest facts with emoji observation blocks
+        const formatted = formatFactsAsObservationBlocks(digestList);
+        if (formatted) {
+          sections.push(formatSection(input.format, "Observation Log", [formatted]));
+        } else {
+          sections.push(formatSection(input.format, "Observation Log", [digestList[0].content]));
+        }
       } else {
-        // Fallback to observation summaries
+        // Fallback to observation summaries with emoji prefixes based on importance
         const summaries = await convex.listObservationSummaries(defaultScopeId, agentId, 3);
         const summaryList = Array.isArray(summaries) ? summaries : [];
         if (summaryList.length > 0) {
-          sections.push(formatSection(input.format, "Observation Log", summaryList.map((s: any) => s.content)));
+          const formatted = formatFactsAsObservationBlocks(summaryList);
+          if (formatted) {
+            sections.push(formatSection(input.format, "Observation Log", [formatted]));
+          } else {
+            // Final fallback: emoji prefix based on importance score
+            const tierEmoji = (s: any) => {
+              if (s.observationTier === "critical") return "\u{1F534}";
+              if (s.observationTier === "notable") return "\u{1F7E1}";
+              if (s.observationTier === "background") return "\u{1F7E2}";
+              if ((s.importanceScore ?? 0) >= 0.8) return "\u{1F534}";
+              if ((s.importanceScore ?? 0) >= 0.5) return "\u{1F7E1}";
+              return "\u{1F7E2}";
+            };
+            sections.push(formatSection(input.format, "Observation Log",
+              summaryList.map((s: any) => `${tierEmoji(s)} ${s.content}`)
+            ));
+          }
         }
       }
     }
   } catch {
-    // skip — observation log is optional
+    // skip -- observation log is optional
   }
 
   // 3. Activity stats
@@ -156,7 +177,7 @@ export async function buildFullSystemPrompt(
         const handoffList = Array.isArray(handoffs) ? handoffs : [];
         if (handoffList.length > 0) {
           sections.push(formatSection(input.format, "Recent Handoffs", handoffList.map((h: any) =>
-            `From ${h.fromAgent}: ${h.contextSummary ?? h.summary ?? "no summary"}`
+            `From ${h.fromAgent}: ${h.summary ?? "no summary"}`
           )));
         }
       }

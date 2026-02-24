@@ -10,6 +10,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { generateEmbedding } from "./embed";
 import { calculateImportanceWithWeights } from "./importance";
+import { extractReferencedDate } from "../lib/temporal";
 
 /**
  * Main enrichment pipeline - scheduled by storeFact mutation.
@@ -81,7 +82,16 @@ export const enrichFact = internalAction({
       factId,
     });
 
-    // 6. Write enrichment results back
+    // 6. Temporal anchoring: extract referenced dates from content
+    const referencedDate = extractReferencedDate(fact.content);
+    if (referencedDate) {
+      await ctx.runMutation(internal.functions.facts.patchFact, {
+        factId,
+        fields: { referencedDate },
+      });
+    }
+
+    // 7. Write enrichment results back
     await ctx.runMutation(internal.functions.facts.updateEnrichment, {
       factId,
       embedding,
@@ -95,7 +105,7 @@ export const enrichFact = internalAction({
       payload: { importanceScore },
     });
 
-    // 7. Route fact notifications to relevant agents
+    // 8. Route fact notifications to relevant agents
     await ctx.scheduler.runAfter(0, internal.actions.route.routeToAgents, {
       factId,
     });

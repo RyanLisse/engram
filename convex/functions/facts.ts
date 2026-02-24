@@ -447,6 +447,26 @@ export const storeFactInternal = internalMutation({
   },
 });
 
+/** Generic patch for enrichment sub-steps (e.g. temporal anchoring). */
+export const patchFact = internalMutation({
+  args: {
+    factId: v.id("facts"),
+    fields: v.object({
+      referencedDate: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, { factId, fields }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) return; // fact removed before temporal anchoring ran
+    const updates: Record<string, unknown> = {};
+    if (fields.referencedDate !== undefined) updates.referencedDate = fields.referencedDate;
+    if (Object.keys(updates).length > 0) {
+      updates.updatedAt = Date.now();
+      await ctx.db.patch(factId, updates);
+    }
+  },
+});
+
 /** Enrichment pipeline writes back embeddings, summaries, entities, importance. */
 export const updateEnrichment = internalMutation({
   args: {

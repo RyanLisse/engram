@@ -1,5 +1,13 @@
 /**
- * memory_recall — Semantic search for facts (primary retrieval method)
+ * memory_recall — Tri-pathway retrieval (semantic + symbolic + topological)
+ *
+ * Combines three retrieval pathways using Reciprocal Rank Fusion (RRF):
+ *   1. Semantic — vector search via Cohere embeddings
+ *   2. Symbolic — full-text search via Convex
+ *   3. Topological — graph expansion via entity edges (conditional)
+ *
+ * The graph pathway only activates when initial results contain entity links,
+ * avoiding unnecessary work for simple queries.
  */
 
 import { z } from "zod";
@@ -13,7 +21,8 @@ import {
   vectorSearch,
 } from "./primitive-retrieval.js";
 import { rankCandidatesPrimitive } from "./rank-candidates.js";
-import { resolveScopes } from "./context-primitives.js";
+import { resolveScopes, getGraphNeighbors } from "./context-primitives.js";
+import { reciprocalRankFusion, extractEntityIds } from "../lib/rrf.js";
 import type { SearchStrategy } from "../lib/ranking.js";
 
 export const recallSchema = z.object({
@@ -34,7 +43,7 @@ export type RecallInput = z.infer<typeof recallSchema>;
 export async function recall(
   input: RecallInput,
   agentId: string
-): Promise<{ facts: any[]; recallId: string } | { isError: true; message: string }> {
+): Promise<{ facts: any[]; recallId: string; pathways: string[] } | { isError: true; message: string }> {
   try {
     console.error("[deprecation] memory_recall is a compatibility wrapper over primitive tools");
     const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
@@ -79,20 +88,82 @@ export async function recall(
       }
     }
 
-    const byId = new Map<string, any>();
-    for (const row of textResults as any[]) byId.set(row._id, { ...row, lexicalScore: 1 });
-    for (const row of vectorResults as any[]) {
-      const id = row._id;
-      const merged = byId.get(id);
-      if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
-      else byId.set(id, row);
+    // ── Track which pathways contributed ──
+    const pathways: string[] = [];
+
+    if (vectorResults.length > 0) pathways.push("semantic");
+    if ((textResults as any[]).length > 0) pathways.push("symbolic");
+
+    // ── Pathway 3: Topological (graph expansion) ──
+    // Only invoke when initial results contain entity links to avoid useless work.
+    const allInitialResults = [...(textResults as any[]), ...vectorResults];
+    const entityIds = extractEntityIds(allInitialResults);
+
+    let graphResults: any[] = [];
+    if (entityIds.length > 0) {
+      try {
+        const graphResponse = await getGraphNeighbors({
+          entityIds,
+          scopeIds: scopeIds.length > 0 ? scopeIds : undefined,
+          limit: 10, // Cap graph expansion to avoid overwhelming results
+        });
+        graphResults = graphResponse.neighbors ?? [];
+        if (graphResults.length > 0) {
+          pathways.push("graph");
+        }
+        console.error(`[recall] Graph expansion: ${entityIds.length} entities -> ${graphResults.length} neighbors`);
+      } catch (err: any) {
+        console.error("[recall] Graph expansion failed (non-fatal):", err?.message ?? err);
+      }
     }
-    const ranked = await rankCandidatesPrimitive({
-      query: input.query,
-      candidates: [...byId.values()],
-      limit: input.limit,
-    });
-    const results = ranked.ranked;
+
+    // ── Reciprocal Rank Fusion across all pathways ──
+    // Build ranked lists for RRF. Each pathway contributes its own ordering.
+    const rrfInputSets: Array<Array<{ _id: string; [key: string]: any }>> = [];
+
+    if (vectorResults.length > 0) {
+      rrfInputSets.push(vectorResults as any[]);
+    }
+    if ((textResults as any[]).length > 0) {
+      rrfInputSets.push(textResults as any[]);
+    }
+    if (graphResults.length > 0) {
+      rrfInputSets.push(graphResults);
+    }
+
+    let results: any[];
+
+    if (rrfInputSets.length >= 2) {
+      // Multiple pathways: use RRF to merge
+      const fused = reciprocalRankFusion(rrfInputSets);
+      // Still apply the hybrid ranker for importance/freshness/outcome scoring.
+      // The fused facts retain all original Convex fields; cast to satisfy Zod schema.
+      const ranked = await rankCandidatesPrimitive({
+        query: input.query,
+        candidates: fused as any,
+        limit: input.limit,
+      });
+      results = ranked.ranked;
+    } else {
+      // Single pathway or no results: fall back to the existing merge logic
+      const byId = new Map<string, any>();
+      for (const row of textResults as any[]) byId.set(row._id, { ...row, lexicalScore: 1 });
+      for (const row of vectorResults as any[]) {
+        const id = row._id;
+        const merged = byId.get(id);
+        if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
+        else byId.set(id, row);
+      }
+      for (const row of graphResults) {
+        if (!byId.has(row._id)) byId.set(row._id, row);
+      }
+      const ranked = await rankCandidatesPrimitive({
+        query: input.query,
+        candidates: [...byId.values()],
+        limit: input.limit,
+      });
+      results = ranked.ranked;
+    }
 
     if (!results || !Array.isArray(results)) {
       return {
@@ -130,6 +201,7 @@ export async function recall(
     return {
       facts: prioritized,
       recallId,
+      pathways: pathways.length > 0 ? pathways : ["none"],
     };
   } catch (error: any) {
     console.error("[recall] Error:", error);

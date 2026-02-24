@@ -281,12 +281,13 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     tool: {
       name: "memory_end_session",
-      description: "Store a session handoff summary for cross-agent continuity.",
+      description: "Store a session handoff summary for cross-agent continuity. Auto-generates a structured session_summary fact from recent activity, or uses a caller-supplied contextSummary.",
       inputSchema: {
         type: "object",
         properties: {
           summary: { type: "string", description: "Session summary for the next agent" },
           conversationId: { type: "string", description: "Optional conversation ID to link handoff to" },
+          contextSummary: { type: "string", description: "Optional agent-supplied context summary. When provided, used as the session_summary fact content instead of auto-generation." },
         },
         required: ["summary"],
       },

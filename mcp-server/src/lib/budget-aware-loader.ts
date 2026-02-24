@@ -130,3 +130,62 @@ export async function loadBudgetAwareContext(input: BudgetContextInput): Promise
     strategy,
   };
 }
+
+const TIER_EMOJI: Record<string, string> = {
+  critical: "\u{1F534}",
+  notable: "\u{1F7E1}",
+  background: "\u{1F7E2}",
+};
+const DEFAULT_EMOJI = "\u26AA";
+
+/**
+ * Format an array of facts as date-grouped observation blocks with emoji prefixes.
+ *
+ * Output example:
+ *   Date: Feb 18, 2026
+ *   * 🔴 (14:30) User decided to migrate DB [decision]
+ *   * 🟡 (14:35) Agent ran migration script [observation]
+ */
+export function formatFactsAsObservationBlocks(facts: any[]): string {
+  if (!facts || facts.length === 0) return "";
+
+  // Build entries with parsed dates
+  const entries = facts.map((f: any) => {
+    const ts = f.timestamp ? new Date(f.timestamp) : f._creationTime ? new Date(f._creationTime) : null;
+    return { fact: f, date: ts };
+  }).filter((e) => e.date !== null) as Array<{ fact: any; date: Date }>;
+
+  // Sort by date ascending
+  entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // Group by calendar date
+  const groups = new Map<string, Array<{ fact: any; date: Date }>>();
+  for (const entry of entries) {
+    const dayKey = entry.date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+    if (!groups.has(dayKey)) groups.set(dayKey, []);
+    groups.get(dayKey)!.push(entry);
+  }
+
+  const lines: string[] = [];
+  for (const [dayLabel, dayEntries] of groups) {
+    lines.push(`Date: ${dayLabel}`);
+    for (const { fact, date } of dayEntries) {
+      const emoji = TIER_EMOJI[fact.observationTier as string] ?? DEFAULT_EMOJI;
+      const time = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+      let content = (fact.content ?? "").replace(/\n/g, " ");
+      if (content.length > 200) content = content.slice(0, 197) + "...";
+      const factType = fact.factType ? ` [${fact.factType}]` : "";
+      const refDate = fact.referencedDate
+        ? ` -> references ${new Date(fact.referencedDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}`
+        : "";
+      lines.push(`* ${emoji} (${time}) ${content}${factType}${refDate}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trimEnd();
+}
