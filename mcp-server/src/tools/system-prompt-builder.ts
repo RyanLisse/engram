@@ -48,7 +48,38 @@ export async function buildFullSystemPrompt(
     `Permitted Scopes: ${scopeList.map((s: any) => s.name).join(", ") || "none"}`,
   ]));
 
-  // 2. Activity stats
+  // 2. Observation Log (most compressed form available)
+  try {
+    const scopeIds = scopeList.map((s: any) => s._id);
+    const defaultScopeId = scopeIds.length > 0 ? scopeIds[0] : null;
+    if (defaultScopeId) {
+      // Prefer observation_digest (most compressed) → fallback to observation_summary
+      const digests = await convex.searchFacts({
+        query: "observation digest",
+        scopeIds: [defaultScopeId],
+        factType: "observation_digest",
+        limit: 1,
+      });
+      const digestList = Array.isArray(digests) ? digests : [];
+
+      if (digestList.length > 0) {
+        sections.push(formatSection(input.format, "Observation Log", [
+          digestList[0].content,
+        ]));
+      } else {
+        // Fallback to observation summaries
+        const summaries = await convex.listObservationSummaries(defaultScopeId, agentId, 3);
+        const summaryList = Array.isArray(summaries) ? summaries : [];
+        if (summaryList.length > 0) {
+          sections.push(formatSection(input.format, "Observation Log", summaryList.map((s: any) => s.content)));
+        }
+      }
+    }
+  } catch {
+    // skip — observation log is optional
+  }
+
+  // 3. Activity stats
   if (input.includeActivity) {
     try {
       const stats = await getActivityStats({ periodHours: 24 }, agentId);
@@ -64,7 +95,7 @@ export async function buildFullSystemPrompt(
     }
   }
 
-  // 3. Configuration context
+  // 4. Configuration context
   if (input.includeConfig) {
     try {
       const configs = await convex.listConfigs();
@@ -79,7 +110,7 @@ export async function buildFullSystemPrompt(
     }
   }
 
-  // 4. Workspace awareness
+  // 5. Workspace awareness
   if (input.includeWorkspace) {
     try {
       const agents = await convex.listAgents();
@@ -101,7 +132,7 @@ export async function buildFullSystemPrompt(
     }
   }
 
-  // 5. Notifications
+  // 6. Notifications
   if (input.includeNotifications) {
     try {
       const notifications = await getNotifications({ limit: 5 }, agentId);
@@ -116,7 +147,7 @@ export async function buildFullSystemPrompt(
     }
   }
 
-  // 6. Recent handoffs
+  // 7. Recent handoffs
   if (input.includeHandoffs) {
     try {
       const scopeIds = scopeList.map((s: any) => s._id);

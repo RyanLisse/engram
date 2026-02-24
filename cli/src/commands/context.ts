@@ -15,6 +15,7 @@ export const contextCommand = new Command("context")
   .option("-s, --scope <scope>", "Scope name")
   .option("--entities", "Include entities", true)
   .option("--themes", "Include themes", true)
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (topic: string, opts) => {
     const spinner = ora(`Loading context for "${topic}"...`).start();
     try {
@@ -40,13 +41,44 @@ export const contextCommand = new Command("context")
         scopeIds,
         limit: parseInt(opts.maxFacts, 10),
       });
+      const factList = Array.isArray(facts) ? facts : [];
+
+      // Fetch entities
+      let entList: any[] = [];
+      if (opts.entities) {
+        const entities = await client.searchEntities({ query: topic, limit: 10 });
+        entList = Array.isArray(entities) ? entities : [];
+      }
+
+      // Fetch themes
+      let relevant: any[] = [];
+      if (opts.themes && scopeIds.length > 0) {
+        const themes = await client.getThemesByScope(scopeIds[0]);
+        const themeList = Array.isArray(themes) ? themes : [];
+        relevant = themeList.filter(
+          (t: any) =>
+            t.name?.toLowerCase().includes(topic.toLowerCase()) ||
+            t.description?.toLowerCase().includes(topic.toLowerCase())
+        );
+      }
 
       spinner.stop();
 
+      // JSON output
+      if (opts.json) {
+        console.log(JSON.stringify({
+          topic,
+          facts: factList,
+          entities: entList,
+          themes: relevant,
+        }, null, 2));
+        return;
+      }
+
+      // Formatted output
       console.log(fmt.header(`Context: "${topic}"`));
 
       // Facts
-      const factList = Array.isArray(facts) ? facts : [];
       console.log(chalk.bold.white(`  📋 Facts (${factList.length})`));
       if (factList.length === 0) {
         console.log(fmt.dim("No facts found"));
@@ -62,8 +94,6 @@ export const contextCommand = new Command("context")
       // Entities
       if (opts.entities) {
         console.log();
-        const entities = await client.searchEntities({ query: topic, limit: 10 });
-        const entList = Array.isArray(entities) ? entities : [];
         console.log(chalk.bold.white(`  🔗 Entities (${entList.length})`));
         for (const e of entList) {
           console.log(fmt.entityRow(e));
@@ -73,13 +103,6 @@ export const contextCommand = new Command("context")
       // Themes
       if (opts.themes && scopeIds.length > 0) {
         console.log();
-        const themes = await client.getThemesByScope(scopeIds[0]);
-        const themeList = Array.isArray(themes) ? themes : [];
-        const relevant = themeList.filter(
-          (t: any) =>
-            t.name?.toLowerCase().includes(topic.toLowerCase()) ||
-            t.description?.toLowerCase().includes(topic.toLowerCase())
-        );
         console.log(chalk.bold.white(`  🏷️  Themes (${relevant.length})`));
         for (const t of relevant) {
           console.log(`  • ${chalk.bold(t.name)} ${chalk.dim(t.description || "")}`);

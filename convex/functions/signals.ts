@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "../_generated/server";
+import { internalQuery, query, mutation } from "../_generated/server";
 import { api } from "../_generated/api";
 
 export const recordSignal = mutation({
@@ -40,6 +40,31 @@ export const recordSignal = mutation({
     }
 
     return signalId;
+  },
+});
+
+/** Count recent feedback signals for an agent (used by action-recommendations cron). */
+export const countRecentFeedback = internalQuery({
+  args: {
+    agentId: v.string(),
+    sinceMs: v.number(),
+  },
+  handler: async (ctx, { agentId, sinceMs }) => {
+    const cutoff = Date.now() - sinceMs;
+    const rows = await ctx.db
+      .query("signals")
+      .withIndex("by_agent", (q) => q.eq("agentId", agentId))
+      .filter((q) =>
+        q.and(
+          q.gte(q.field("timestamp"), cutoff),
+          q.or(
+            q.eq(q.field("signalType"), "explicit_rating"),
+            q.eq(q.field("signalType"), "usefulness")
+          )
+        )
+      )
+      .take(50);
+    return rows.length;
   },
 });
 

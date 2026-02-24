@@ -1,7 +1,7 @@
 {
   "name": "@engram/mcp-server",
   "version": "1.0.0",
-  "description": "Engram memory MCP server — 69 tools for multi-agent memory",
+  "description": "Engram memory MCP server — 72 tools for multi-agent memory",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

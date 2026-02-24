@@ -15,7 +15,9 @@ import type * as actions_embedAgentCapabilities from "../actions/embedAgentCapab
 import type * as actions_enrich from "../actions/enrich.js";
 import type * as actions_importance from "../actions/importance.js";
 import type * as actions_mirrorToVault from "../actions/mirrorToVault.js";
+import type * as actions_observer from "../actions/observer.js";
 import type * as actions_reconcileFromVault from "../actions/reconcileFromVault.js";
+import type * as actions_reflector from "../actions/reflector.js";
 import type * as actions_regenerateIndices from "../actions/regenerateIndices.js";
 import type * as actions_route from "../actions/route.js";
 import type * as actions_vectorSearch from "../actions/vectorSearch.js";
@@ -29,6 +31,7 @@ import type * as crons_dedup from "../crons/dedup.js";
 import type * as crons_embeddingBackfill from "../crons/embeddingBackfill.js";
 import type * as crons_forget from "../crons/forget.js";
 import type * as crons_learningSynthesis from "../crons/learningSynthesis.js";
+import type * as crons_observerSweep from "../crons/observerSweep.js";
 import type * as crons_qualityScan from "../crons/qualityScan.js";
 import type * as crons_regenerateIndices from "../crons/regenerateIndices.js";
 import type * as crons_rerank from "../crons/rerank.js";
@@ -68,7 +71,9 @@ declare const fullApi: ApiFromModules<{
   "actions/enrich": typeof actions_enrich;
   "actions/importance": typeof actions_importance;
   "actions/mirrorToVault": typeof actions_mirrorToVault;
+  "actions/observer": typeof actions_observer;
   "actions/reconcileFromVault": typeof actions_reconcileFromVault;
+  "actions/reflector": typeof actions_reflector;
   "actions/regenerateIndices": typeof actions_regenerateIndices;
   "actions/route": typeof actions_route;
   "actions/vectorSearch": typeof actions_vectorSearch;
@@ -82,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   "crons/embeddingBackfill": typeof crons_embeddingBackfill;
   "crons/forget": typeof crons_forget;
   "crons/learningSynthesis": typeof crons_learningSynthesis;
+  "crons/observerSweep": typeof crons_observerSweep;
   "crons/qualityScan": typeof crons_qualityScan;
   "crons/regenerateIndices": typeof crons_regenerateIndices;
   "crons/rerank": typeof crons_rerank;

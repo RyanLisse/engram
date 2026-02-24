@@ -85,6 +85,29 @@ export const recordEvent = internalMutation({
   },
 });
 
+/** Get recent events for an agent filtered by eventType (used by action-recommendations cooldown). */
+export const getRecentByAgentAndType = internalQuery({
+  args: {
+    agentId: v.string(),
+    eventType: v.string(),
+    sinceMs: v.number(),
+  },
+  handler: async (ctx, { agentId, eventType, sinceMs }) => {
+    const cutoff = Date.now() - sinceMs;
+    return await ctx.db
+      .query("memory_events")
+      .withIndex("by_agent_watermark", (q) => q.eq("agentId", agentId))
+      .order("desc")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("eventType"), eventType),
+          q.gte(q.field("createdAt"), cutoff)
+        )
+      )
+      .take(1);
+  },
+});
+
 async function getNextWatermark(ctx: QueryCtx | MutationCtx): Promise<number> {
   const latest = await ctx.db.query("memory_events").withIndex("by_watermark").order("desc").first();
   const next = (latest?.watermark ?? 0) + 1;

@@ -83,6 +83,12 @@ import {
 } from "../tools/subscriptions.js";
 
 import {
+  omStatus, omStatusSchema,
+  observeCompress, observeCompressSchema,
+  reflect, reflectSchema,
+} from "../tools/observation-memory.js";
+
+import {
   bumpAccessBatch, bumpAccessSchema,
   getEntitiesPrimitive, getEntitiesPrimitiveSchema,
   getHandoffs, getHandoffsSchema,
@@ -376,6 +382,51 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     },
     zodSchema: pruneSchema,
     handler: (args, agentId) => prune(args, agentId),
+  },
+
+  // ── Observation Memory ──────────────────────────────
+  {
+    tool: {
+      name: "memory_om_status",
+      description: "Return observation window state: pending tokens, summary tokens, thresholds, compression level, buffer status, last run times.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scopeId: { type: "string", description: "Scope ID or name (defaults to agent's private scope)" },
+        },
+      },
+    },
+    zodSchema: omStatusSchema,
+    handler: (args, agentId) => omStatus(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_observe_compress",
+      description: "Manually trigger Observer compression for a scope. Compresses raw observations into a dense summary.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scopeId: { type: "string", description: "Scope ID or name (defaults to agent's private scope)" },
+          compressionLevel: { type: "number", description: "Compression level 0-3 (default: auto from session)" },
+        },
+      },
+    },
+    zodSchema: observeCompressSchema,
+    handler: (args, agentId) => observeCompress(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_reflect",
+      description: "Manually trigger Reflector condensation for a scope. Condenses observation summaries into a dense digest.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scopeId: { type: "string", description: "Scope ID or name (defaults to agent's private scope)" },
+        },
+      },
+    },
+    zodSchema: reflectSchema,
+    handler: (args, agentId) => reflect(args, agentId),
   },
 
   // ── Vault & Checkpoint ────────────────────────────
@@ -1010,7 +1061,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
       inputSchema: {
         type: "object",
         properties: {
-          category: { type: "string", description: "Filter by category (core, lifecycle, signals, agent, events, config, retrieval, delete, composition, vault, health, context, discovery)" },
+          category: { type: "string", description: "Filter by category (core, lifecycle, signals, agent, events, config, retrieval, delete, observation, composition, vault, health, context, discovery)" },
           format: { type: "string", enum: ["list", "table", "json"], description: "Output format (default: list)" },
         },
       },
@@ -1030,6 +1081,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         config: ["memory_get_config", "memory_list_configs", "memory_set_config", "memory_set_scope_policy"],
         retrieval: ["memory_vector_search", "memory_text_search", "memory_rank_candidates", "memory_bump_access", "memory_get_observations", "memory_get_entities", "memory_get_themes", "memory_get_handoffs", "memory_search_facts", "memory_search_entities", "memory_search_themes"],
         delete: ["memory_delete_entity", "memory_delete_scope", "memory_delete_conversation", "memory_delete_session", "memory_delete_theme"],
+        observation: ["memory_om_status", "memory_observe_compress", "memory_reflect"],
         composition: ["memory_summarize", "memory_prune", "memory_create_theme", "memory_query_raw"],
         context: ["memory_resolve_scopes", "memory_load_budgeted_facts", "memory_search_daily_notes", "memory_get_graph_neighbors", "memory_get_activity_stats", "memory_get_workspace_info", "memory_build_system_prompt"],
         vault: ["memory_vault_sync", "memory_vault_export", "memory_vault_import", "memory_vault_list_files", "memory_vault_reconcile", "memory_query_vault", "memory_export_graph", "memory_checkpoint", "memory_wake"],

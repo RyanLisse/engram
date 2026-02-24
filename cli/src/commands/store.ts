@@ -15,6 +15,7 @@ export const storeCommand = new Command("store")
   .option("--tags <tags>", "Comma-separated tags")
   .option("--source <source>", "Source of the fact", "cli")
   .option("--emotion <emotion>", "Emotional context (frustrated, proud, key-insight, etc.)")
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (content: string, opts) => {
     const spinner = ora("Storing fact...").start();
     try {
@@ -57,6 +58,18 @@ export const storeCommand = new Command("store")
       });
 
       spinner.succeed("Fact stored");
+
+      if (opts.json) {
+        console.log(JSON.stringify({
+          factId: result.factId,
+          importanceScore: result.importanceScore ?? 0.5,
+          factType: opts.type,
+          tags: tags || [],
+          scopeId,
+        }, null, 2));
+        return;
+      }
+
       console.log(fmt.label("Fact ID", result.factId));
       console.log(fmt.label("Importance", (result.importanceScore ?? 0.5).toFixed(2)));
       console.log(fmt.label("Type", opts.type));

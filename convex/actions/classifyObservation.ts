@@ -8,15 +8,54 @@ function classify(content: string): {
   observationTier: "critical" | "notable" | "background";
   importanceTier: "structural" | "potential" | "contextual";
   confidence: number;
+  assertionType: "assertion" | "question" | "neutral";
+  stateChanges: Array<{ subject: string; from: string; to: string }>;
 } {
   const lower = content.toLowerCase();
+  const trimmed = content.trim();
+
+  // Tier classification (existing)
+  let observationTier: "critical" | "notable" | "background" = "background";
+  let importanceTier: "structural" | "potential" | "contextual" = "contextual";
+  let confidence = 0.7;
+
   if (/\b(outage|incident|failure|security|breach|urgent|critical)\b/.test(lower)) {
-    return { observationTier: "critical", importanceTier: "structural", confidence: 0.9 };
+    observationTier = "critical";
+    importanceTier = "structural";
+    confidence = 0.9;
+  } else if (/\b(decision|blocked|risk|warning|important|action)\b/.test(lower)) {
+    observationTier = "notable";
+    importanceTier = "potential";
+    confidence = 0.78;
   }
-  if (/\b(decision|blocked|risk|warning|important|action)\b/.test(lower)) {
-    return { observationTier: "notable", importanceTier: "potential", confidence: 0.78 };
+
+  // Assertion/question detection
+  let assertionType: "assertion" | "question" | "neutral" = "neutral";
+  if (trimmed.endsWith("?") || /^(what|when|where|why|how|who|which|is|are|was|were|do|does|did|can|could|should|would)\b/i.test(trimmed)) {
+    assertionType = "question";
+  } else if (/\b(decided|chose|selected|changed|switched|updated|set|configured|deployed|released|fixed|resolved|confirmed|approved|rejected)\b/i.test(lower)) {
+    assertionType = "assertion";
   }
-  return { observationTier: "background", importanceTier: "contextual", confidence: 0.7 };
+
+  // State change extraction
+  const stateChanges: Array<{ subject: string; from: string; to: string }> = [];
+  const patterns = [
+    /(\w[\w\s]*?)\s+changed\s+from\s+["']?(.+?)["']?\s+to\s+["']?(.+?)["']?(?:\.|$)/gi,
+    /switched\s+(\w[\w\s]*?)\s+from\s+["']?(.+?)["']?\s+to\s+["']?(.+?)["']?(?:\.|$)/gi,
+    /updated\s+(\w[\w\s]*?)\s+from\s+["']?(.+?)["']?\s+to\s+["']?(.+?)["']?(?:\.|$)/gi,
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      stateChanges.push({
+        subject: match[1].trim(),
+        from: match[2].trim(),
+        to: match[3].trim(),
+      });
+    }
+  }
+
+  return { observationTier, importanceTier, confidence, assertionType, stateChanges };
 }
 
 export const classifyObservation = internalAction({
@@ -39,7 +78,11 @@ export const classifyObservation = internalAction({
 
     return {
       classified: true,
-      ...result,
+      observationTier: result.observationTier,
+      importanceTier: result.importanceTier,
+      confidence: result.confidence,
+      assertionType: result.assertionType,
+      stateChanges: result.stateChanges,
     };
   },
 });

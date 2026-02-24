@@ -10,16 +10,53 @@ import * as fmt from "../lib/format.js";
 
 export const statusCommand = new Command("status")
   .description("Show system status and stats")
-  .action(async () => {
+  .option("--json", "Output raw JSON for agent consumption")
+  .option("--robot", "Output machine-readable JSON status (includes health check)")
+  .action(async (opts: any) => {
     const spinner = ora("Checking status...").start();
     try {
       const agentId = client.getAgentId();
       const { agent, scopes, sessions } = await client.getStats(agentId);
 
+      const scopeList = Array.isArray(scopes) ? scopes : [];
+      const sessionList = Array.isArray(sessions) ? sessions : [];
+      const convexUrl = process.env.CONVEX_URL || "not set";
+      const isHealthy = !!agent && convexUrl !== "not set";
+
       spinner.stop();
 
+      // Robot mode: machine-readable JSON with health check
+      if (opts.robot) {
+        const robotStatus = {
+          healthy: isHealthy,
+          agentId,
+          agentRegistered: !!agent,
+          convexUrl,
+          factCount: agent?.factCount || 0,
+          scopeCount: scopeList.length,
+          sessionCount: sessionList.length,
+          lastActivity: agent?.lastSeen || null,
+          timestamp: Date.now(),
+        };
+        console.log(JSON.stringify(robotStatus, null, 2));
+        return;
+      }
+
+      // JSON mode: raw stats data
+      if (opts.json) {
+        console.log(JSON.stringify({
+          agentId,
+          convexUrl,
+          agent,
+          scopes: scopeList,
+          sessions: sessionList,
+        }, null, 2));
+        return;
+      }
+
+      // Formatted output
       console.log(fmt.header("Engram Status"));
-      console.log(fmt.label("Convex URL", process.env.CONVEX_URL || "not set"));
+      console.log(fmt.label("Convex URL", convexUrl));
       console.log(fmt.label("Agent ID", agentId));
       console.log();
 
@@ -34,7 +71,6 @@ export const statusCommand = new Command("status")
       }
 
       console.log();
-      const scopeList = Array.isArray(scopes) ? scopes : [];
       console.log(chalk.bold.white(`  🔒 Scopes (${scopeList.length})`));
       for (const scope of scopeList.slice(0, 5)) {
         console.log(fmt.scopeRow(scope));
@@ -44,7 +80,6 @@ export const statusCommand = new Command("status")
       }
 
       console.log();
-      const sessionList = Array.isArray(sessions) ? sessions : [];
       console.log(chalk.bold.white(`  📝 Sessions (${sessionList.length})`));
       if (sessionList.length > 0) {
         const recent = sessionList[0];
