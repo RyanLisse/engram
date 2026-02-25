@@ -1,16 +1,46 @@
 # Agent Instructions
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+This project uses **bd** (beads) for issue tracking and **bv** for task prioritization.
+
+## Current Sprint: Context Repositories Optimization
+
+We're adding Letta-inspired features to Engram: progressive disclosure, sleep-time reflection,
+version history, QA-pair retrieval, history bootstrap, and filesystem mirror.
+
+**Plan:** `PLAN-CONTEXT-REPOS.md` (DO NOT modify — reference only)
+**Architecture:** `CLAUDE.md` (tech stack, schema, tool registry, design principles)
+
+### Parallel Tracks (agents can work simultaneously on these)
+
+| Track | Root Beads | First Task |
+|-------|-----------|------------|
+| **P1: Progressive Disclosure** | engram-adw | engram-2kn (schema) |
+| **P3: Version History** | engram-gd6 | engram-rqm (schema) |
+| **P4: QA-Pairs** | engram-5id | engram-7hb (schema) |
+
+P2 (Sleep-Time), P5 (Bootstrap), P6 (FS Mirror) are blocked until P1 completes.
 
 ## Quick Reference
 
 ```bash
-bd ready              # Find available work
+bd ready              # Find available work (unblocked beads)
 bd show <id>          # View issue details
 bd update <id> --status in_progress  # Claim work
 bd close <id>         # Complete work
 bd sync               # Sync with git
+bd dep tree <id>      # Show dependency tree
 ```
+
+## BV (Beads Viewer) — CRITICAL: Always use --robot-* flags
+
+```bash
+bv --robot-triage     # Full triage with recommendations
+bv --robot-next       # Single top pick
+bv --robot-plan       # Parallel execution tracks
+bv --robot-insights   # Graph health (cycles, bottlenecks)
+```
+
+**NEVER run bare `bv`** — it launches interactive TUI that blocks your session.
 
 ## I Want To...
 
