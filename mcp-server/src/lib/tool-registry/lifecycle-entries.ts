@@ -19,6 +19,9 @@ import {
   updateFact, updateFactSchema,
 } from "../../tools/admin-primitives.js";
 import { forget, forgetSchema } from "../../tools/forget.js";
+import { pinFact, pinFactSchema, unpinFact, unpinFactSchema } from "../../tools/pin-fact.js";
+import { factHistory, factHistorySchema, factRollback, factRollbackSchema } from "../../tools/fact-history.js";
+import { defrag, defragSchema } from "../../tools/defrag.js";
 
 import {
   listStaleFacts, listStaleFactsSchema,
@@ -31,8 +34,8 @@ export const entries: readonly ToolEntry[] = [
   {
     tool: {
       name: "memory_update_fact",
-      description: "Update a fact's content, tags, or type.",
-      inputSchema: { type: "object", properties: { factId: { type: "string" }, content: { type: "string" }, tags: { type: "array", items: { type: "string" } }, factType: { type: "string" } }, required: ["factId"] },
+      description: "Update a fact's content, tags, type, pinned status, or summary.",
+      inputSchema: { type: "object", properties: { factId: { type: "string" }, content: { type: "string" }, tags: { type: "array", items: { type: "string" } }, factType: { type: "string" }, pinned: { type: "boolean" }, summary: { type: "string" } }, required: ["factId"] },
     },
     zodSchema: updateFactSchema,
     handler: (args) => updateFact(args),
@@ -75,6 +78,42 @@ export const entries: readonly ToolEntry[] = [
   },
   {
     tool: {
+      name: "memory_pin",
+      description: "Pin a fact to always-loaded context (max 20 per scope).",
+      inputSchema: { type: "object", properties: { factId: { type: "string", description: "Fact ID to pin" }, scopeId: { type: "string", description: "Scope for pin limit enforcement" } }, required: ["factId"] },
+    },
+    zodSchema: pinFactSchema,
+    handler: (args, agentId) => pinFact(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_unpin",
+      description: "Remove pin from a fact.",
+      inputSchema: { type: "object", properties: { factId: { type: "string", description: "Fact ID to unpin" } }, required: ["factId"] },
+    },
+    zodSchema: unpinFactSchema,
+    handler: (args) => unpinFact(args),
+  },
+  {
+    tool: {
+      name: "memory_history",
+      description: "Retrieve version history for a fact (all edits, archives, merges).",
+      inputSchema: { type: "object", properties: { factId: { type: "string", description: "Fact ID to get history for" }, limit: { type: "number", description: "Maximum versions to return (default: 20)" } }, required: ["factId"] },
+    },
+    zodSchema: factHistorySchema,
+    handler: (args) => factHistory(args),
+  },
+  {
+    tool: {
+      name: "memory_rollback",
+      description: "Restore a fact to a previous version from its edit history.",
+      inputSchema: { type: "object", properties: { factId: { type: "string", description: "Fact ID to rollback" }, versionId: { type: "string", description: "Version ID to restore to (defaults to most recent)" }, reason: { type: "string", description: "Reason for rollback" } }, required: ["factId"] },
+    },
+    zodSchema: factRollbackSchema,
+    handler: (args) => factRollback(args),
+  },
+  {
+    tool: {
       name: "memory_list_stale_facts",
       description: "List stale facts candidates for pruning or summarization.",
       inputSchema: { type: "object", properties: { scopeId: { type: "string" }, olderThanDays: { type: "number" }, limit: { type: "number" } } },
@@ -99,6 +138,23 @@ export const entries: readonly ToolEntry[] = [
     },
     zodSchema: markFactsPrunedSchema,
     handler: (args) => markFactsPruned(args),
+  },
+  {
+    tool: {
+      name: "memory_defrag",
+      description: "Defragment a memory scope: merge near-duplicate facts and archive low-value dormant facts.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scopeId: { type: "string", description: "Scope to defrag (defaults to agent's private scope)" },
+          dryRun: { type: "boolean", description: "If true, report what would be defragged without making changes (default: true)" },
+          mergeThreshold: { type: "number", description: "Jaccard similarity threshold for merging (0.5-0.9, default: 0.7)" },
+          archiveOlderThanDays: { type: "number", description: "Archive dormant facts older than N days (default: 90)" },
+        },
+      },
+    },
+    zodSchema: defragSchema,
+    handler: (args, agentId) => defrag(args, agentId),
   },
 
   // ── Delete Operations ─────────────────────────────

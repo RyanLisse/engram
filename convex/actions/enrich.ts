@@ -13,6 +13,106 @@ import { calculateImportanceWithWeights } from "./importance";
 import { extractReferencedDate } from "../lib/temporal";
 
 /**
+ * Heuristic QA-pair generation (Panini-inspired).
+ * No LLM cost — uses factType + first entity/noun phrase to form the question.
+ * qaConfidence = 0.6 to signal heuristic origin vs 0.9 for future LLM-generated pairs.
+ */
+export function generateHeuristicQA(
+  content: string,
+  factType: string,
+  entityIds: string[],
+): { qaQuestion: string; qaAnswer: string; qaEntities: string[]; qaConfidence: number } | null {
+  const SUPPORTED_TYPES = new Set(["decision", "observation", "insight", "correction"]);
+  if (!SUPPORTED_TYPES.has(factType)) return null;
+
+  // Derive topic: prefer first entity label, fall back to first noun phrase
+  const topic = extractTopic(content, entityIds);
+  if (!topic) return null;
+
+  const questionTemplates: Record<string, string> = {
+    decision: `What was decided about ${topic}?`,
+    observation: `What was observed about ${topic}?`,
+    insight: `What insight was gained about ${topic}?`,
+    correction: `What correction was made to ${topic}?`,
+  };
+
+  return {
+    qaQuestion: questionTemplates[factType],
+    qaAnswer: content,
+    qaEntities: entityIds.slice(0, 5), // cap to avoid oversized arrays
+    qaConfidence: 0.6,
+  };
+}
+
+/**
+ * Extracts a short topic string for use in QA question templates.
+ * Uses the first entity ID label if available, otherwise the first noun phrase
+ * heuristic: capitalised word or first multi-word chunk before a verb.
+ */
+function extractTopic(content: string, entityIds: string[]): string | null {
+  // Entity IDs are typically "entity-<name>" — extract readable label
+  if (entityIds.length > 0) {
+    const firstEntity = entityIds[0];
+    const label = firstEntity.replace(/^entity-/, "").replace(/-/g, " ");
+    if (label.trim().length > 0) return label.trim();
+  }
+
+  // Fallback: first capitalised word (proper noun heuristic)
+  const capitalised = content.match(/\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)*)\b/);
+  if (capitalised) return capitalised[1];
+
+  // Last fallback: first 4 words of content (truncated subject)
+  const words = content.trim().split(/\s+/).slice(0, 4).join(" ");
+  return words.length > 0 ? words : null;
+}
+
+/**
+ * Generates a one-line summary for progressive disclosure.
+ * Heuristic approach (no LLM):
+ * 1. Strip markdown formatting
+ * 2. Truncate to first sentence or 100 chars (whichever is shorter)
+ * 3. If content starts with verb-like patterns, prefix with factType
+ * 4. Add "..." if truncated
+ */
+export function generateFactSummary(content: string, factType: string): string {
+  if (!content || content.length === 0) return "";
+
+  // Strip markdown formatting: bold, italic, code blocks, links
+  let cleaned = content
+    .replace(/\*\*(.+?)\*\*/g, "$1") // bold
+    .replace(/\*(.+?)\*/g, "$1") // italic
+    .replace(/__(.+?)__/g, "$1") // bold alt
+    .replace(/_(.+?)_/g, "$1") // italic alt
+    .replace(/`(.+?)`/g, "$1") // inline code
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1") // markdown links
+    .replace(/#+\s+/g, ""); // heading markers
+
+  // Extract first sentence (ends with . ! ? or line break)
+  const sentenceMatch = cleaned.match(/([^.!?\n]+[.!?])/);
+  const firstSentence = sentenceMatch ? sentenceMatch[1].trim() : cleaned;
+
+  // Truncate to 100 characters
+  let summary = firstSentence.length > 100
+    ? firstSentence.substring(0, 100).trim() + "..."
+    : firstSentence;
+
+  // Check if content starts with verb-like patterns (e.g., "User prefers", "API endpoint was")
+  // If so, prefix with factType for clarity
+  const verbPatterns = /^(The\s+|A\s+)?([A-Z][a-z]+\s+)?([a-z]+s?|was|is|were|are|has|have|did|does)/i;
+  if (
+    verbPatterns.test(cleaned) &&
+    !summary.toLowerCase().startsWith(factType.toLowerCase())
+  ) {
+    // Only prefix if factType provides useful context
+    if (["decision", "error", "correction", "insight"].includes(factType)) {
+      summary = `${factType.charAt(0).toUpperCase() + factType.slice(1)}: ${summary}`;
+    }
+  }
+
+  return summary;
+}
+
+/**
  * Main enrichment pipeline - scheduled by storeFact mutation.
  * Runs steps sequentially:
  * 1. Get the fact
@@ -91,6 +191,26 @@ export const enrichFact = internalAction({
       });
     }
 
+    // 6b. QA-pair generation (Panini-inspired heuristic)
+    const qa = generateHeuristicQA(fact.content, fact.factType, fact.entityIds);
+    if (qa) {
+      await ctx.runMutation(internal.functions.facts.patchFact, {
+        factId,
+        fields: qa,
+      });
+    }
+
+    // 6c. Summary auto-generation for progressive disclosure
+    if (!fact.factualSummary) {
+      const summary = generateFactSummary(fact.content, fact.factType);
+      if (summary) {
+        await ctx.runMutation(internal.functions.facts.patchFact, {
+          factId,
+          fields: { factualSummary: summary },
+        });
+      }
+    }
+
     // 7. Write enrichment results back
     await ctx.runMutation(internal.functions.facts.updateEnrichment, {
       factId,
@@ -110,9 +230,12 @@ export const enrichFact = internalAction({
       factId,
     });
 
+    const summary = generateFactSummary(fact.content, fact.factType);
     console.log(
       `Enriched fact ${factId}: embedding (${embedding.length}d), ` +
-      `importance: ${importanceScore.toFixed(3)}`
+      `importance: ${importanceScore.toFixed(3)}` +
+      (qa ? `, qa: "${qa.qaQuestion}"` : "") +
+      (summary ? `, summary: "${summary.substring(0, 40)}..."` : "")
     );
   },
 });

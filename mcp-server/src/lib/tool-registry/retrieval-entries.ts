@@ -6,6 +6,8 @@ import type { ToolEntry } from "./types.js";
 
 import { rankCandidatesPrimitive, rankCandidatesSchema } from "../../tools/rank-candidates.js";
 import { hierarchicalRecall, hierarchicalRecallSchema } from "../../tools/hierarchical-recall.js";
+import { getManifest, getManifestSchema } from "../../tools/manifest.js";
+import { chainRecall, chainRecallSchema } from "../../tools/chain-recall.js";
 import {
   bumpAccessBatch, bumpAccessSchema,
   getEntitiesPrimitive, getEntitiesPrimitiveSchema,
@@ -161,5 +163,42 @@ export const entries: readonly ToolEntry[] = [
     },
     zodSchema: hierarchicalRecallSchema,
     handler: (args, agentId) => hierarchicalRecall(args, agentId),
+  },
+
+  // ── Manifest (Progressive Disclosure) ────────────
+  {
+    tool: {
+      name: "memory_get_manifest",
+      description: "Progressive Disclosure: returns a tiered overview of agent memory — pinned facts (always-loaded tier) plus a category distribution by factType with counts and recent snippets. Use this first to understand what's in memory, then call memory_recall to load specific categories on-demand.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scopeId: { type: "string", description: "Scope ID or name (defaults to agent's private scope)" },
+          includePinnedContent: { type: "boolean", description: "Include full content of pinned facts (default: true). Set false to receive summaries only." },
+        },
+      },
+    },
+    zodSchema: getManifestSchema,
+    handler: (args, agentId) => getManifest(args, agentId),
+  },
+
+  // ── Chain Recall (Multi-hop QA) ───────────────────
+  {
+    tool: {
+      name: "memory_chain_recall",
+      description: "Multi-hop QA retrieval using reasoning chains. Hop 1: QA index search on the query. Hop 2: entity expansion — facts sharing entities with hop 1 results. Hop 3: causal traversal via temporalLinks. Each fact is annotated with _hopDepth (0=direct, 1=entity, 2=causal). Deduplication keeps the shallowest path.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Initial query to start the chain" },
+          maxHops: { type: "number", description: "Maximum reasoning hops 1–5 (default: 3)" },
+          scopeId: { type: "string", description: "Scope to search within (defaults to all permitted scopes)" },
+          limit: { type: "number", description: "Max facts per hop (default: 10)" },
+        },
+        required: ["query"],
+      },
+    },
+    zodSchema: chainRecallSchema,
+    handler: (args, agentId) => chainRecall(args, agentId),
   },
 ];

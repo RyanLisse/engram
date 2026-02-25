@@ -87,7 +87,20 @@ export async function observeCompress(
 
 export const reflectSchema = z.object({
   scopeId: z.string().optional().describe("Scope ID or name (defaults to agent's private scope)"),
+  depth: z.enum(["shallow", "standard", "deep"]).optional().default("standard")
+    .describe("Reflection depth: shallow=6h recent only, standard=1 week, deep=30 days full history"),
+  timeWindow: z.number().optional()
+    .describe("Custom time window in hours (overrides depth preset)"),
+  focusEntities: z.array(z.string()).optional()
+    .describe("Entity IDs to focus reflection on (filters observations by entity)"),
 });
+
+// Map depth to time windows in hours
+const DEPTH_TO_TIME_WINDOW: Record<string, number> = {
+  shallow: 6,      // 6 hours
+  standard: 168,   // 1 week
+  deep: 720,       // 30 days
+};
 
 export async function reflect(
   input: z.infer<typeof reflectSchema>,
@@ -98,8 +111,14 @@ export async function reflect(
     return { isError: true, message: "Could not resolve scope" };
   }
 
+  // Determine effective time window
+  const effectiveTimeWindow = input.timeWindow ?? DEPTH_TO_TIME_WINDOW[input.depth ?? "standard"];
+
   try {
-    const result = await convex.runReflector(scopeId, agentId);
+    const result = await convex.runReflector(scopeId, agentId, {
+      timeWindowHours: effectiveTimeWindow,
+      focusEntities: input.focusEntities ?? [],
+    });
     return result;
   } catch (error: any) {
     return { isError: true, message: `Reflector failed: ${error.message}` };

@@ -86,6 +86,18 @@ export async function listScopes(agentId: string) {
 }
 
 // ========================================
+// Agent Knowledge Profiles API
+// ========================================
+
+export async function learnAgentProfile(args: {
+  agentId: string;
+  scopeId: string;
+  usedFactIds: string[];
+}): Promise<{ learned: boolean; reason?: string; profileId?: string; axisWeights?: number[]; learnedFrom?: number }> {
+  return await mutate(PATHS.agentProfiles.learn, args);
+}
+
+// ========================================
 // Sessions API
 // ========================================
 

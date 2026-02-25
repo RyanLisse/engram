@@ -14,6 +14,7 @@ import {
   textSearch,
   vectorSearch,
 } from "./primitive-retrieval.js";
+import { searchByQA as convexSearchByQA } from "../lib/convex-client.js";
 import { rankCandidatesPrimitive } from "./rank-candidates.js";
 import { resolveScopes, getGraphNeighbors } from "./context-primitives.js";
 import { reciprocalRankFusion, extractEntityIds } from "../lib/rrf.js";
@@ -117,6 +118,17 @@ async function kvLookup(query: string, scopeIds: string[]): Promise<any[]> {
   return results;
 }
 
+async function qaSearch(query: string, scopeIds: string[], limit: number): Promise<any[]> {
+  if (scopeIds.length === 0) return [];
+  try {
+    const results = await convexSearchByQA({ query, scopeIds, limit });
+    return (results as any[]).map((r: any) => ({ ...r, _qaMatch: true }));
+  } catch (err: any) {
+    console.error("[recall] QA search failed (non-fatal):", err?.message ?? err);
+    return [];
+  }
+}
+
 function mergeAndDeduplicate(results: any[][]): any[] {
   const byId = new Map<string, any>();
 
@@ -177,15 +189,18 @@ export async function recall(
     const shouldRunText =
       scopeIds.length > 0 &&
       strategy !== "vector-only";
+    const shouldRunQA =
+      scopeIds.length > 0 &&
+      strategy === "hybrid";
 
-    const textResults = shouldRunText
-      ? await textSearch({
-          query: queryText,
-          limit,
-          scopeIds,
-          factType: input.factType,
-        })
-      : [];
+    const [textResults, qaResults] = await Promise.all([
+      shouldRunText
+        ? textSearch({ query: queryText, limit, scopeIds, factType: input.factType })
+        : Promise.resolve([]),
+      shouldRunQA
+        ? qaSearch(input.query, scopeIds, limit)
+        : Promise.resolve([]),
+    ]);
 
     let vectorResults: any[] = [];
     if (shouldRunVector) {
@@ -208,9 +223,10 @@ export async function recall(
     if (kvResults.length > 0) pathways.push("kv");
     if (remoteVectorResults.length > 0) pathways.push("semantic");
     if (textResults.length > 0) pathways.push("symbolic");
+    if (qaResults.length > 0) pathways.push("qa");
     if (localCacheResults.length > 0) pathways.push("local-cache");
 
-    const allInitialResults = [...textResults, ...remoteVectorResults, ...localCacheResults];
+    const allInitialResults = [...textResults, ...remoteVectorResults, ...localCacheResults, ...qaResults];
     const entityIds = extractEntityIds(allInitialResults);
 
     let graphResults: any[] = [];
@@ -232,6 +248,7 @@ export async function recall(
     if (kvResults.length > 0) rrfInputSets.push(kvResults);
     if (remoteVectorResults.length > 0) rrfInputSets.push(remoteVectorResults);
     if (textResults.length > 0) rrfInputSets.push(textResults as any[]);
+    if (qaResults.length > 0) rrfInputSets.push(qaResults);
     if (graphResults.length > 0) rrfInputSets.push(graphResults);
     if (localCacheResults.length > 0) rrfInputSets.push(localCacheResults);
 
@@ -249,6 +266,7 @@ export async function recall(
         kvResults,
         textResults as any[],
         remoteVectorResults as any[],
+        qaResults,
         graphResults,
         localCacheResults as any[],
       ]);

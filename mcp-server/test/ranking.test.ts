@@ -18,4 +18,13 @@ describe("ranking", () => {
     ] as any);
     expect(ranked[0]._id).toBe("new");
   });
+
+  test("applies emotional weight boost", () => {
+    const now = Date.now();
+    const ranked = rankCandidates("incident", [
+      { _id: "neutral", content: "incident details", timestamp: now, _score: 0.8, emotionalWeight: 0.0 },
+      { _id: "emotional", content: "incident details", timestamp: now, _score: 0.8, emotionalWeight: 1.0 },
+    ] as any);
+    expect(ranked[0]._id).toBe("emotional");
+  });
 });

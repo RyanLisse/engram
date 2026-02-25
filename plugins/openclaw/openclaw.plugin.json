@@ -1,0 +1,35 @@
+{
+  "id": "engram",
+  "kind": "memory",
+  "name": "Engram",
+  "description": "Agent-native memory for OpenClaw — store facts, recall, observe, 69 primitives via MCP.",
+  "version": "2.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "convexUrl": {
+        "type": "string",
+        "description": "Convex deployment URL"
+      },
+      "agentId": {
+        "type": "string",
+        "description": "Agent identifier in Engram"
+      }
+    }
+  },
+  "crons": [
+    {
+      "name": "sleep-time-reflection",
+      "schedule": "0 */6 * * *",
+      "description": "Background reflection using Haiku to consolidate recent memories",
+      "model": "haiku",
+      "action": {
+        "tool": "memory_reflect",
+        "args": {
+          "depth": "standard"
+        }
+      }
+    }
+  ]
+}

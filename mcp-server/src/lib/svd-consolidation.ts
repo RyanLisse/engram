@@ -259,7 +259,7 @@ export function incrementalUpdate(
   for (let j = 0; j < d; j++) {
     diffNormSq += diffFromOldMean[j] * centered[j];
   }
-  const newTotalVariance = existing.totalVariance + diffNormSq / newN;
+  const newTotalVariance = existing.totalVariance * (oldN / newN) + diffNormSq / newN;
 
   // Recompute component variance fractions with new total
   if (newTotalVariance > 0) {

@@ -76,6 +76,8 @@ export const updateFactSchema = z.object({
   content: z.string().optional(),
   tags: z.array(z.string()).optional(),
   factType: z.string().optional(),
+  pinned: z.boolean().optional(),
+  summary: z.string().optional(),
 });
 export async function updateFact(input: z.infer<typeof updateFactSchema>) {
   return await convex.updateFact(input);

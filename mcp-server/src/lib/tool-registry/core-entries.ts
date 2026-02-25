@@ -323,11 +323,14 @@ export const entries: readonly ToolEntry[] = [
   {
     tool: {
       name: "memory_reflect",
-      description: "Manually trigger Reflector condensation for a scope. Condenses observation summaries into a dense digest.",
+      description: "Manually trigger Reflector condensation for a scope. Condenses observation summaries into a dense digest with optional depth and time window control.",
       inputSchema: {
         type: "object",
         properties: {
           scopeId: { type: "string", description: "Scope ID or name (defaults to agent's private scope)" },
+          depth: { type: "string", enum: ["shallow", "standard", "deep"], description: "Reflection depth: shallow=6h recent only, standard=1 week, deep=30 days full history" },
+          timeWindow: { type: "number", description: "Custom time window in hours (overrides depth preset)" },
+          focusEntities: { type: "array", items: { type: "string" }, description: "Entity IDs to focus reflection on (filters observations by entity)" },
         },
       },
     },

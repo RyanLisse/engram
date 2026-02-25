@@ -92,10 +92,10 @@ export const runSubspaceRemerge = internalAction({
 
       // Retroactively re-project recent facts onto the compressed basis.
       // Runs synchronously within this cron (actions can call mutations directly).
+      // Note: agentId is omitted; retroactiveReproject will use subspace.agentId as fallback.
       await ctx.runMutation(api.functions.retroactiveEnrich.retroactiveReproject, {
         subspaceId: subspace._id,
         daysBack: 30,
-        agentId: "system:subspace-remerge",
       });
 
       remerged++;

@@ -56,8 +56,9 @@ export const logRetroactiveEnrichment = internalMutation({
     enrichedFactIds: v.array(v.id("facts")),
     agentId: v.string(),
     trigger: v.string(), // "expansion" | "remerge" | "manual"
+    scopeId: v.optional(v.id("memory_scopes")),
   },
-  handler: async (ctx, { subspaceId, enrichedFactIds, agentId, trigger }) => {
+  handler: async (ctx, { subspaceId, enrichedFactIds, agentId, trigger, scopeId }) => {
     const now = Date.now();
 
     // Get next watermark
@@ -73,6 +74,7 @@ export const logRetroactiveEnrichment = internalMutation({
     await ctx.db.insert("memory_events", {
       eventType: "retroactive_enrichment",
       agentId,
+      scopeId,
       payload: {
         subspaceId: String(subspaceId),
         trigger,
@@ -257,6 +259,7 @@ export const retroactiveReproject = mutation({
       await ctx.db.insert("memory_events", {
         eventType: "retroactive_enrichment",
         agentId: effectiveAgentId,
+        scopeId: subspace.scopeId,
         payload: {
           subspaceId: String(subspaceId),
           trigger: "manual",

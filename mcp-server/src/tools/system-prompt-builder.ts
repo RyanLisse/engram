@@ -20,6 +20,9 @@ import { getNotifications } from "./primitive-retrieval.js";
 
 export const buildFullSystemPromptSchema = z.object({
   agentId: z.string().optional().describe("Agent ID (defaults to current agent)"),
+  tokenBudget: z.number().optional().describe("Total token budget (default: 8000)"),
+  includePinned: z.boolean().optional().prefault(true).describe("Include pinned memories"),
+  includeManifest: z.boolean().optional().prefault(true).describe("Include memory manifest"),
   includeActivity: z.boolean().optional().prefault(true).describe("Include activity stats"),
   includeConfig: z.boolean().optional().prefault(true).describe("Include config context"),
   includeWorkspace: z.boolean().optional().prefault(true).describe("Include workspace info"),
@@ -33,21 +36,91 @@ export async function buildFullSystemPrompt(
   currentAgentId: string
 ) {
   const agentId = input.agentId ?? currentAgentId;
+  const tokenBudget = input.tokenBudget ?? 8000;
   const sections: string[] = [];
+  let tokensUsed = 0;
 
   // 1. Agent identity
   const agent = await convex.getAgentByAgentId(agentId);
   const permitted = await convex.getPermittedScopes(agentId);
   const scopeList = Array.isArray(permitted) ? permitted : [];
 
-  sections.push(formatSection(input.format, "Agent Identity", [
+  const agentIdentityText = formatSection(input.format, "Agent Identity", [
     `Agent ID: ${agentId}`,
     `Name: ${agent?.name ?? "unknown"}`,
     `Telos: ${agent?.telos ?? "none"}`,
     `Capabilities: ${(agent?.capabilities ?? []).join(", ") || "none"}`,
     `Default Scope: ${agent?.defaultScope ?? "none"}`,
     `Permitted Scopes: ${scopeList.map((s: any) => s.name).join(", ") || "none"}`,
-  ]));
+  ]);
+  sections.push(agentIdentityText);
+  tokensUsed += Math.ceil(agentIdentityText.length / 4);
+
+  // 1.5. Pinned Memories (Progressive Disclosure)
+  if (input.includePinned) {
+    try {
+      const scopeIds = scopeList.map((s: any) => s._id);
+      const pinnedBudget = Math.floor(tokenBudget * 0.3); // Max 30% of budget
+      let pinnedTokens = 0;
+
+      const pinnedFacts: string[] = [];
+      for (const scopeId of scopeIds) {
+        const pinned = await convex.listPinnedByScope({ scopeId, limit: 50 });
+        const pinnedList = Array.isArray(pinned) ? pinned : [];
+
+        for (const fact of pinnedList) {
+          const factTokens = Math.ceil((fact.content?.length ?? 0) / 4);
+          if (pinnedTokens + factTokens > pinnedBudget) break; // Stop if exceeds budget
+          pinnedFacts.push(`- ${fact.content ?? "(empty)"} [${fact.factType ?? "unknown"}]`);
+          pinnedTokens += factTokens;
+        }
+        if (pinnedTokens >= pinnedBudget) break;
+      }
+
+      if (pinnedFacts.length > 0) {
+        const pinnedSection = formatSection(input.format, "Pinned Memories", pinnedFacts);
+        sections.push(pinnedSection);
+        tokensUsed += pinnedTokens;
+      }
+    } catch {
+      // skip pinned if unavailable
+    }
+  }
+
+  // 1.6. Memory Manifest (Category Summary)
+  if (input.includeManifest) {
+    try {
+      const scopeIds = scopeList.map((s: any) => s._id);
+      const manifestLines: string[] = [];
+      const factTypeCounts: Record<string, number> = {};
+      let totalFacts = 0;
+
+      // Count facts by type across all scopes
+      for (const scopeId of scopeIds) {
+        const facts = await convex.listFactsByScope({ scopeId, limit: 1000 });
+        const factList = Array.isArray(facts) ? facts : [];
+        for (const fact of factList) {
+          const type = fact.factType ?? "unknown";
+          factTypeCounts[type] = (factTypeCounts[type] ?? 0) + 1;
+          totalFacts++;
+        }
+      }
+
+      // Format as manifest entries
+      for (const [type, count] of Object.entries(factTypeCounts).sort((a, b) => b[1] - a[1])) {
+        manifestLines.push(`${type}: ${count} facts`);
+      }
+
+      if (manifestLines.length > 0) {
+        manifestLines.unshift(`Total Facts: ${totalFacts}`);
+        const manifestSection = formatSection(input.format, "Memory Manifest", manifestLines);
+        sections.push(manifestSection);
+        tokensUsed += Math.ceil(manifestSection.length / 4);
+      }
+    } catch {
+      // skip manifest if unavailable
+    }
+  }
 
   // 2. Observation Log (most compressed form available, with emoji tier prefixes)
   try {
@@ -187,12 +260,16 @@ export async function buildFullSystemPrompt(
   }
 
   const prompt = sections.join("\n\n");
+  const estimatedTokens = Math.ceil(prompt.length / 4);
   return {
     prompt,
     agentId,
     format: input.format,
     sectionCount: sections.length,
-    estimatedTokens: Math.ceil(prompt.length / 4),
+    estimatedTokens,
+    tokenBudget,
+    tokensUsed: Math.max(tokensUsed, estimatedTokens),
+    withinBudget: estimatedTokens <= tokenBudget,
   };
 }
 

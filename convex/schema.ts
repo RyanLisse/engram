@@ -48,6 +48,10 @@ export default defineSchema({
     forgetScore: v.optional(v.float64()), // 0.0=keep, 1.0=forget (ALMA)
     tokenEstimate: v.optional(v.number()), // estimated tokens for budgeted recall
 
+    // Progressive disclosure (Letta Context Repos)
+    pinned: v.optional(v.boolean()), // always loaded into agent system prompt
+    summary: v.optional(v.string()), // 1-line manifest description for tiered disclosure
+
     // Emotional memory (GIZIN)
     emotionalContext: v.optional(v.string()), // frustrated|proud|embarrassed|surprised|confident
     emotionalWeight: v.optional(v.float64()), // 0.0-1.0, affects decay resistance
@@ -66,6 +70,12 @@ export default defineSchema({
         })
       )
     ),
+
+    // QA-Pair Representation (Panini-inspired)
+    qaQuestion: v.optional(v.string()),    // "What is X?" form of this fact
+    qaAnswer: v.optional(v.string()),      // Concise answer form
+    qaEntities: v.optional(v.array(v.string())), // Entities referenced in QA pair
+    qaConfidence: v.optional(v.float64()), // 0.0-1.0 confidence in QA extraction
   })
     .index("by_scope", ["scopeId", "timestamp"])
     .index("by_agent", ["createdBy", "timestamp"])
@@ -80,6 +90,11 @@ export default defineSchema({
       searchField: "content",
       filterFields: ["scopeId", "factType", "createdBy"],
     })
+    .searchIndex("search_qa", {
+      searchField: "qaQuestion",
+      filterFields: ["scopeId", "factType"],
+    })
+    .index("by_pinned_scope", ["pinned", "scopeId"])
     .index("by_observation_session", ["observationSessionId", "timestamp"])
     .vectorIndex("vector_search", {
       vectorField: "embedding",
@@ -449,6 +464,23 @@ export default defineSchema({
     .index("by_scope", ["scopeId"])
     .index("by_name", ["name", "scopeId"])
     .vectorIndex("by_centroid", { vectorField: "centroid", dimensions: 1024, filterFields: ["scopeId", "agentId"] }),
+
+  // ─── fact_versions ────────────────────────────────────────
+  // Immutable audit log of all mutations to facts. Snapshot captured before
+  // each change to enable rollback, diffing, and compliance trails.
+  fact_versions: defineTable({
+    factId: v.id("facts"),
+    previousContent: v.string(),
+    previousImportance: v.optional(v.float64()),
+    previousTags: v.optional(v.array(v.string())),
+    changedBy: v.string(), // agent ID
+    changeType: v.string(), // "update"|"merge"|"archive"|"restore"|"pin"|"unpin"
+    reason: v.optional(v.string()), // commit-message style
+    createdAt: v.number(),
+  })
+    .index("by_fact", ["factId", "createdAt"])
+    .index("by_agent", ["changedBy", "createdAt"])
+    .index("by_type", ["changeType", "createdAt"]),
 
   // ─── agent_knowledge_profiles ──────────────────────────────
   // Per-agent learned embeddings and axis weights in knowledge subspaces.

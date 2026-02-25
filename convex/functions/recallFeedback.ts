@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
+import { learnAgentProfileHelper } from "./agentProfiles";
 
 export const recordRecall = mutation({
   args: {
@@ -22,10 +23,11 @@ export const recordRecall = mutation({
 export const recordUsage = mutation({
   args: {
     recallId: v.string(),
+    agentId: v.optional(v.string()),
     usedFactIds: v.array(v.id("facts")),
     unusedFactIds: v.optional(v.array(v.id("facts"))),
   },
-  handler: async (ctx, { recallId, usedFactIds, unusedFactIds }) => {
+  handler: async (ctx, { recallId, agentId, usedFactIds, unusedFactIds }) => {
     const rows = await ctx.db
       .query("recall_feedback")
       .withIndex("by_recall", (q) => q.eq("recallId", recallId))
@@ -40,7 +42,26 @@ export const recordUsage = mutation({
         await ctx.db.patch(row._id, { used: false, updatedAt: Date.now() });
       }
     }
-    return { updated: rows.length };
+
+    let profileLearning: { learned: boolean; reason?: string } | undefined;
+    if (agentId && usedFactIds.length > 0) {
+      const privateScope = await ctx.db
+        .query("memory_scopes")
+        .withIndex("by_name", (q) => q.eq("name", `private-${agentId}`))
+        .first();
+      if (privateScope) {
+        profileLearning = await learnAgentProfileHelper(ctx, {
+          agentId,
+          scopeId: privateScope._id,
+          usedFactIds,
+        });
+      }
+    }
+
+    return {
+      updated: rows.length,
+      profileLearning: profileLearning ?? { learned: false, reason: "Skipped (missing agentId or used facts)" },
+    };
   },
 });
 

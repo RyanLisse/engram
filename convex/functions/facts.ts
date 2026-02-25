@@ -103,6 +103,37 @@ export const searchFactsMulti = query({
 // vectorRecall moved to actions/vectorSearch.ts as vectorRecallAction
 // vectorSearch() is action-only in Convex and cannot live in a query/mutation file
 
+/** QA-pair search — searches the search_qa index on qaQuestion field.
+ * Mirrors searchFactsMulti pattern: fan out per scope, merge, sort. */
+export const searchByQA = query({
+  args: {
+    query: v.string(),
+    scopeIds: v.array(v.id("memory_scopes")),
+    factType: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    if (args.scopeIds.length === 0) return [];
+    const perScopeLimit = Math.max(5, Math.ceil((args.limit ?? 20) / args.scopeIds.length));
+
+    const results = await Promise.all(
+      args.scopeIds.map((scopeId) =>
+        ctx.db
+          .query("facts")
+          .withSearchIndex("search_qa", (q) => {
+            let s = q.search("qaQuestion", args.query).eq("scopeId", scopeId);
+            if (args.factType) s = s.eq("factType", args.factType);
+            return s;
+          })
+          .take(perScopeLimit)
+      )
+    );
+    const merged = results.flat();
+    merged.sort((a, b) => (b.importanceScore ?? 0) - (a.importanceScore ?? 0));
+    return merged.slice(0, args.limit ?? 20);
+  },
+});
+
 /**
  * Get recent session handoff summaries from other agents.
  * Used by memory_get_context to warm-start with cross-agent context.
@@ -150,6 +181,33 @@ export const listByScopePublic = query({
       .query("facts")
       .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
       .take(limit ?? 1000);
+  },
+});
+
+/** Get pinned facts by scope using the by_pinned_scope index (efficient). */
+export const getPinnedFacts = query({
+  args: { scopeId: v.id("memory_scopes") },
+  handler: async (ctx, { scopeId }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_pinned_scope", (q) => q.eq("pinned", true).eq("scopeId", scopeId))
+      .filter((q) => q.eq(q.field("lifecycleState"), "active"))
+      .take(25);
+  },
+});
+
+/** List pinned facts by scope. */
+export const listPinnedByScope = query({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, limit }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
+      .filter((fact) => fact.pinned === true && fact.lifecycleState === "active")
+      .take(limit ?? 100);
   },
 });
 
@@ -263,6 +321,8 @@ export const storeFact = mutation({
     emotionalWeight: v.optional(v.float64()),
     confidence: v.optional(v.float64()),
     importanceTier: v.optional(v.string()),
+    pinned: v.optional(v.boolean()),
+    summary: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Check write permission
@@ -288,6 +348,8 @@ export const storeFact = mutation({
       emotionalWeight: args.emotionalWeight,
       confidence: args.confidence,
       importanceTier: args.importanceTier,
+      pinned: args.pinned,
+      summary: args.summary,
       timestamp: Date.now(),
       relevanceScore: 1.0,
       accessedCount: 0,
@@ -462,19 +524,27 @@ export const storeFactInternal = internalMutation({
   },
 });
 
-/** Generic patch for enrichment sub-steps (e.g. temporal anchoring). */
+/** Generic patch for enrichment sub-steps (e.g. temporal anchoring, QA generation). */
 export const patchFact = internalMutation({
   args: {
     factId: v.id("facts"),
     fields: v.object({
       referencedDate: v.optional(v.number()),
+      qaQuestion: v.optional(v.string()),
+      qaAnswer: v.optional(v.string()),
+      qaEntities: v.optional(v.array(v.string())),
+      qaConfidence: v.optional(v.float64()),
     }),
   },
   handler: async (ctx, { factId, fields }) => {
     const fact = await ctx.db.get(factId);
-    if (!fact) return; // fact removed before temporal anchoring ran
+    if (!fact) return; // fact removed before enrichment sub-step ran
     const updates: Record<string, unknown> = {};
     if (fields.referencedDate !== undefined) updates.referencedDate = fields.referencedDate;
+    if (fields.qaQuestion !== undefined) updates.qaQuestion = fields.qaQuestion;
+    if (fields.qaAnswer !== undefined) updates.qaAnswer = fields.qaAnswer;
+    if (fields.qaEntities !== undefined) updates.qaEntities = fields.qaEntities;
+    if (fields.qaConfidence !== undefined) updates.qaConfidence = fields.qaConfidence;
     if (Object.keys(updates).length > 0) {
       updates.updatedAt = Date.now();
       await ctx.db.patch(factId, updates);
@@ -642,8 +712,25 @@ export const updateRelevanceScore = internalMutation({
 
 /** Archive a fact (sets lifecycle to archived). */
 export const archiveFact = internalMutation({
-  args: { factId: v.id("facts") },
-  handler: async (ctx, { factId }) => {
+  args: {
+    factId: v.id("facts"),
+    changedBy: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, { factId, changedBy, reason }) => {
+    const fact = await ctx.db.get(factId);
+    if (!fact) return;
+    // Snapshot current state before archiving (inline insert — same transaction)
+    await ctx.db.insert("fact_versions", {
+      factId,
+      previousContent: fact.content,
+      previousImportance: fact.importanceScore,
+      previousTags: fact.tags,
+      changedBy: changedBy ?? "system",
+      changeType: "archive",
+      reason,
+      createdAt: Date.now(),
+    });
     await ctx.db.patch(factId, {
       lifecycleState: "archived",
       updatedAt: Date.now(),
@@ -657,25 +744,59 @@ export const updateFact = mutation({
     content: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     factType: v.optional(v.string()),
+    pinned: v.optional(v.boolean()),
+    summary: v.optional(v.string()),
+    agentId: v.optional(v.string()),
+    reason: v.optional(v.string()),
   },
-  handler: async (ctx, { factId, content, tags, factType }) => {
+  handler: async (ctx, { factId, content, tags, factType, pinned, summary, agentId, reason }) => {
     const fact = await ctx.db.get(factId);
     if (!fact) throw new Error(`Fact not found: ${factId}`);
+
+    // Snapshot current state BEFORE patching (same transaction — atomic rollback)
+    await ctx.runMutation(internal.functions.factVersions.createVersion, {
+      factId,
+      previousContent: fact.content,
+      previousImportance: fact.importanceScore,
+      previousTags: fact.tags,
+      changedBy: agentId ?? "system",
+      changeType: "update",
+      reason,
+    });
+
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
     if (content !== undefined) patch.content = content;
     if (content !== undefined) patch.tokenEstimate = estimateTokens(content);
     if (tags !== undefined) patch.tags = tags;
     if (factType !== undefined) patch.factType = factType;
+    if (pinned !== undefined) patch.pinned = pinned;
+    if (summary !== undefined) patch.summary = summary;
     await ctx.db.patch(factId, patch);
     return { updated: true };
   },
 });
 
 export const archiveFactPublic = mutation({
-  args: { factId: v.id("facts") },
-  handler: async (ctx, { factId }) => {
+  args: {
+    factId: v.id("facts"),
+    agentId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, { factId, agentId, reason }) => {
     const fact = await ctx.db.get(factId);
     if (!fact) throw new Error(`Fact not found: ${factId}`);
+
+    // Snapshot current state BEFORE archiving
+    await ctx.runMutation(internal.functions.factVersions.createVersion, {
+      factId,
+      previousContent: fact.content,
+      previousImportance: fact.importanceScore,
+      previousTags: fact.tags,
+      changedBy: agentId ?? "system",
+      changeType: "archive",
+      reason,
+    });
+
     await ctx.db.patch(factId, {
       lifecycleState: "archived",
       updatedAt: Date.now(),
@@ -705,13 +826,26 @@ export const boostRelevance = mutation({
 export const markPruned = mutation({
   args: {
     factIds: v.array(v.id("facts")),
+    agentId: v.optional(v.string()),
+    reason: v.optional(v.string()),
   },
-  handler: async (ctx, { factIds }) => {
+  handler: async (ctx, { factIds, agentId, reason }) => {
     const now = Date.now();
     let pruned = 0;
     for (const factId of factIds) {
       const fact = await ctx.db.get(factId);
       if (fact && fact.lifecycleState !== "pruned") {
+        // Snapshot before pruning (inline insert for batch efficiency)
+        await ctx.db.insert("fact_versions", {
+          factId,
+          previousContent: fact.content,
+          previousImportance: fact.importanceScore,
+          previousTags: fact.tags,
+          changedBy: agentId ?? "system",
+          changeType: "archive",
+          reason,
+          createdAt: now,
+        });
         await ctx.db.patch(factId, { lifecycleState: "pruned", updatedAt: now });
         pruned++;
       }
@@ -743,11 +877,26 @@ export const markFactsMerged = mutation({
   args: {
     sourceFactIds: v.array(v.id("facts")),
     targetFactId: v.id("facts"),
+    agentId: v.optional(v.string()),
+    reason: v.optional(v.string()),
   },
-  handler: async (ctx, { sourceFactIds, targetFactId }) => {
+  handler: async (ctx, { sourceFactIds, targetFactId, agentId, reason }) => {
     const now = Date.now();
     for (const factId of sourceFactIds) {
       if (factId === targetFactId) continue;
+      const fact = await ctx.db.get(factId);
+      if (!fact) continue;
+      // Snapshot before merging (inline insert for batch efficiency)
+      await ctx.db.insert("fact_versions", {
+        factId,
+        previousContent: fact.content,
+        previousImportance: fact.importanceScore,
+        previousTags: fact.tags,
+        changedBy: agentId ?? "system",
+        changeType: "merge",
+        reason,
+        createdAt: now,
+      });
       await ctx.db.patch(factId, {
         lifecycleState: "merged",
         mergedInto: targetFactId,

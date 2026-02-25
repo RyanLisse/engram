@@ -21,16 +21,23 @@ function vectorNorm(values: number[]): number {
   return Math.sqrt(sum);
 }
 
-function computeCoefficients(embedding: number[], principalVectors: number[][], k: number): number[] {
+function computeCoefficients(embedding: number[], principalVectors: number[][], k: number, centroid?: number[]): number[] {
   const coefficients: number[] = [];
   const effectiveK = Math.min(k, principalVectors.length);
   for (let axis = 0; axis < effectiveK; axis += 1) {
-    coefficients.push(dot(principalVectors[axis], embedding));
+    // Center the embedding before projection (PCA requires centered data)
+    let dotProduct = 0;
+    const pv = principalVectors[axis];
+    for (let j = 0; j < embedding.length; j++) {
+      const centered = embedding[j] - (centroid?.[j] ?? 0);
+      dotProduct += pv[j] * centered;
+    }
+    coefficients.push(dotProduct);
   }
   return coefficients;
 }
 
-function reconstructEmbedding(coefficients: number[], principalVectors: number[][], dimensionality: number): number[] {
+function reconstructEmbedding(coefficients: number[], principalVectors: number[][], dimensionality: number, centroid?: number[]): number[] {
   const reconstructed = new Array(dimensionality).fill(0);
   const effectiveK = Math.min(coefficients.length, principalVectors.length);
   for (let axis = 0; axis < effectiveK; axis += 1) {
@@ -39,6 +46,12 @@ function reconstructEmbedding(coefficients: number[], principalVectors: number[]
     const axisLength = Math.min(dimensionality, direction.length);
     for (let index = 0; index < axisLength; index += 1) {
       reconstructed[index] += coefficient * direction[index];
+    }
+  }
+  // Add centroid back to reconstruct in the original (non-centered) space
+  if (centroid) {
+    for (let j = 0; j < dimensionality; j++) {
+      reconstructed[j] += centroid[j] ?? 0;
     }
   }
   return reconstructed;
@@ -307,8 +320,8 @@ export const integrateNewFact = internalMutation({
       return { mode: "full" as const, novelty: null, newK: 0 };
     }
 
-    const coefficients = computeCoefficients(embedding, principalVectors, k);
-    const reconstructed = reconstructEmbedding(coefficients, principalVectors, embedding.length);
+    const coefficients = computeCoefficients(embedding, principalVectors, k, subspace.centroid ?? undefined);
+    const reconstructed = reconstructEmbedding(coefficients, principalVectors, embedding.length, subspace.centroid ?? undefined);
     const residual = embedding.map((value, index) => value - (reconstructed[index] ?? 0));
     const residualNorm = vectorNorm(residual);
 
@@ -318,7 +331,7 @@ export const integrateNewFact = internalMutation({
       const newDirection = normalizeVector(residual);
       const expandedVectors = [...principalVectors, newDirection];
       const newK = k + 1;
-      const expandedCoefficients = computeCoefficients(embedding, expandedVectors, newK);
+      const expandedCoefficients = computeCoefficients(embedding, expandedVectors, newK, subspace.centroid ?? undefined);
 
       await ctx.db.patch(subspace._id, {
         principalVectors: expandedVectors,

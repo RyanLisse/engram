@@ -35,6 +35,9 @@ crons.weekly("consolidate", { dayOfWeek: "sunday", hourUTC: 5, minuteUTC: 0 }, i
 // Weekly: Importance recalculation (Sunday at 6:00 UTC)
 crons.weekly("rerank", { dayOfWeek: "sunday", hourUTC: 6, minuteUTC: 0 }, internal.crons.rerank.runRerank);
 
+// Weekly: Memory defrag — rebalance fact categories (Sunday at 6:30 UTC)
+crons.weekly("defrag", { dayOfWeek: "sunday", hourUTC: 14, minuteUTC: 30 }, internal.crons.defrag.runDefrag);
+
 // Daily: Steering rule extraction (runs daily but only processes on 1st of month)
 crons.daily("rules", { hourUTC: 7, minuteUTC: 0 }, internal.crons.rules.runRules);
 
@@ -116,6 +119,13 @@ crons.weekly(
   "subspace-remerge",
   { dayOfWeek: "sunday", hourUTC: 9, minuteUTC: 0 },
   internal.crons.subspaceRemerge.runSubspaceRemerge
+);
+
+// Every 4 hours: Sleep-Time Reflection — background memory consolidation
+crons.interval(
+  "reflection-sweep",
+  { hours: 4 },
+  internal.crons.reflection.runReflection
 );
 
 export default crons;

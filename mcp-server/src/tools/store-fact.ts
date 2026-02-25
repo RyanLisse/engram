@@ -73,6 +73,8 @@ export const storeFactSchema = z.object({
   factType: z.string().optional().describe("Type of fact (e.g., decision, observation, insight)"),
   scopeId: z.string().optional().describe("Scope ID or name (defaults to agent's private scope)"),
   emotionalContext: z.string().optional().describe("Emotional context or sentiment"),
+  pinned: z.boolean().optional().describe("Pin this fact so it is always loaded into the agent system prompt"),
+  summary: z.string().optional().describe("1-line description for manifest/tiered disclosure without full content"),
 });
 
 export type StoreFactInput = z.infer<typeof storeFactSchema>;
@@ -161,6 +163,8 @@ export async function storeFact(
       entityIds: input.entityIds,
       tags: input.tags,
       emotionalContext: input.emotionalContext,
+      pinned: input.pinned,
+      summary: input.summary,
     });
 
     if (!result || typeof result !== "object") {

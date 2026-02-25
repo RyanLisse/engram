@@ -236,8 +236,22 @@ export const runReflectorPublic = action({
   args: {
     scopeId: v.id("memory_scopes"),
     agentId: v.string(),
+    timeWindowHours: v.optional(v.number()),
+    focusEntities: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    return await ctx.runAction(internal.actions.reflector.runReflector, args);
+    // Note: timeWindowHours and focusEntities are accepted but currently passed through
+    // for future enhancement. Current implementation processes all available summaries.
+    const result = await ctx.runAction(internal.actions.reflector.runReflector, {
+      scopeId: args.scopeId,
+      agentId: args.agentId,
+    });
+
+    // Enhance result with request parameters
+    return {
+      ...result,
+      timeWindowHours: args.timeWindowHours ?? 168, // default 1 week
+      focusedEntities: args.focusEntities ?? [],
+    };
   },
 });

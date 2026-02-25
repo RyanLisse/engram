@@ -73,9 +73,21 @@ export async function observe(
 
     // Sanitize before storage (strip injection vectors, normalize whitespace)
     const sanitized = sanitizeObservation(input.observation);
-    const detected = input.emotionalContext ? {} : detectEmotion(sanitized);
-    const emotionalContext = input.emotionalContext ?? detected.emotionalContext;
-    const emotionalWeight = detected.emotionalWeight;
+
+    // Always detect emotion for weight, even if caller provides explicit context
+    let emotionalContext = input.emotionalContext;
+    let emotionalWeight: number | undefined;
+
+    if (emotionalContext) {
+      // Caller provided explicit context — still need a weight
+      const detected = detectEmotion(sanitized);
+      emotionalWeight = detected.emotionalWeight ?? 0.5; // default weight for explicit context
+    } else {
+      // Auto-detect both context and weight from observation text
+      const detected = detectEmotion(sanitized);
+      emotionalContext = detected.emotionalContext;
+      emotionalWeight = detected.emotionalWeight;
+    }
 
     // Store as observation fact (fire-and-forget)
     const stored = await convex.storeFact({

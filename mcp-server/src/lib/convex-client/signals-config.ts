@@ -250,6 +250,15 @@ export async function runObserver(scopeId: string, agentId: string, compressionL
   return await action(PATHS.actions.observer, { scopeId, agentId, compressionLevel });
 }
 
-export async function runReflector(scopeId: string, agentId: string) {
-  return await action(PATHS.actions.reflector, { scopeId, agentId });
+export async function runReflector(
+  scopeId: string,
+  agentId: string,
+  options?: { timeWindowHours?: number; focusEntities?: string[] }
+) {
+  return await action(PATHS.actions.reflector, {
+    scopeId,
+    agentId,
+    timeWindowHours: options?.timeWindowHours,
+    focusEntities: options?.focusEntities,
+  });
 }

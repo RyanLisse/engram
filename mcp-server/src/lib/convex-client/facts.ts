@@ -15,6 +15,8 @@ export async function storeFact(args: {
   emotionalContext?: string;
   emotionalWeight?: number;
   conversationId?: string;
+  pinned?: boolean;
+  summary?: string;
 }) {
   return await mutate(PATHS.facts.storeFact, args);
 }
@@ -100,6 +102,17 @@ export async function listFactsByScope(args: {
   return await query(PATHS.facts.listByScopePublic, args);
 }
 
+export async function getPinnedFacts(args: { scopeId: string }) {
+  return await query(PATHS.facts.getPinnedFacts, args);
+}
+
+export async function listPinnedByScope(args: {
+  scopeId: string;
+  limit?: number;
+}) {
+  return await query(PATHS.facts.listPinnedByScope, args);
+}
+
 export async function getFact(factId: string) {
   return await query(PATHS.facts.getFact, { factId });
 }
@@ -109,6 +122,8 @@ export async function updateFact(args: {
   content?: string;
   tags?: string[];
   factType?: string;
+  pinned?: boolean;
+  summary?: string;
 }) {
   return await mutate(PATHS.facts.updateFact, args);
 }
@@ -158,4 +173,32 @@ export async function markFactsMerged(args: {
   targetFactId: string;
 }) {
   return await mutate(PATHS.facts.markFactsMerged, args);
+}
+
+export async function getFactVersions(args: {
+  factId: string;
+  limit?: number;
+}) {
+  return await query(PATHS.facts.getVersions, args);
+}
+
+export async function createVersionSnapshot(args: {
+  factId: string;
+  previousContent: string;
+  previousImportance?: number;
+  previousTags?: string[];
+  changedBy: string;
+  changeType: string;
+  reason?: string;
+}) {
+  return await mutate(PATHS.facts.createVersion, args);
+}
+
+export async function searchByQA(args: {
+  query: string;
+  scopeIds: string[];
+  factType?: string;
+  limit?: number;
+}) {
+  return await query(PATHS.facts.searchByQA, args);
 }
