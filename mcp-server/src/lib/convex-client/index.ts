@@ -10,3 +10,4 @@ export * from "./facts.js";
 export * from "./entities.js";
 export * from "./agents-scopes.js";
 export * from "./signals-config.js";
+export * from "./kv-store.js";

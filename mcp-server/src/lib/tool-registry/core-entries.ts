@@ -28,7 +28,7 @@ export const entries: readonly ToolEntry[] = [
   {
     tool: {
       name: "memory_store_fact",
-      description: "Store an atomic fact with async enrichment (embeddings, compression, entity extraction). Returns factId and importanceScore.",
+      description: "Store an atomic fact with async enrichment (embeddings, compression, entity extraction). Returns factId, importanceScore, and deterministic (true when auto-classified as a KV-style fact).",
       inputSchema: {
         type: "object",
         properties: {
@@ -59,6 +59,7 @@ export const entries: readonly ToolEntry[] = [
           factType: { type: "string", description: "Filter by fact type" },
           minImportance: { type: "number", description: "Minimum importance score (0-1)" },
           searchStrategy: { type: "string", enum: ["vector-only", "text-only", "hybrid"], description: "Recall strategy" },
+          maxTokens: { type: "number", description: "Token budget ceiling — stops accumulating facts once budget is reached. Response includes tokenUsage: { used, budget, truncated }." },
         },
         required: ["query"],
       },

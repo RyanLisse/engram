@@ -26,6 +26,7 @@ import { rankCandidatesPrimitive } from "./rank-candidates.js";
 import { resolveScopes, getGraphNeighbors } from "./context-primitives.js";
 import { reciprocalRankFusion, extractEntityIds } from "../lib/rrf.js";
 import type { SearchStrategy } from "../lib/ranking.js";
+import { applyTokenBudget, type TokenUsage } from "../lib/token-budget.js";
 
 export const recallSchema = z.object({
   query: z.string().describe("Search query for semantic recall"),
@@ -38,6 +39,7 @@ export const recallSchema = z.object({
     .optional()
     .prefault("hybrid")
     .describe("Recall strategy"),
+  maxTokens: z.number().optional().describe("Token budget ceiling — stops accumulating facts once budget is reached. Returns tokenUsage field with used/budget/truncated."),
 });
 
 export type RecallInput = z.infer<typeof recallSchema>;
@@ -45,7 +47,7 @@ export type RecallInput = z.infer<typeof recallSchema>;
 export async function recall(
   input: RecallInput,
   agentId: string
-): Promise<{ facts: any[]; recallId: string; pathways: string[] } | { isError: true; message: string }> {
+): Promise<{ facts: any[]; recallId: string; pathways: string[]; tokenUsage?: TokenUsage } | { isError: true; message: string }> {
   try {
     console.error("[deprecation] memory_recall is a compatibility wrapper over primitive tools (quad-pathway)");
     const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
@@ -213,6 +215,17 @@ export async function recall(
       if (byTier !== 0) return byTier;
       return (b.importanceScore ?? 0) - (a.importanceScore ?? 0);
     });
+
+    // ── Token budget: stop accumulating once maxTokens is reached ──
+    if (input.maxTokens !== undefined) {
+      const budgeted = applyTokenBudget(prioritized, input.maxTokens);
+      return {
+        facts: budgeted.facts,
+        recallId,
+        pathways: pathways.length > 0 ? pathways : ["none"],
+        tokenUsage: budgeted.tokenUsage,
+      };
+    }
 
     return {
       facts: prioritized,
