@@ -8,7 +8,7 @@
  * - kvList: filtering by prefix and category, pagination
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 /**
  * Mock Convex client for testing without backend.

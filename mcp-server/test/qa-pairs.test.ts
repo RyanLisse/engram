@@ -11,9 +11,11 @@
  *   - Chain recall: maxHops depth limit, shallowest-wins dedup
  */
 
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, vi, beforeEach, beforeAll } from "vitest";
 import { generateHeuristicQA } from "../src/lib/enrich-qa.js";
-import { reciprocalRankFusion } from "../src/lib/rrf.js";
+// NOTE: rrf.js is mocked below for recall integration tests, so we use vi.importActual
+// in the RRF describe block to test the real implementation.
+let realRRF: (sets: Array<Array<{ _id: string; [key: string]: any }>>, k?: number) => any[];
 
 // ─── Mocks for recall integration tests ──────────────────────────────────────
 
@@ -252,19 +254,27 @@ describe("generateHeuristicQA — entity extraction", () => {
 // ─── Part 2: RRF Fusion (real implementation, not mocked) ────────────────────
 
 describe("reciprocalRankFusion — QA pathway fusion", () => {
+  // rrf.js is mocked globally for the recall integration tests in this file.
+  // We use vi.importActual here to exercise the real algorithm.
+  beforeAll(async () => {
+    const mod = await vi.importActual<{ reciprocalRankFusion: typeof realRRF }>(
+      "../src/lib/rrf.js"
+    );
+    realRRF = mod.reciprocalRankFusion;
+  });
+
   test("same fact in text and QA pathways is deduped into single result", () => {
     const sharedFact = { _id: "fact_shared", content: "Shared result", importanceScore: 0.8 };
     const textOnly = { _id: "fact_text_only", content: "Text result", importanceScore: 0.5 };
     const qaOnly = { _id: "fact_qa_only", content: "QA result", importanceScore: 0.6 };
 
-    const fused = reciprocalRankFusion([
-      [sharedFact, textOnly],      // text results
-      [sharedFact, qaOnly],        // QA results
+    const fused = realRRF([
+      [sharedFact, textOnly],   // text results
+      [sharedFact, qaOnly],     // QA results
     ]);
 
-    const ids = fused.map((f) => f._id);
-    // shared fact appears only once
-    expect(ids.filter((id) => id === "fact_shared")).toHaveLength(1);
+    const ids = fused.map((f: any) => f._id);
+    expect(ids.filter((id: string) => id === "fact_shared")).toHaveLength(1);
     expect(ids).toHaveLength(3);
   });
 
@@ -272,13 +282,13 @@ describe("reciprocalRankFusion — QA pathway fusion", () => {
     const sharedFact = { _id: "fact_shared", content: "Shared" };
     const singleFact = { _id: "fact_single", content: "Single" };
 
-    const fused = reciprocalRankFusion([
-      [sharedFact],           // text pathway rank 0
+    const fused = realRRF([
+      [sharedFact],             // text pathway rank 0
       [sharedFact, singleFact], // QA pathway rank 0, 1
     ]);
 
-    const sharedEntry = fused.find((f) => f._id === "fact_shared")!;
-    const singleEntry = fused.find((f) => f._id === "fact_single")!;
+    const sharedEntry = fused.find((f: any) => f._id === "fact_shared")!;
+    const singleEntry = fused.find((f: any) => f._id === "fact_single")!;
     expect(sharedEntry.rrf_score).toBeGreaterThan(singleEntry.rrf_score);
   });
 
@@ -287,13 +297,13 @@ describe("reciprocalRankFusion — QA pathway fusion", () => {
     const doubleHit = { _id: "double", content: "Found in two pathways" };
     const singleHit = { _id: "single", content: "Found in one pathway" };
 
-    const fused = reciprocalRankFusion([
-      [tripleHit, doubleHit],          // vector
+    const fused = realRRF([
+      [tripleHit, doubleHit],            // vector
       [tripleHit, doubleHit, singleHit], // text
-      [tripleHit, singleHit],           // QA
+      [tripleHit, singleHit],            // QA
     ]);
 
-    const ranked = fused.map((f) => f._id);
+    const ranked = fused.map((f: any) => f._id);
     expect(ranked[0]).toBe("triple");
     expect(ranked[1]).toBe("double");
   });
@@ -303,7 +313,7 @@ describe("reciprocalRankFusion — QA pathway fusion", () => {
       { _id: "a", content: "alpha" },
       { _id: "b", content: "beta" },
     ];
-    const fused = reciprocalRankFusion([facts]);
+    const fused = realRRF([facts]);
     for (const fact of fused) {
       expect(fact.rrf_score).toBeGreaterThan(0);
     }
