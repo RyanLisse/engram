@@ -26,7 +26,7 @@ export async function ensureGitRepo(vaultRoot: string): Promise<void> {
       // .git does not exist, initialise
     }
 
-    await exec("git", ["init", vaultRoot]);
+    await exec("git", ["init", "--", vaultRoot]);
 
     const gitignorePath = path.join(vaultRoot, ".gitignore");
     try {
@@ -49,32 +49,37 @@ export async function autoCommitChanges(
   vaultRoot: string,
   message: string
 ): Promise<{ committed: boolean; hash?: string }> {
-  // Stage everything
-  await exec("git", ["add", "-A"], { cwd: vaultRoot });
-
-  // Check whether anything was actually staged.
-  // `git diff --cached --quiet` exits 0 when nothing is staged, 1 when there are diffs.
   try {
-    await exec("git", ["diff", "--cached", "--quiet"], { cwd: vaultRoot });
-    // Exit 0 — nothing staged
+    // Stage everything
+    await exec("git", ["add", "-A"], { cwd: vaultRoot });
+
+    // Check whether anything was actually staged.
+    // `git diff --cached --quiet` exits 0 when nothing is staged, 1 when there are diffs.
+    try {
+      await exec("git", ["diff", "--cached", "--quiet"], { cwd: vaultRoot });
+      // Exit 0 — nothing staged
+      return { committed: false };
+    } catch {
+      // Exit 1 — there are staged changes, proceed to commit
+    }
+
+    await exec("git", ["commit", "-m", message], { cwd: vaultRoot });
+
+    let hash: string | undefined;
+    try {
+      const { stdout } = await exec("git", ["log", "-1", "--format=%H"], {
+        cwd: vaultRoot,
+      });
+      hash = stdout.trim() || undefined;
+    } catch {
+      // hash extraction is best-effort
+    }
+
+    return { committed: true, hash };
+  } catch {
+    // git unavailable, permissions error, or disk full — non-fatal
     return { committed: false };
-  } catch {
-    // Exit 1 — there are staged changes, proceed to commit
   }
-
-  await exec("git", ["commit", "-m", message], { cwd: vaultRoot });
-
-  let hash: string | undefined;
-  try {
-    const { stdout } = await exec("git", ["log", "-1", "--format=%H"], {
-      cwd: vaultRoot,
-    });
-    hash = stdout.trim() || undefined;
-  } catch {
-    // hash extraction is best-effort
-  }
-
-  return { committed: true, hash };
 }
 
 /**

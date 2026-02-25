@@ -145,7 +145,8 @@ function VersionEntryRow({ entry, isLast }: { entry: VersionEntry; isLast: boole
 
 export function VersionTimeline({ factId, currentContent, versions }: VersionTimelineProps) {
   const truncatedId = factId.length > 20 ? `${factId.slice(0, 10)}…${factId.slice(-8)}` : factId;
-  const currentPreview = currentContent.slice(0, 120) + (currentContent.length > 120 ? "…" : "");
+  const safeContent = currentContent ?? "";
+  const currentPreview = safeContent.slice(0, 120) + (safeContent.length > 120 ? "…" : "");
 
   return (
     <div className="text-sm">

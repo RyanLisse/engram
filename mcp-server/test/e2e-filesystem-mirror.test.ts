@@ -730,8 +730,9 @@ describe("Filesystem Mirror E2E", () => {
       }
 
       // Reconcile each independently
-      for (const p of paths) {
-        mockGetFact.mockResolvedValue({ ...facts[0], updatedAt: 0 });
+      for (let i = 0; i < paths.length; i++) {
+        const p = paths[i];
+        mockGetFact.mockResolvedValue({ ...facts[i], updatedAt: 0 });
         mockApplyVaultEdit.mockResolvedValue({ success: true });
         const result = await reconcileFileEdit(p.absolutePath);
         expect(result.reconciled).toBe(true);

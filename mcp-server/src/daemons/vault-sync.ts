@@ -28,7 +28,9 @@ export class VaultSyncDaemon {
   start() {
     if (this.timer) return;
     this.stopped = false;
-    ensureGitRepo(this.vaultRoot).then(() => { this.gitReady = true; }).catch(() => {});
+    ensureGitRepo(this.vaultRoot)
+      .then(() => { this.gitReady = true; })
+      .catch((e) => { console.warn("[vault-sync] git init failed, will retry on next sync:", e?.message); });
     this.timer = setInterval(() => {
       this.syncOnce().catch((error) => {
         console.error("[vault-sync] sync failed", error);
@@ -55,6 +57,12 @@ export class VaultSyncDaemon {
         vaultPath: relativePath,
       });
       exported += 1;
+    }
+    if (exported > 0 && !this.gitReady) {
+      // Retry git init lazily — may have failed at startup
+      await ensureGitRepo(this.vaultRoot)
+        .then(() => { this.gitReady = true; })
+        .catch(() => {});
     }
     if (exported > 0 && this.gitReady) {
       await autoCommitChanges(
