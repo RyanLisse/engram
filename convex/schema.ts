@@ -45,6 +45,7 @@ export default defineSchema({
     consolidatedFrom: v.optional(v.array(v.id("facts"))), // originals this consolidated
     supersededBy: v.optional(v.id("facts")), // newer fact that replaced this
     forgetScore: v.optional(v.float64()), // 0.0=keep, 1.0=forget (ALMA)
+    tokenEstimate: v.optional(v.number()), // estimated tokens for budgeted recall
 
     // Emotional memory (GIZIN)
     emotionalContext: v.optional(v.string()), // frustrated|proud|embarrassed|surprised|confident
@@ -381,4 +382,57 @@ export default defineSchema({
   })
     .index("by_scope_agent", ["scopeId", "agentId"])
     .index("by_agent", ["agentId"]),
+
+  // ─── key_value_facts ──────────────────────────────────────────
+  // Deterministic key-value store for agent preferences, config, identity.
+  key_value_facts: defineTable({
+    key: v.string(),
+    value: v.string(), // JSON-encoded for flexibility
+    agentId: v.string(),
+    scopeId: v.id("memory_scopes"),
+    category: v.optional(v.string()), // "preference"|"config"|"identity"|"tool_state"
+    metadata: v.optional(v.object({ source: v.optional(v.string()), confidence: v.optional(v.float64()) })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_key_scope", ["key", "scopeId"])
+    .index("by_agent", ["agentId", "scopeId"])
+    .index("by_category", ["category", "scopeId"]),
+
+  // ─── episodes ──────────────────────────────────────────────────
+  // Episodic memory: group related facts into coherent episodes (e.g., daily summaries, workflows).
+  episodes: defineTable({
+    title: v.string(),
+    summary: v.optional(v.string()),
+    agentId: v.string(),
+    scopeId: v.id("memory_scopes"),
+    factIds: v.array(v.id("facts")),
+    startTime: v.number(),
+    endTime: v.optional(v.number()),
+    tags: v.array(v.string()),
+    importanceScore: v.float64(),
+    embedding: v.optional(v.array(v.float64())),
+    createdAt: v.number(),
+  })
+    .index("by_agent_time", ["agentId", "startTime"])
+    .index("by_scope", ["scopeId", "startTime"])
+    .vectorIndex("by_embedding", { vectorField: "embedding", dimensions: 1024, filterFields: ["scopeId", "agentId"] }),
+
+  // ─── knowledge_subspaces ──────────────────────────────────────
+  // Semantic subspaces in memory: clustered fact regions with centroid vectors.
+  knowledge_subspaces: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    agentId: v.string(),
+    scopeId: v.id("memory_scopes"),
+    factIds: v.array(v.id("facts")),
+    centroid: v.optional(v.array(v.float64())),
+    dimensionality: v.optional(v.number()),
+    variance: v.optional(v.float64()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_agent_scope", ["agentId", "scopeId"])
+    .index("by_name", ["name", "scopeId"])
+    .vectorIndex("by_centroid", { vectorField: "centroid", dimensions: 1024, filterFields: ["scopeId", "agentId"] }),
 });
