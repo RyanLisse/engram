@@ -21,6 +21,7 @@ import { eventsCommand } from "./commands/events.js";
 import { configCommand } from "./commands/config.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import { conversationsCommand } from "./commands/conversations.js";
+import { bootstrapCommand } from "./commands/bootstrap.js";
 
 // Load .env from cli dir or project root
 import { resolve, dirname } from "path";
@@ -84,6 +85,7 @@ program.addCommand(sessionsCommand);
 program.addCommand(conversationsCommand);
 program.addCommand(whoamiCommand);
 program.addCommand(statusCommand);
+program.addCommand(bootstrapCommand);
 program.addCommand(replCommand);
 
 program.parse();

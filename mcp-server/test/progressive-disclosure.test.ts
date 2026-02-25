@@ -104,10 +104,10 @@ describe("generateFactSummary", () => {
     expect(generateFactSummary(short)).toBe(short);
   });
 
-  test("truncates long content at 100 chars with ellipsis", () => {
-    const long = "a".repeat(120);
+  test("truncates long content at 150 chars with ellipsis", () => {
+    const long = "a".repeat(160);
     const result = generateFactSummary(long);
-    expect(result).toHaveLength(103); // 100 + "..."
+    expect(result).toHaveLength(153); // 150 + "..."
     expect(result.endsWith("...")).toBe(true);
   });
 

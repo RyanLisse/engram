@@ -6,9 +6,10 @@
  *
  * Rules:
  * 1. Strip markdown formatting (headers, bold, italic, code, bullets)
- * 2. Short content (≤100 chars) → return as-is
- * 3. Long content → truncate at 100 chars with "..."
- * 4. Apply factType prefix for non-observation types
+ * 2. Short content (≤50 chars after stripping) → return as-is
+ * 3. Multi-sentence content → take first sentence only
+ * 4. Truncate at 150 chars with "..."
+ * 5. Apply factType prefix for non-observation types
  */
 
 const FACT_TYPE_PREFIXES: Record<string, string> = {
@@ -37,6 +38,7 @@ export function stripMarkdown(content: string): string {
     .replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1") // bold / italic — keep text
     .replace(/(?<![a-zA-Z0-9])_{1,2}([^_]+)_{1,2}(?![a-zA-Z0-9])/g, "$1") // underscore bold/italic (not inside identifiers)
     .replace(/^\s*>\s*/gm, "")     // blockquotes
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // markdown links — keep text, strip URL
     .replace(/\n+/g, " ")          // collapse newlines to spaces
     .trim();
 }
@@ -54,11 +56,22 @@ export function generateFactSummary(content: string, factType?: string): string 
   // 1. Strip markdown formatting
   const clean = stripMarkdown(content);
 
-  // 2. Truncate long content
-  const MAX = 100;
-  const snippet = clean.length <= MAX ? clean : `${clean.slice(0, MAX)}...`;
+  // 2. Short content short-circuit (no sentence extraction needed)
+  const SHORT = 50;
+  if (clean.length <= SHORT) {
+    const prefix = factType && FACT_TYPE_PREFIXES[factType];
+    return prefix ? `${prefix} ${clean}` : clean;
+  }
 
-  // 3. Apply factType prefix (skip for observation — it's the default)
+  // 3. Extract first sentence (split on ". " or ".\n" or end of string)
+  const sentenceEnd = clean.search(/[.!?](\s|$)/);
+  const firstSentence = sentenceEnd !== -1 ? clean.slice(0, sentenceEnd + 1) : clean;
+
+  // 4. Truncate at 150 chars with "..."
+  const MAX = 150;
+  const snippet = firstSentence.length <= MAX ? firstSentence : `${firstSentence.slice(0, MAX)}...`;
+
+  // 5. Apply factType prefix (skip for observation — it's the default)
   const prefix = factType && FACT_TYPE_PREFIXES[factType];
   return prefix ? `${prefix} ${snippet}` : snippet;
 }
