@@ -100,4 +100,11 @@ crons.interval(
   internal.crons.actionRecommendations.runActionRecommendations
 );
 
+// Weekly: Subspace centroid recomputation + pruning (Sunday at 8:30 UTC)
+crons.weekly(
+  "consolidate-subspaces",
+  { dayOfWeek: "sunday", hourUTC: 8, minuteUTC: 30 },
+  internal.crons.consolidateSubspaces.runConsolidateSubspaces
+);
+
 export default crons;
