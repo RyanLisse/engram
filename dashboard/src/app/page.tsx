@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Circle,
 } from "lucide-react";
+import { VersionTimeline, VersionEntry } from "./components/VersionTimeline";
 
 interface AgentInfo {
   agentId: string;
@@ -121,7 +122,7 @@ function StatCard({
   );
 }
 
-function EventRow({ event }: { event: SSEEvent }) {
+function EventRow({ event, onClick }: { event: SSEEvent; onClick?: () => void }) {
   const typeColors: Record<string, string> = {
     fact_stored: "text-emerald-400",
     recall: "text-blue-400",
@@ -134,8 +135,16 @@ function EventRow({ event }: { event: SSEEvent }) {
   const ago = Math.round((Date.now() - event.timestamp) / 1000);
   const agoStr = ago < 60 ? `${ago}s` : `${Math.round(ago / 60)}m`;
 
+  const isClickable = event.type === "fact_stored" && !!onClick;
+
   return (
-    <div className="flex items-center gap-3 py-2 px-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors">
+    <div
+      className={`flex items-center gap-3 py-2 px-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors ${isClickable ? "cursor-pointer hover:bg-zinc-800/60" : ""}`}
+      onClick={isClickable ? onClick : undefined}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable && onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
+    >
       <Circle
         className={`w-2 h-2 fill-current ${typeColors[event.type] ?? "text-zinc-600"}`}
       />
@@ -157,6 +166,21 @@ export default function DashboardPage() {
   const [agentId, setAgentId] = useState("indy");
   const { events, connected } = useSSE(agentId);
   const { health, refresh } = useHealth();
+
+  const [selectedFactId, setSelectedFactId] = useState<string | null>(null);
+  const [versions, setVersions] = useState<VersionEntry[]>([]);
+  const [currentContent, setCurrentContent] = useState("");
+
+  const fetchVersions = useCallback(async (factId: string) => {
+    try {
+      const res = await fetch(`${SSE_URL}/api/fact-history/${factId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setVersions(data.versions || []);
+        setCurrentContent(data.currentContent || "");
+      }
+    } catch {}
+  }, []);
 
   const factEvents = events.filter((e) => e.type === "fact_stored").length;
   const recallEvents = events.filter((e) => e.type === "recall").length;
@@ -252,10 +276,46 @@ export default function DashboardPage() {
                 : `Connect to SSE server at ${SSE_URL}`}
             </div>
           ) : (
-            events.map((event, i) => <EventRow key={i} event={event} />)
+            events.map((event, i) => (
+              <EventRow
+                key={i}
+                event={event}
+                onClick={
+                  event.type === "fact_stored" && typeof event.payload.factId === "string"
+                    ? () => {
+                        const factId = event.payload.factId as string;
+                        setSelectedFactId(factId);
+                        fetchVersions(factId);
+                      }
+                    : undefined
+                }
+              />
+            ))
           )}
         </div>
       </div>
+
+      {/* Version History Panel */}
+      {selectedFactId && (
+        <div className="mt-4 bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+            <span className="text-sm font-medium">Version History</span>
+            <button
+              onClick={() => setSelectedFactId(null)}
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+          <div className="p-4 max-h-[400px] overflow-y-auto">
+            <VersionTimeline
+              factId={selectedFactId}
+              currentContent={currentContent}
+              versions={versions}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Health Info */}
       {health && (

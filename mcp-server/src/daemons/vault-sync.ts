@@ -2,6 +2,7 @@ import chokidar from "chokidar";
 import { getUnmirroredFacts, updateVaultPath } from "../lib/convex-client.js";
 import { writeFactToVault } from "../lib/vault-writer.js";
 import { reconcileFileEdit } from "../lib/vault-reconciler.js";
+import { ensureGitRepo, autoCommitChanges } from "../lib/vault-git.js";
 
 export interface VaultSyncOptions {
   vaultRoot: string;
@@ -16,6 +17,7 @@ export class VaultSyncDaemon {
   private timer: NodeJS.Timeout | null = null;
   private watcher: ReturnType<typeof chokidar.watch> | null = null;
   private stopped = false;
+  private gitReady = false;
 
   constructor(options: VaultSyncOptions) {
     this.vaultRoot = options.vaultRoot;
@@ -26,6 +28,7 @@ export class VaultSyncDaemon {
   start() {
     if (this.timer) return;
     this.stopped = false;
+    ensureGitRepo(this.vaultRoot).then(() => { this.gitReady = true; }).catch(() => {});
     this.timer = setInterval(() => {
       this.syncOnce().catch((error) => {
         console.error("[vault-sync] sync failed", error);
@@ -52,6 +55,12 @@ export class VaultSyncDaemon {
         vaultPath: relativePath,
       });
       exported += 1;
+    }
+    if (exported > 0 && this.gitReady) {
+      await autoCommitChanges(
+        this.vaultRoot,
+        `engram sync: ${exported} facts exported`
+      ).catch(() => {});
     }
     return { exported };
   }
