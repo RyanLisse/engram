@@ -3,14 +3,24 @@ import * as convex from "../lib/convex-client.js";
 import { generateEmbedding } from "../lib/embeddings.js";
 import { isLanceCacheEnabled, searchLocalCache } from "../lib/lance-cache.js";
 
-export const vectorSearchSchema = z.object({ query: z.string(), scopeIds: z.array(z.string()), limit: z.number().optional().prefault(10) });
+export const vectorSearchSchema = z.object({
+  query: z.string(),
+  scopeIds: z.array(z.string()),
+  agentId: z.string().optional(),
+  limit: z.number().optional().prefault(10),
+});
 export async function vectorSearch(input: z.infer<typeof vectorSearchSchema>) {
   const effectiveLimit = input.limit ?? 10;
   const embedding = await generateEmbedding(input.query, "search_query");
 
   // Run remote Convex vector search and local LanceDB cache in parallel
   const [remoteResults, localResults] = await Promise.all([
-    convex.vectorRecall({ embedding, scopeIds: input.scopeIds, limit: effectiveLimit }),
+    convex.vectorRecall({
+      embedding,
+      scopeIds: input.scopeIds,
+      agentId: input.agentId,
+      limit: effectiveLimit,
+    }),
     isLanceCacheEnabled()
       ? searchLocalCache(embedding, effectiveLimit) // No scope filter — LanceDB only syncs permitted scopes
       : Promise.resolve([]),

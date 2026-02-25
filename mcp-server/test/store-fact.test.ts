@@ -47,7 +47,7 @@ describe("storeFact", () => {
       "agent-1"
     );
 
-    expect(result).toEqual({ factId: "fact_abc", importanceScore: 0.7 });
+    expect(result).toEqual({ factId: "fact_abc", importanceScore: 0.7, deterministic: false });
     expect(mockStoreFact).toHaveBeenCalledWith(
       expect.objectContaining({
         content: "TypeScript is the primary language",
@@ -86,7 +86,7 @@ describe("storeFact", () => {
         content: "[[engram]] is a memory system",
       })
     );
-    expect(result).toEqual({ factId: "fact_linked", importanceScore: 0.6 });
+    expect(result).toEqual({ factId: "fact_linked", importanceScore: 0.6, deterministic: false });
   });
 
   test("returns isError when scope not found", async () => {
@@ -123,6 +123,7 @@ describe("storeFact", () => {
     expect(result).toEqual({
       factId: "fact_no_entities",
       importanceScore: 0.5,
+      deterministic: false,
     });
     expect(mockGetEntityByEntityId).not.toHaveBeenCalled();
     expect(mockUpdateBacklinks).not.toHaveBeenCalled();

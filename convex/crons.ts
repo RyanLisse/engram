@@ -19,8 +19,12 @@ crons.daily("dedup", { hourUTC: 2, minuteUTC: 30 }, internal.crons.dedup.runDedu
 // Daily: Differential relevance decay
 crons.daily("decay", { hourUTC: 3, minuteUTC: 0 }, internal.crons.decay.runDecay);
 
-// Daily: Active forgetting
-crons.daily("forget", { hourUTC: 3, minuteUTC: 30 }, internal.crons.forget.runForget);
+// Daily: Active forgetting pipeline (ALMA)
+crons.daily(
+  "forget-pipeline",
+  { hourUTC: 3, minuteUTC: 30 },
+  internal.crons.forgetPipeline.runForgetPipeline
+);
 
 // Daily: Conversation compaction
 crons.daily("compact", { hourUTC: 4, minuteUTC: 0 }, internal.crons.compact.runCompact);
@@ -105,6 +109,13 @@ crons.weekly(
   "consolidate-subspaces",
   { dayOfWeek: "sunday", hourUTC: 8, minuteUTC: 30 },
   internal.crons.consolidateSubspaces.runConsolidateSubspaces
+);
+
+// Weekly: Subspace re-merge — compress expanded principal vectors back to TARGET_K (Sunday at 9:00 UTC)
+crons.weekly(
+  "subspace-remerge",
+  { dayOfWeek: "sunday", hourUTC: 9, minuteUTC: 0 },
+  internal.crons.subspaceRemerge.runSubspaceRemerge
 );
 
 export default crons;

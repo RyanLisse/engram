@@ -13,6 +13,7 @@ export async function storeFact(args: {
   entityIds?: string[];
   tags?: string[];
   emotionalContext?: string;
+  emotionalWeight?: number;
   conversationId?: string;
 }) {
   return await mutate(PATHS.facts.storeFact, args);
@@ -84,6 +85,7 @@ export async function searchFactsMulti(args: {
 export async function vectorRecall(args: {
   embedding: number[];
   scopeIds: string[];
+  agentId?: string;
   limit?: number;
 }) {
   // vectorRecall is an action (ctx.vectorSearch is action-only in Convex)

@@ -111,6 +111,8 @@ export const PATHS = {
 
   // Events
   events: {
+    emit: "functions/events:emit",
+    logEvent: "functions/events:logEvent",
     poll: "functions/events:poll",
   },
 
@@ -136,6 +138,16 @@ export const PATHS = {
     listEpisodes: "functions/episodes:listEpisodes",
     searchEpisodes: "functions/episodes:searchEpisodes",
     updateEpisode: "functions/episodes:updateEpisode",
+  },
+
+  // Agent Knowledge Profiles
+  agentProfiles: {
+    learn: "functions/agentProfiles:learnAgentProfile",
+  },
+
+  // Retroactive Enrichment
+  retroactiveEnrich: {
+    getRecentlyEnrichedFactIds: "functions/retroactiveEnrich:getRecentlyEnrichedFactIds",
   },
 
   // Subspaces

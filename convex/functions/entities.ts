@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation } from "../_generated/server";
+import { query, mutation, internalQuery } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 // ─── Queries ─────────────────────────────────────────────────────────
 
@@ -41,6 +42,13 @@ export const search = query({
   },
 });
 
+export const listAllInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("entities").take(5000);
+  },
+});
+
 // ─── Mutations ───────────────────────────────────────────────────────
 
 export const upsert = mutation({
@@ -71,6 +79,10 @@ export const upsert = mutation({
       if (args.metadata !== undefined) {
         patch.metadata = { ...existing.metadata, ...args.metadata };
       }
+      // Name/type changes affect the index rendering; mark dirty
+      if (existing.name !== args.name || existing.type !== args.type) {
+        await ctx.scheduler.runAfter(0, internal.crons.regenerateIndices.markVaultIndexDirty, {});
+      }
       if (args.importanceScore !== undefined) {
         patch.importanceScore = args.importanceScore;
       }
@@ -78,7 +90,7 @@ export const upsert = mutation({
       return existing._id;
     }
 
-    return await ctx.db.insert("entities", {
+    const newId = await ctx.db.insert("entities", {
       entityId: args.entityId,
       name: args.name,
       type: args.type,
@@ -91,6 +103,9 @@ export const upsert = mutation({
       accessCount: 0,
       createdBy: args.createdBy,
     });
+    // New entity always invalidates the index (new section/entry appears)
+    await ctx.scheduler.runAfter(0, internal.crons.regenerateIndices.markVaultIndexDirty, {});
+    return newId;
   },
 });
 

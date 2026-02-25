@@ -9,6 +9,24 @@ import { v } from "convex/values";
 import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 
+function dot(left: number[], right: number[]): number {
+  const length = Math.min(left.length, right.length);
+  let sum = 0;
+  for (let index = 0; index < length; index += 1) {
+    sum += left[index] * right[index];
+  }
+  return sum;
+}
+
+function computeCoefficients(embedding: number[], principalVectors: number[][], k: number): number[] {
+  const coefficients: number[] = [];
+  const effectiveK = Math.min(k, principalVectors.length);
+  for (let axis = 0; axis < effectiveK; axis += 1) {
+    coefficients.push(dot(principalVectors[axis], embedding));
+  }
+  return coefficients;
+}
+
 /**
  * Perform vector search on facts using embedding (internal).
  * Used by enrichment pipeline and crons.
@@ -48,10 +66,11 @@ export const vectorRecallAction = action({
   args: {
     embedding: v.array(v.float64()),
     scopeIds: v.array(v.id("memory_scopes")),
+    agentId: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { embedding, scopeIds, limit } = args;
+    const { embedding, scopeIds, agentId, limit } = args;
     if (scopeIds.length === 0) return [];
 
     const perScopeLimit = Math.max(5, Math.ceil(((limit ?? 20) * 1.5) / scopeIds.length));
@@ -66,7 +85,67 @@ export const vectorRecallAction = action({
       )
     );
 
-    const merged = allResults.flat().sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
+    const merged = allResults.flat();
+
+    if (agentId) {
+      const profileContextByScope = new Map<
+        string,
+        { axisWeights: number[]; queryCompact: number[] } | null
+      >();
+
+      for (const scopeId of scopeIds) {
+        const profile = await ctx.runQuery(
+          (internal as any).functions.agentProfiles.getByAgentScopeInternal,
+          { agentId, scopeId }
+        );
+        if (!profile) {
+          profileContextByScope.set(scopeId, null);
+          continue;
+        }
+
+        const subspace = await ctx.runQuery(
+          (internal as any).functions.subspaces.getSubspaceInternal,
+          { subspaceId: profile.subspaceId }
+        );
+        const principalVectors = subspace?.principalVectors ?? [];
+        const k = subspace?.k ?? principalVectors.length;
+        if (k <= 0 || principalVectors.length === 0) {
+          profileContextByScope.set(scopeId, null);
+          continue;
+        }
+
+        const queryCompact = computeCoefficients(embedding, principalVectors, k);
+        profileContextByScope.set(scopeId, {
+          axisWeights: profile.axisWeights ?? [],
+          queryCompact,
+        });
+      }
+
+      for (const row of merged as any[]) {
+        const context = profileContextByScope.get(row.scopeId);
+        if (!context || !row.compactEmbedding?.length) continue;
+        const axisCount = Math.min(
+          context.axisWeights.length,
+          context.queryCompact.length,
+          row.compactEmbedding.length
+        );
+        if (axisCount === 0) continue;
+
+        let personalizedScore = 0;
+        for (let axis = 0; axis < axisCount; axis += 1) {
+          personalizedScore +=
+            (context.axisWeights[axis] ?? 0) *
+            (context.queryCompact[axis] ?? 0) *
+            (row.compactEmbedding[axis] ?? 0);
+        }
+
+        row._baseScore = row._score;
+        row._score = personalizedScore;
+        row._personalized = true;
+      }
+    }
+
+    merged.sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
     return merged.slice(0, limit ?? 20);
   },
 });

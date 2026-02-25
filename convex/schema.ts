@@ -38,6 +38,7 @@ export default defineSchema({
     tags: v.array(v.string()),
     factType: v.string(), // decision|observation|plan|error|insight|correction|steering_rule|learning|session_summary
     embedding: v.optional(v.array(v.float64())),
+    compactEmbedding: v.optional(v.array(v.float64())), // k-dim subspace coefficients
 
     // Lifecycle (SimpleMem + ALMA)
     lifecycleState: v.string(), // active|dormant|merged|archived|pruned
@@ -427,12 +428,38 @@ export default defineSchema({
     scopeId: v.id("memory_scopes"),
     factIds: v.array(v.id("facts")),
     centroid: v.optional(v.array(v.float64())),
+    principalVectors: v.optional(v.array(v.array(v.float64()))),
+    k: v.optional(v.number()),
+    version: v.optional(v.number()),
+    noveltyThreshold: v.optional(v.float64()),
     dimensionality: v.optional(v.number()),
     variance: v.optional(v.float64()),
+    /** Per-component singular values from SVD (σ_i = sqrt(compVariance_i · totalVariance · n)). */
+    singularValues: v.optional(v.array(v.float64())),
+    /** Per-component explained variance fractions (each component's share of totalVariance). */
+    componentVariances: v.optional(v.array(v.float64())),
+    /** L1 singular value ratio: sum(kept σ_i) / sqrt(totalVariance · n). */
+    singularValueRatio: v.optional(v.float64()),
+    /** Compact embedding coefficients keyed by fact ID (Record<factId, number[]>). */
+    compactEmbeddingsByFactId: v.optional(v.any()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_agent_scope", ["agentId", "scopeId"])
+    .index("by_scope", ["scopeId"])
     .index("by_name", ["name", "scopeId"])
     .vectorIndex("by_centroid", { vectorField: "centroid", dimensions: 1024, filterFields: ["scopeId", "agentId"] }),
+
+  // ─── agent_knowledge_profiles ──────────────────────────────
+  // Per-agent learned embeddings and axis weights in knowledge subspaces.
+  agent_knowledge_profiles: defineTable({
+    agentId: v.string(),
+    scopeId: v.id("memory_scopes"),
+    subspaceId: v.id("knowledge_subspaces"),
+    axisWeights: v.array(v.float64()),
+    learnedFrom: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_agent_scope", ["agentId", "scopeId"])
+    .index("by_subspace", ["subspaceId"]),
 });

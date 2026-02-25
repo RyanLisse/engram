@@ -6,6 +6,7 @@ export interface RankCandidate {
   timestamp: number;
   importanceScore?: number;
   outcomeScore?: number;
+  emotionalWeight?: number;
   relevanceScore?: number;
   _score?: number;
   lexicalScore?: number;
@@ -48,12 +49,14 @@ export function rankCandidates(query: string, candidates: RankCandidate[]): Rank
       const importance = clamp(c.importanceScore ?? 0);
       const freshness = freshnessScore(c.timestamp, c.relevanceScore);
       const outcome = clamp(c.outcomeScore ?? 0.5);
+      const emotional = clamp(c.emotionalWeight ?? 0);
       const hybridScore =
-        0.45 * semantic +
+        0.4 * semantic +
         0.15 * lexical +
         0.2 * importance +
         0.1 * freshness +
-        0.1 * outcome;
+        0.1 * outcome +
+        0.05 * emotional;
       return { ...c, _score: hybridScore };
     })
     .sort((a, b) => (b._score ?? 0) - (a._score ?? 0));

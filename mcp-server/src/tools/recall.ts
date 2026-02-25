@@ -1,15 +1,7 @@
 /**
  * memory_recall — Quad-pathway retrieval (semantic + symbolic + topological + local-cache)
  *
- * Combines up to four retrieval pathways using Reciprocal Rank Fusion (RRF):
- *   1. Semantic — vector search via Cohere embeddings (remote Convex)
- *   2. Symbolic — full-text search via Convex
- *   3. Topological — graph expansion via entity edges (conditional)
- *   4. Local-cache — LanceDB local embedding cache (conditional)
- *
- * The graph pathway only activates when initial results contain entity links,
- * avoiding unnecessary work for simple queries. The local-cache pathway only
- * activates when LanceDB is enabled and returns results.
+ * Adds intent-aware routing and optional token-budget truncation.
  */
 
 import { z } from "zod";
@@ -27,6 +19,8 @@ import { resolveScopes, getGraphNeighbors } from "./context-primitives.js";
 import { reciprocalRankFusion, extractEntityIds } from "../lib/rrf.js";
 import type { SearchStrategy } from "../lib/ranking.js";
 import { applyTokenBudget, type TokenUsage } from "../lib/token-budget.js";
+import { classifyIntent, type QueryIntent } from "../lib/intent-classifier.js";
+import * as convex from "../lib/convex-client.js";
 
 export const recallSchema = z.object({
   query: z.string().describe("Search query for semantic recall"),
@@ -39,17 +33,122 @@ export const recallSchema = z.object({
     .optional()
     .prefault("hybrid")
     .describe("Recall strategy"),
-  maxTokens: z.number().optional().describe("Token budget ceiling — stops accumulating facts once budget is reached. Returns tokenUsage field with used/budget/truncated."),
+  tokenBudget: z.number().optional().describe("Max tokens to return (soft limit)"),
+  maxTokens: z
+    .number()
+    .optional()
+    .describe("Deprecated alias of tokenBudget for backward compatibility."),
 });
 
 export type RecallInput = z.infer<typeof recallSchema>;
 
+type RecallSuccess = {
+  facts: any[];
+  recallId: string;
+  pathways: string[];
+  intent: QueryIntent;
+  tokenUsage?: TokenUsage;
+  tokenBudget?: number | null;
+  tokensUsed?: number;
+  tokensAvailable?: number | null;
+  factsTruncated?: boolean;
+};
+
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+function extractPotentialKVKeys(query: string): string[] {
+  const keys = new Set<string>();
+  const normalized = query.trim().toLowerCase();
+  if (/^[a-z0-9_.-]+$/.test(normalized) && !normalized.includes(" ")) {
+    keys.add(normalized);
+  }
+
+  const preferMatch = normalized.match(/what does (\w+) prefer for ([\w\s-]+)/i);
+  if (preferMatch) {
+    keys.add(`${preferMatch[1]}.preference.${preferMatch[2].trim().replace(/[\s-]+/g, "_")}`);
+  }
+
+  const possessiveMatch = normalized.match(/(\w+)'s preference for ([\w\s-]+)/i);
+  if (possessiveMatch) {
+    keys.add(`${possessiveMatch[1]}.preference.${possessiveMatch[2].trim().replace(/[\s-]+/g, "_")}`);
+  }
+
+  const genericKeyMatch = normalized.match(/(?:key|value|setting|config)\s+([a-z0-9_.-]+)/i);
+  if (genericKeyMatch) {
+    keys.add(genericKeyMatch[1]);
+  }
+
+  return [...keys];
+}
+
+async function kvLookup(query: string, scopeIds: string[]): Promise<any[]> {
+  if (scopeIds.length === 0) return [];
+
+  const candidateKeys = extractPotentialKVKeys(query);
+  if (candidateKeys.length === 0) return [];
+
+  const results: any[] = [];
+  for (const key of candidateKeys) {
+    for (const scopeId of scopeIds) {
+      try {
+        const kvEntry = await convex.kvGet({ key, scopeId });
+        if (!kvEntry) continue;
+        results.push({
+          _id: `kv:${scopeId}:${key}`,
+          key,
+          content: kvEntry.value,
+          factType: kvEntry.category ?? "tool_state",
+          importanceScore: 0.95,
+          relevanceScore: 1.0,
+          timestamp: kvEntry.updatedAt,
+          tokenEstimate: estimateTokens(kvEntry.value),
+          _source: "kv",
+          _kvMatch: true,
+        });
+      } catch (err: any) {
+        console.error("[recall] KV lookup failed (non-fatal):", err?.message ?? err);
+      }
+    }
+  }
+
+  return results;
+}
+
+function mergeAndDeduplicate(results: any[][]): any[] {
+  const byId = new Map<string, any>();
+
+  for (const rows of results) {
+    for (const row of rows) {
+      const existing = byId.get(row._id);
+      if (existing) {
+        byId.set(row._id, {
+          ...existing,
+          ...row,
+          _score: Math.max(existing._score ?? 0, row._score ?? 0),
+        });
+      } else {
+        byId.set(row._id, row);
+      }
+    }
+  }
+
+  return [...byId.values()];
+}
+
 export async function recall(
   input: RecallInput,
   agentId: string
-): Promise<{ facts: any[]; recallId: string; pathways: string[]; tokenUsage?: TokenUsage } | { isError: true; message: string }> {
+): Promise<RecallSuccess | { isError: true; message: string }> {
   try {
     console.error("[deprecation] memory_recall is a compatibility wrapper over primitive tools (quad-pathway)");
+
+    const intent = classifyIntent(input.query);
+    const effectiveTokenBudget = input.tokenBudget ?? input.maxTokens;
+    const limit = input.limit ?? 10;
+
     const vaultRoot = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
     const indexPath = path.join(vaultRoot, ".index", "vault-index.md");
     let queryText = input.query;
@@ -68,147 +167,127 @@ export async function recall(
     }
     const scopeIds = scopeResolution.scopeIds;
 
+    const kvResults = intent === "lookup" ? await kvLookup(input.query, scopeIds) : [];
     const strategy = input.searchStrategy as SearchStrategy;
-    const textResults =
-      strategy === "vector-only" || scopeIds.length === 0
-        ? []
-        : await textSearch({
-            query: queryText,
-            limit: input.limit,
-            scopeIds,
-            factType: input.factType,
-          });
+
+    const shouldRunVector =
+      scopeIds.length > 0 &&
+      strategy !== "text-only" &&
+      (intent === "explore" || intent === "relational" || intent === "temporal" || strategy === "vector-only");
+    const shouldRunText =
+      scopeIds.length > 0 &&
+      strategy !== "vector-only";
+
+    const textResults = shouldRunText
+      ? await textSearch({
+          query: queryText,
+          limit,
+          scopeIds,
+          factType: input.factType,
+        })
+      : [];
 
     let vectorResults: any[] = [];
-    if (!(strategy === "text-only" || scopeIds.length === 0)) {
+    if (shouldRunVector) {
       try {
         vectorResults = (await vectorSearch({
           query: input.query,
           scopeIds,
-          limit: input.limit,
+          agentId,
+          limit,
         })) as any[];
       } catch (err: any) {
         console.error("[recall] Vector search unavailable, falling back to text/hybrid ranking:", err?.message ?? err);
       }
     }
 
-    // ── Separate local-cache results from remote vector results ──
     const localCacheResults = vectorResults.filter((r: any) => r._source === "local-cache");
     const remoteVectorResults = vectorResults.filter((r: any) => r._source !== "local-cache");
 
-    // ── Track which pathways contributed ──
     const pathways: string[] = [];
-
+    if (kvResults.length > 0) pathways.push("kv");
     if (remoteVectorResults.length > 0) pathways.push("semantic");
-    if ((textResults as any[]).length > 0) pathways.push("symbolic");
+    if (textResults.length > 0) pathways.push("symbolic");
     if (localCacheResults.length > 0) pathways.push("local-cache");
 
-    // ── Pathway 3: Topological (graph expansion) ──
-    // Only invoke when initial results contain entity links to avoid useless work.
-    const allInitialResults = [...(textResults as any[]), ...remoteVectorResults, ...localCacheResults];
+    const allInitialResults = [...textResults, ...remoteVectorResults, ...localCacheResults];
     const entityIds = extractEntityIds(allInitialResults);
 
     let graphResults: any[] = [];
-    if (entityIds.length > 0) {
+    if (entityIds.length > 0 && (intent === "relational" || intent === "explore")) {
       try {
         const graphResponse = await getGraphNeighbors({
           entityIds,
           scopeIds: scopeIds.length > 0 ? scopeIds : undefined,
-          limit: 10, // Cap graph expansion to avoid overwhelming results
+          limit: 10,
         });
         graphResults = graphResponse.neighbors ?? [];
-        if (graphResults.length > 0) {
-          pathways.push("graph");
-        }
-        console.error(`[recall] Graph expansion: ${entityIds.length} entities -> ${graphResults.length} neighbors`);
+        if (graphResults.length > 0) pathways.push("graph");
       } catch (err: any) {
         console.error("[recall] Graph expansion failed (non-fatal):", err?.message ?? err);
       }
     }
 
-    // ── Reciprocal Rank Fusion across all pathways ──
-    // Build ranked lists for RRF. Each pathway contributes its own ordering.
     const rrfInputSets: Array<Array<{ _id: string; [key: string]: any }>> = [];
+    if (kvResults.length > 0) rrfInputSets.push(kvResults);
+    if (remoteVectorResults.length > 0) rrfInputSets.push(remoteVectorResults);
+    if (textResults.length > 0) rrfInputSets.push(textResults as any[]);
+    if (graphResults.length > 0) rrfInputSets.push(graphResults);
+    if (localCacheResults.length > 0) rrfInputSets.push(localCacheResults);
 
-    if (remoteVectorResults.length > 0) {
-      rrfInputSets.push(remoteVectorResults as any[]);
-    }
-    if ((textResults as any[]).length > 0) {
-      rrfInputSets.push(textResults as any[]);
-    }
-    if (graphResults.length > 0) {
-      rrfInputSets.push(graphResults);
-    }
-    if (localCacheResults.length > 0) {
-      rrfInputSets.push(localCacheResults as any[]);
-    }
-
-    let results: any[];
-
+    let rankedResults: any[] = [];
     if (rrfInputSets.length >= 2) {
-      // Multiple pathways: use RRF to merge
       const fused = reciprocalRankFusion(rrfInputSets);
-      // Still apply the hybrid ranker for importance/freshness/outcome scoring.
-      // The fused facts retain all original Convex fields; cast to satisfy Zod schema.
       const ranked = await rankCandidatesPrimitive({
         query: input.query,
         candidates: fused as any,
-        limit: input.limit,
+        limit,
       });
-      results = ranked.ranked;
+      rankedResults = ranked.ranked;
     } else {
-      // Single pathway or no results: fall back to the existing merge logic
-      const byId = new Map<string, any>();
-      for (const row of textResults as any[]) byId.set(row._id, { ...row, lexicalScore: 1 });
-      for (const row of remoteVectorResults as any[]) {
-        const id = row._id;
-        const merged = byId.get(id);
-        if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
-        else byId.set(id, row);
-      }
-      for (const row of graphResults) {
-        if (!byId.has(row._id)) byId.set(row._id, row);
-      }
-      for (const row of localCacheResults) {
-        const id = row._id;
-        const merged = byId.get(id);
-        if (merged) byId.set(id, { ...merged, _score: Math.max(merged._score ?? 0, row._score ?? 0) });
-        else byId.set(id, row);
-      }
+      const merged = mergeAndDeduplicate([
+        kvResults,
+        textResults as any[],
+        remoteVectorResults as any[],
+        graphResults,
+        localCacheResults as any[],
+      ]);
       const ranked = await rankCandidatesPrimitive({
         query: input.query,
-        candidates: [...byId.values()],
-        limit: input.limit,
+        candidates: merged,
+        limit,
       });
-      results = ranked.ranked;
+      rankedResults = ranked.ranked;
     }
 
-    if (!results || !Array.isArray(results)) {
-      return {
-        isError: true,
-        message: "Invalid response from search",
-      };
+    if (!Array.isArray(rankedResults)) {
+      return { isError: true, message: "Invalid response from search" };
+    }
+
+    // Apply 1.2x boost to facts retroactively enriched in the last 7 days
+    const enrichedFactIds = await convex.getRecentlyEnrichedFactIds(7);
+    if (enrichedFactIds.size > 0) {
+      rankedResults = rankedResults.map((fact: any) => {
+        if (enrichedFactIds.has(fact._id)) {
+          return {
+            ...fact,
+            _score: (fact._score ?? 0) * 1.2,
+            retroactivelyRelevant: true,
+          };
+        }
+        return fact;
+      });
+      // Re-sort after boost adjustments
+      rankedResults.sort((a: any, b: any) => (b._score ?? 0) - (a._score ?? 0));
     }
 
     const minImportance = input.minImportance;
     const filteredResults =
       minImportance === undefined
-        ? results
-        : results.filter((fact: any) => (fact.importanceScore ?? 0) >= minImportance);
+        ? rankedResults
+        : rankedResults.filter((fact: any) => (fact.importanceScore ?? 0) >= minImportance);
 
-    // Bump access count on all returned facts
-    await bumpAccessBatch({ factIds: filteredResults.map((fact: any) => fact._id) }).catch((err) => {
-      console.error("[recall] Failed to bump access for some facts:", err);
-    });
-
-    // Generate recallId for feedback tracking
-    const recallId = randomUUID();
-    await recordRecall({
-      recallId,
-      factIds: filteredResults.map((r: any) => r._id),
-    });
-
-    const prioritized = [...filteredResults].sort((a: any, b: any) => {
+    let prioritized = [...filteredResults].sort((a: any, b: any) => {
       const tierWeight = (tier?: string) =>
         tier === "critical" ? 3 : tier === "notable" ? 2 : tier === "background" ? 1 : 0;
       const byTier = tierWeight(b.observationTier) - tierWeight(a.observationTier);
@@ -216,21 +295,79 @@ export async function recall(
       return (b.importanceScore ?? 0) - (a.importanceScore ?? 0);
     });
 
-    // ── Token budget: stop accumulating once maxTokens is reached ──
-    if (input.maxTokens !== undefined) {
-      const budgeted = applyTokenBudget(prioritized, input.maxTokens);
-      return {
-        facts: budgeted.facts,
-        recallId,
-        pathways: pathways.length > 0 ? pathways : ["none"],
-        tokenUsage: budgeted.tokenUsage,
-      };
+    if (intent === "temporal") {
+      prioritized = [...prioritized].sort((a: any, b: any) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
     }
 
+    if (kvResults.length > 0) {
+      const kvIds = new Set(kvResults.map((row) => row._id));
+      const kvFirst = prioritized.filter((row) => kvIds.has(row._id));
+      const nonKv = prioritized.filter((row) => !kvIds.has(row._id));
+      prioritized = [...kvFirst, ...nonKv];
+    }
+
+    const factIdsForSignals = prioritized
+      .map((fact: any) => fact._id)
+      .filter((factId: string) => !factId.startsWith("kv:"));
+
+    if (factIdsForSignals.length > 0) {
+      await bumpAccessBatch({ factIds: factIdsForSignals }).catch((err) => {
+        console.error("[recall] Failed to bump access for some facts:", err);
+      });
+    }
+
+    const recallId = randomUUID();
+    if (factIdsForSignals.length > 0) {
+      await recordRecall({ recallId, factIds: factIdsForSignals });
+    }
+
+    let responseFacts = prioritized;
+    let tokenUsage: TokenUsage | undefined;
+    let factsTruncated = false;
+    let tokensUsed: number | undefined;
+    let tokensAvailable: number | null | undefined;
+
+    if (effectiveTokenBudget !== undefined) {
+      const budgeted = applyTokenBudget(prioritized, effectiveTokenBudget);
+      responseFacts = budgeted.facts;
+      tokenUsage = budgeted.tokenUsage;
+      factsTruncated = budgeted.tokenUsage.truncated;
+      tokensUsed = budgeted.tokenUsage.used;
+      tokensAvailable = effectiveTokenBudget - budgeted.tokenUsage.used;
+    }
+
+    await convex
+      .logEvent({
+        eventType: "recall_completed",
+        agentId,
+        scopeId: scopeIds[0],
+        payload: {
+          recallId,
+          query: input.query.slice(0, 300),
+          factCount: responseFacts.length,
+          tokensUsed:
+            tokensUsed ??
+            responseFacts.reduce((sum: number, fact: any) => sum + (fact.tokenEstimate ?? estimateTokens(fact.content ?? "")), 0),
+          tokenBudget: effectiveTokenBudget ?? null,
+          factsTruncated,
+          searchStrategy: input.searchStrategy ?? "hybrid",
+          intent,
+        },
+      })
+      .catch((err) => {
+        console.error("[recall] Event logging failed (non-fatal):", err);
+      });
+
     return {
-      facts: prioritized,
+      facts: responseFacts,
       recallId,
       pathways: pathways.length > 0 ? pathways : ["none"],
+      intent,
+      tokenUsage,
+      tokenBudget: effectiveTokenBudget ?? null,
+      tokensUsed,
+      tokensAvailable,
+      factsTruncated,
     };
   } catch (error: any) {
     console.error("[recall] Error:", error);

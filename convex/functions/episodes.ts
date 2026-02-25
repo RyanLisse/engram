@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { query, mutation, internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
+import {
+  buildAutoEpisodeTitle,
+  buildObservationEpisodeTags,
+  mergeUniqueFactIds,
+} from "./episodes.helpers";
 
 // ─── Queries ─────────────────────────────────────────────────────────
 
@@ -91,6 +96,26 @@ export const searchEpisodes = query({
   },
 });
 
+export const queryEpisodes = query({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    startTime: v.number(),
+    endTime: v.number(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("episodes")
+      .withIndex("by_scope", (q) =>
+        q.eq("scopeId", args.scopeId).gte("startTime", args.startTime)
+      )
+      .order("desc")
+      .take(args.limit ?? 200);
+
+    return rows.filter((ep) => ep.startTime <= args.endTime);
+  },
+});
+
 // ─── Internal Queries ────────────────────────────────────────────────
 
 export const getEpisodeInternal = internalQuery({
@@ -161,9 +186,7 @@ export const updateEpisode = mutation({
     if (fields.importanceScore !== undefined) patch.importanceScore = fields.importanceScore;
 
     if (addFactIds && addFactIds.length > 0) {
-      const existingSet = new Set(episode.factIds.map(String));
-      const newFacts = addFactIds.filter((id) => !existingSet.has(String(id)));
-      patch.factIds = [...episode.factIds, ...newFacts];
+      patch.factIds = mergeUniqueFactIds(episode.factIds, addFactIds);
     }
 
     if (Object.keys(patch).length > 0) {
@@ -171,6 +194,81 @@ export const updateEpisode = mutation({
     }
 
     return { updated: true };
+  },
+});
+
+export const createFromObservationSession = internalMutation({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    source: v.union(v.literal("observer"), v.literal("reflector")),
+    generation: v.number(),
+    factIds: v.array(v.id("facts")),
+    startTime: v.number(),
+    endTime: v.optional(v.number()),
+    summary: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    importanceScore: v.optional(v.float64()),
+  },
+  handler: async (ctx, args) => {
+    if (args.factIds.length === 0) {
+      return { created: false, reason: "no_fact_ids" };
+    }
+
+    const generationTag = `${args.source}-generation-${args.generation}`;
+    const recentEpisodes = await ctx.db
+      .query("episodes")
+      .withIndex("by_scope", (q) => q.eq("scopeId", args.scopeId))
+      .order("desc")
+      .take(100);
+
+    const existing = recentEpisodes.find(
+      (episode) =>
+        episode.agentId === args.agentId &&
+        episode.tags.includes("observation-session") &&
+        episode.tags.includes(generationTag),
+    );
+
+    if (existing) {
+      const mergedFactIds = mergeUniqueFactIds(existing.factIds, args.factIds);
+      const patch: {
+        endTime?: number;
+        summary?: string;
+        factIds?: typeof mergedFactIds;
+      } = {};
+
+      if (args.endTime !== undefined) patch.endTime = args.endTime;
+      if (args.summary !== undefined) patch.summary = args.summary;
+      if (mergedFactIds.length !== existing.factIds.length) {
+        patch.factIds = mergedFactIds;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, patch);
+      }
+      return { created: false, updated: true, episodeId: existing._id };
+    }
+
+    const episodeId = await ctx.db.insert("episodes", {
+      title: buildAutoEpisodeTitle(args),
+      summary: args.summary,
+      agentId: args.agentId,
+      scopeId: args.scopeId,
+      factIds: args.factIds,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      tags: buildObservationEpisodeTags(args.source, args.generation, args.tags),
+      importanceScore: args.importanceScore ?? 0.5,
+      createdAt: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.actions.embedEpisode.embedEpisode,
+      { episodeId }
+    );
+
+    return { created: true, episodeId };
   },
 });
 

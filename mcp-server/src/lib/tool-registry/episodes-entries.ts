@@ -7,6 +7,7 @@ import type { ToolEntry } from "./types.js";
 import {
   createEpisode, createEpisodeSchema,
   getEpisode, getEpisodeSchema,
+  recallEpisodes, recallEpisodesSchema,
   searchEpisodes, searchEpisodesSchema,
   linkFactsToEpisode, linkFactsToEpisodeSchema,
   closeEpisode, closeEpisodeSchema,
@@ -49,6 +50,25 @@ export const entries: readonly ToolEntry[] = [
     },
     zodSchema: getEpisodeSchema,
     handler: (args) => getEpisode(args),
+  },
+  {
+    tool: {
+      name: "memory_recall_episodes",
+      description: "Recall episodes via semantic and/or temporal queries. Uses vector search when query is provided, with text fallback.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Semantic query (optional for temporal-only recall)" },
+          scopeId: { type: "string", description: "Scope to search within" },
+          startAfter: { type: "number", description: "Return episodes with startTime >= timestamp (ms)" },
+          startBefore: { type: "number", description: "Return episodes with startTime < timestamp (ms)" },
+          limit: { type: "number", description: "Maximum results (default 10)" },
+        },
+        required: [],
+      },
+    },
+    zodSchema: recallEpisodesSchema,
+    handler: (args, agentId) => recallEpisodes(args, agentId),
   },
   {
     tool: {

@@ -2,7 +2,7 @@
  * memory_rank_candidates — Exposed ranking primitive
  *
  * Takes raw candidate facts and applies the hybrid scoring algorithm:
- * 0.45 semantic + 0.15 lexical + 0.20 importance + 0.10 freshness + 0.10 outcome
+ * 0.40 semantic + 0.15 lexical + 0.20 importance + 0.10 freshness + 0.10 outcome + 0.05 emotional
  *
  * Agents can use this to re-rank any fact set with custom weights.
  */
@@ -18,6 +18,7 @@ export const rankCandidatesSchema = z.object({
     timestamp: z.number(),
     importanceScore: z.number().optional(),
     outcomeScore: z.number().optional(),
+    emotionalWeight: z.number().optional(),
     _score: z.number().optional(),
   })).describe("Candidate facts to rank"),
   limit: z.number().optional().prefault(10).describe("Maximum results to return"),

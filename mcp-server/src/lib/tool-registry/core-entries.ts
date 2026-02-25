@@ -59,6 +59,7 @@ export const entries: readonly ToolEntry[] = [
           factType: { type: "string", description: "Filter by fact type" },
           minImportance: { type: "number", description: "Minimum importance score (0-1)" },
           searchStrategy: { type: "string", enum: ["vector-only", "text-only", "hybrid"], description: "Recall strategy" },
+          tokenBudget: { type: "number", description: "Max tokens to return (soft limit)." },
           maxTokens: { type: "number", description: "Token budget ceiling — stops accumulating facts once budget is reached. Response includes tokenUsage: { used, budget, truncated }." },
         },
         required: ["query"],

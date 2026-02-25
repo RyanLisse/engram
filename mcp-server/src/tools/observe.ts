@@ -14,6 +14,25 @@ export const observeSchema = z.object({
 
 export type ObserveInput = z.infer<typeof observeSchema>;
 
+function detectEmotion(observation: string): { emotionalContext?: string; emotionalWeight?: number } {
+  const lower = observation.toLowerCase();
+
+  if (/\b(failed|error|broken|frustrat|blocked|stuck)\b/.test(lower)) {
+    return { emotionalContext: "frustrated", emotionalWeight: 0.7 };
+  }
+  if (/\b(success|resolved|fixed|shipped|great|win)\b/.test(lower)) {
+    return { emotionalContext: "confident", emotionalWeight: 0.55 };
+  }
+  if (/\b(surpris|unexpected|wow)\b/.test(lower)) {
+    return { emotionalContext: "surprised", emotionalWeight: 0.45 };
+  }
+  if (/\b(proud|excited)\b/.test(lower)) {
+    return { emotionalContext: "proud", emotionalWeight: 0.5 };
+  }
+
+  return {};
+}
+
 export async function observe(
   input: ObserveInput,
   agentId: string
@@ -54,6 +73,9 @@ export async function observe(
 
     // Sanitize before storage (strip injection vectors, normalize whitespace)
     const sanitized = sanitizeObservation(input.observation);
+    const detected = input.emotionalContext ? {} : detectEmotion(sanitized);
+    const emotionalContext = input.emotionalContext ?? detected.emotionalContext;
+    const emotionalWeight = detected.emotionalWeight;
 
     // Store as observation fact (fire-and-forget)
     const stored = await convex.storeFact({
@@ -62,7 +84,8 @@ export async function observe(
       createdBy: agentId,
       scopeId: resolvedScopeId as string,
       factType: "observation",
-      emotionalContext: input.emotionalContext,
+      emotionalContext,
+      emotionalWeight,
     });
     if (stored?.factId) {
       await convex.classifyObservation({ factId: stored.factId });

@@ -20,6 +20,7 @@ export async function recordFeedback(
   try {
     await convex.recordRecallUsage({
       recallId: input.recallId,
+      agentId,
       usedFactIds: input.usedFactIds,
       unusedFactIds: input.unusedFactIds,
     });
@@ -105,6 +106,34 @@ export async function recordFeedback(
     } catch (decayError) {
       // Best-effort: log but don't fail the overall feedback recording
       console.error("[record-feedback] Decay loop error (non-fatal):", decayError);
+    }
+
+    // Profile Learning Loop
+    // After feedback is recorded, update the agent's per-scope knowledge profile.
+    // The profile stores SVD axis weights — which semantic directions this agent finds useful.
+    // Over time this enables profile-aware retrieval that surfaces facts in the agent's
+    // "cognitive neighbourhood" even without an explicit query match.
+    try {
+      const scope = await convex.getScopeByName(`private-${agentId}`);
+      if (scope && input.usedFactIds.length > 0) {
+        const profileResult = await convex.learnAgentProfile({
+          agentId,
+          scopeId: scope._id,
+          usedFactIds: input.usedFactIds,
+        });
+        if (profileResult.learned) {
+          console.error(
+            `[record-feedback] Profile updated for agent ${agentId}: learnedFrom=${profileResult.learnedFrom}, axes=${profileResult.axisWeights?.length ?? 0}`
+          );
+        } else {
+          console.error(
+            `[record-feedback] Profile learning skipped: ${profileResult.reason}`
+          );
+        }
+      }
+    } catch (profileError) {
+      // Best-effort: profile learning should never block feedback recording
+      console.error("[record-feedback] Profile learning error (non-fatal):", profileError);
     }
 
     return { ack: true };

@@ -127,12 +127,12 @@ export const entries: readonly ToolEntry[] = [
   {
     tool: {
       name: "memory_rank_candidates",
-      description: "Primitive: hybrid ranking of candidate facts. Scores = 0.45\u00d7semantic + 0.15\u00d7lexical + 0.20\u00d7importance + 0.10\u00d7freshness + 0.10\u00d7outcome.",
+      description: "Primitive: hybrid ranking of candidate facts. Scores = 0.40\u00d7semantic + 0.15\u00d7lexical + 0.20\u00d7importance + 0.10\u00d7freshness + 0.10\u00d7outcome + 0.05\u00d7emotional.",
       inputSchema: {
         type: "object",
         properties: {
           query: { type: "string", description: "Query for lexical scoring" },
-          candidates: { type: "array", items: { type: "object", properties: { _id: { type: "string" }, content: { type: "string" }, timestamp: { type: "number" }, importanceScore: { type: "number" }, outcomeScore: { type: "number" }, _score: { type: "number" } }, required: ["_id", "content", "timestamp"] }, description: "Candidate facts to rank" },
+          candidates: { type: "array", items: { type: "object", properties: { _id: { type: "string" }, content: { type: "string" }, timestamp: { type: "number" }, importanceScore: { type: "number" }, outcomeScore: { type: "number" }, emotionalWeight: { type: "number" }, _score: { type: "number" } }, required: ["_id", "content", "timestamp"] }, description: "Candidate facts to rank" },
           limit: { type: "number", description: "Max results (default: 10)" },
         },
         required: ["query", "candidates"],

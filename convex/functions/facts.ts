@@ -21,6 +21,11 @@ function estimateImportance(factType: string): number {
   return scores[factType] ?? 0.5;
 }
 
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────
 
 export const getFact = query({
@@ -266,10 +271,12 @@ export const storeFact = mutation({
     // 2. Quick importance estimate based on factType
     const factType = args.factType ?? "observation";
     const importanceScore = estimateImportance(factType);
+    const tokenEstimate = estimateTokens(args.content);
 
     // 3. Insert fact
     const factId = await ctx.db.insert("facts", {
       content: args.content,
+      tokenEstimate,
       source: args.source ?? "direct",
       entityIds: args.entityIds ?? [],
       tags: args.tags ?? [],
@@ -302,6 +309,8 @@ export const storeFact = mutation({
       agentId: args.createdBy,
       payload: { factType },
     });
+    // 7. Mark vault index dirty so the next cron tick triggers a rebuild
+    await ctx.scheduler.runAfter(0, internal.crons.regenerateIndices.markVaultIndexDirty, {});
 
     return { factId, importanceScore };
   },
@@ -345,6 +354,7 @@ export const applyVaultEdit = mutation({
       if (fact) {
         await ctx.db.patch(args.factId, {
           content: args.content,
+          tokenEstimate: estimateTokens(args.content),
           tags: args.tags ?? fact.tags,
           entityIds: args.entityIds ?? fact.entityIds,
           vaultPath: args.vaultPath,
@@ -357,6 +367,7 @@ export const applyVaultEdit = mutation({
 
     const factId = await ctx.db.insert("facts", {
       content: args.content,
+      tokenEstimate: estimateTokens(args.content),
       source: "import",
       entityIds: args.entityIds ?? [],
       tags: args.tags ?? [],
@@ -428,6 +439,7 @@ export const storeFactInternal = internalMutation({
     const importanceScore = estimateImportance(args.factType);
     const factId = await ctx.db.insert("facts", {
       content: args.content,
+      tokenEstimate: estimateTokens(args.content),
       source: args.source,
       entityIds: [],
       tags: args.tags ?? [],
@@ -444,6 +456,8 @@ export const storeFactInternal = internalMutation({
     });
     // Schedule async enrichment
     await ctx.scheduler.runAfter(0, internal.actions.enrich.enrichFact, { factId });
+    // Mark vault index dirty for auto-rebuild
+    await ctx.scheduler.runAfter(0, internal.crons.regenerateIndices.markVaultIndexDirty, {});
     return { factId, importanceScore };
   },
 });
@@ -483,12 +497,23 @@ export const updateEnrichment = internalMutation({
 
     // Build patch with only provided fields
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
-    if (fields.embedding !== undefined) patch.embedding = fields.embedding;
+    if (fields.embedding !== undefined) {
+      await ctx.runMutation((internal as any).functions.subspaces.integrateNewFact, {
+        factId,
+        embedding: fields.embedding,
+      });
+    }
     if (fields.factualSummary !== undefined) patch.factualSummary = fields.factualSummary;
     if (fields.entityIds !== undefined) patch.entityIds = fields.entityIds;
     if (fields.importanceScore !== undefined) patch.importanceScore = fields.importanceScore;
 
-    await ctx.db.patch(factId, patch);
+    if (
+      fields.factualSummary !== undefined ||
+      fields.entityIds !== undefined ||
+      fields.importanceScore !== undefined
+    ) {
+      await ctx.db.patch(factId, patch);
+    }
   },
 });
 
@@ -577,6 +602,7 @@ export const updateObservationFields = internalMutation({
     if (fields.importanceTier !== undefined) patch.importanceTier = fields.importanceTier;
     if (fields.confidence !== undefined) patch.confidence = fields.confidence;
     if (fields.content !== undefined) patch.content = fields.content;
+    if (fields.content !== undefined) patch.tokenEstimate = estimateTokens(fields.content);
     await ctx.db.patch(factId, patch);
   },
 });
@@ -637,6 +663,7 @@ export const updateFact = mutation({
     if (!fact) throw new Error(`Fact not found: ${factId}`);
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
     if (content !== undefined) patch.content = content;
+    if (content !== undefined) patch.tokenEstimate = estimateTokens(content);
     if (tags !== undefined) patch.tags = tags;
     if (factType !== undefined) patch.factType = factType;
     await ctx.db.patch(factId, patch);

@@ -54,6 +54,7 @@ export async function recordRecallResult(args: { recallId: string; factIds: stri
 
 export async function recordRecallUsage(args: {
   recallId: string;
+  agentId?: string;
   usedFactIds: string[];
   unusedFactIds?: string[];
 }) {

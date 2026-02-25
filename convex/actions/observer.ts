@@ -281,6 +281,20 @@ export const runObserver = internalAction({
       lastObserverFingerprint: fingerprint,
     });
 
+    const observationTimestamps = observations.map((obs) => obs.timestamp);
+    await ctx.runMutation(internal.functions.episodes.createFromObservationSession, {
+      scopeId,
+      agentId,
+      source: "observer",
+      generation,
+      factIds: [...observations.map((obs) => obs._id), summaryFactId.factId],
+      startTime: Math.min(...observationTimestamps),
+      endTime: Math.max(...observationTimestamps),
+      summary: summaryContent,
+      tags: ["auto-created"],
+      importanceScore: 0.6,
+    });
+
     return {
       skipped: false,
       inputObservations: observations.length,

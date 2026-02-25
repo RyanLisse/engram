@@ -5,7 +5,11 @@
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 import { PATHS } from "../lib/convex-paths.js";
-import { consolidateEmbeddings } from "../lib/svd-consolidation.js";
+import {
+  compactCosineSimilarity,
+  consolidateEmbeddings,
+  projectToCompact,
+} from "../lib/svd-consolidation.js";
 
 // ── Schemas ───────────────────────────────────────────────
 
@@ -68,6 +72,12 @@ export async function createSubspace(
     // Run SVD consolidation
     const embeddings = withEmbeddings.map((f: any) => f.embedding);
     const result = consolidateEmbeddings(embeddings, input.k ?? 3);
+    const compactEmbeddingsByFactId = Object.fromEntries(
+      withEmbeddings.map((fact: any) => [
+        fact._id,
+        projectToCompact(fact.embedding, result.centroid, result.components),
+      ]),
+    );
 
     // Create the subspace with computed centroid
     const { subspaceId } = await convex.mutate(PATHS.subspaces.createSubspace, {
@@ -79,12 +89,18 @@ export async function createSubspace(
       centroid: result.centroid,
       dimensionality: result.centroid.length,
       variance: result.varianceExplained,
+      components: result.components,
+      singularValues: result.singularValues,
+      componentVariances: result.componentVariances,
+      singularValueRatio: result.singularValueRatio,
+      compactEmbeddingsByFactId,
     });
 
     return {
       subspaceId,
       factCount: withEmbeddings.length,
       varianceExplained: result.varianceExplained,
+      singularValueRatio: result.singularValueRatio,
       componentCount: result.components.length,
       componentVariances: result.componentVariances,
     };
@@ -104,8 +120,16 @@ export async function getSubspace(
     if (!subspace) return { isError: true, message: `Subspace not found: ${input.subspaceId}` };
     return {
       ...subspace,
-      // Don't return the full centroid vector to save tokens
+      // Don't return the full centroid vector or principal vectors to save tokens
       centroid: subspace.centroid ? `[${subspace.centroid.length}-dim vector]` : null,
+      principalVectors: subspace.principalVectors
+        ? `[${subspace.principalVectors.length} components × ${subspace.principalVectors[0]?.length ?? 0}-dim]`
+        : null,
+      // Surface explained variance metrics explicitly
+      varianceExplained: subspace.variance,
+      singularValueRatio: subspace.singularValueRatio ?? null,
+      componentVariances: subspace.componentVariances ?? null,
+      singularValues: subspace.singularValues ?? null,
     };
   } catch (error: any) {
     return { isError: true, message: error.message ?? String(error) };
@@ -135,7 +159,9 @@ export async function listSubspaces(
       name: s.name,
       description: s.description,
       factCount: s.factIds?.length ?? 0,
-      variance: s.variance,
+      varianceExplained: s.variance,
+      singularValueRatio: s.singularValueRatio ?? null,
+      componentCount: s.singularValues?.length ?? s.principalVectors?.length ?? s.k ?? null,
       dimensionality: s.dimensionality,
       updatedAt: s.updatedAt,
     }));
@@ -168,6 +194,19 @@ export async function consolidateEmbeddingsTool(
     // Run SVD
     const embeddings = withEmbeddings.map((f: any) => f.embedding);
     const result = consolidateEmbeddings(embeddings, input.k ?? 3);
+    const compactEmbeddingsByFactId = Object.fromEntries(
+      withEmbeddings.map((fact: any) => [
+        fact._id,
+        projectToCompact(fact.embedding, result.centroid, result.components),
+      ]),
+    );
+
+    for (const fact of withEmbeddings) {
+      await convex.mutate(PATHS.facts.updateFact, {
+        factId: fact._id,
+        compactEmbedding: compactEmbeddingsByFactId[fact._id],
+      });
+    }
 
     // Update the subspace
     await convex.mutate(PATHS.subspaces.updateSubspace, {
@@ -176,13 +215,21 @@ export async function consolidateEmbeddingsTool(
       dimensionality: result.centroid.length,
       variance: result.varianceExplained,
       factIds: withEmbeddings.map((f: any) => f._id),
+      components: result.components,
+      singularValues: result.singularValues,
+      componentVariances: result.componentVariances,
+      singularValueRatio: result.singularValueRatio,
+      compactEmbeddingsByFactId,
     });
 
     return {
       subspaceId: input.subspaceId,
       factCount: withEmbeddings.length,
+      compactEmbeddingsUpdated: withEmbeddings.length,
       varianceExplained: result.varianceExplained,
+      singularValueRatio: result.singularValueRatio,
       componentCount: result.components.length,
+      componentVariances: result.componentVariances,
       totalVariance: result.totalVariance,
     };
   } catch (error: any) {
@@ -223,14 +270,34 @@ export async function querySubspace(
     const scored = subspaces
       .filter((s: any) => s.centroid?.length > 0)
       .map((s: any) => ({
+        _score: (() => {
+          const centroidSimilarity = cosineSimilarity(queryEmbedding, s.centroid);
+          if (!s.components?.length || !s.compactEmbeddingsByFactId) return centroidSimilarity;
+          const queryCompact = projectToCompact(queryEmbedding, s.centroid, s.components);
+          const compactSimilarities = Object.values(s.compactEmbeddingsByFactId)
+            .filter((coeffs): coeffs is number[] => Array.isArray(coeffs))
+            .map((coeffs) => compactCosineSimilarity(queryCompact, coeffs, s.componentVariances));
+          const compactSimilarity =
+            compactSimilarities.length > 0 ? Math.max(...compactSimilarities) : centroidSimilarity;
+          return compactSimilarity;
+        })(),
         _id: s._id,
         name: s.name,
         description: s.description,
         factCount: s.factIds?.length ?? 0,
-        variance: s.variance,
+        varianceExplained: s.variance,
+        singularValueRatio: s.singularValueRatio ?? null,
         similarity: cosineSimilarity(queryEmbedding, s.centroid),
+        compactSimilarity: (() => {
+          if (!s.components?.length || !s.compactEmbeddingsByFactId) return null;
+          const queryCompact = projectToCompact(queryEmbedding, s.centroid, s.components);
+          const compactSimilarities = Object.values(s.compactEmbeddingsByFactId)
+            .filter((coeffs): coeffs is number[] => Array.isArray(coeffs))
+            .map((coeffs) => compactCosineSimilarity(queryCompact, coeffs, s.componentVariances));
+          return compactSimilarities.length > 0 ? Math.max(...compactSimilarities) : null;
+        })(),
       }))
-      .sort((a: any, b: any) => b.similarity - a.similarity)
+      .sort((a: any, b: any) => b._score - a._score)
       .slice(0, input.limit ?? 5);
 
     return { results: scored, queryEmbeddingDim: queryEmbedding.length };

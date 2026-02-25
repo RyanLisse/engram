@@ -60,3 +60,44 @@ export async function vectorSearchEpisodes(args: {
 }) {
   return await action(PATHS.actions.vectorSearchEpisodes, args);
 }
+
+export async function recallEpisodes(args: {
+  query?: string;
+  scopeId?: string;
+  agentId?: string;
+  startAfter?: number;
+  startBefore?: number;
+  limit?: number;
+}) {
+  if (!args.query) {
+    const episodes = await listEpisodes({
+      scopeId: args.scopeId,
+      agentId: args.agentId,
+      startAfter: args.startAfter,
+      startBefore: args.startBefore,
+      limit: args.limit,
+    });
+    return { episodes, strategy: "temporal" as const };
+  }
+
+  try {
+    const vector = await vectorSearchEpisodes({
+      query: args.query,
+      scopeId: args.scopeId,
+      agentId: args.agentId,
+      limit: args.limit,
+    });
+    if (Array.isArray(vector) && vector.length > 0) {
+      return { episodes: vector, strategy: "vector" as const };
+    }
+  } catch {
+    // Fall through to text search.
+  }
+
+  const text = await searchEpisodes({
+    query: args.query,
+    scopeId: args.scopeId,
+    limit: args.limit,
+  });
+  return { episodes: text, strategy: "text" as const };
+}

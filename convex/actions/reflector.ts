@@ -202,6 +202,20 @@ export const runReflector = internalAction({
       lastReflectorRun: Date.now(),
     });
 
+    const summaryTimestamps = summaries.map((summary) => summary.timestamp);
+    await ctx.runMutation(internal.functions.episodes.createFromObservationSession, {
+      scopeId,
+      agentId,
+      source: "reflector",
+      generation,
+      factIds: [...summaries.map((summary) => summary._id), digestFactId.factId],
+      startTime: Math.min(...summaryTimestamps),
+      endTime: Math.max(...summaryTimestamps),
+      summary: result.content,
+      tags: ["auto-created"],
+      importanceScore: 0.7,
+    });
+
     return {
       skipped: false,
       inputSummaries: summaries.length,

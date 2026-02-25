@@ -35,6 +35,14 @@ export const searchEpisodesSchema = z.object({
   limit: z.number().optional().describe("Maximum results (default 10)"),
 });
 
+export const recallEpisodesSchema = z.object({
+  query: z.string().optional().describe("Semantic query for episode recall"),
+  scopeId: z.string().optional().describe("Scope to search within"),
+  startAfter: z.number().optional().describe("Return episodes with startTime >= this timestamp (ms)"),
+  startBefore: z.number().optional().describe("Return episodes with startTime < this timestamp (ms)"),
+  limit: z.number().optional().describe("Maximum results (default 10)"),
+});
+
 export const linkFactsToEpisodeSchema = z.object({
   episodeId: z.string().describe("Episode ID to add facts to"),
   factIds: z.array(z.string()).describe("Fact IDs to link to this episode"),
@@ -90,36 +98,55 @@ export async function searchEpisodes(
   input: z.infer<typeof searchEpisodesSchema>,
   agentId: string
 ) {
-  // Try vector search first (via action), fall back to text search
+  return await recallEpisodes(
+    {
+      query: input.query,
+      scopeId: input.scopeId,
+      limit: input.limit,
+    },
+    agentId,
+  );
+}
+
+function applyTemporalFilters(
+  episodes: Array<{ startTime?: number }>,
+  startAfter?: number,
+  startBefore?: number,
+) {
+  return episodes.filter((episode) => {
+    const startTime = episode.startTime;
+    if (typeof startTime !== "number") return true;
+    if (startAfter !== undefined && startTime < startAfter) return false;
+    if (startBefore !== undefined && startTime >= startBefore) return false;
+    return true;
+  });
+}
+
+export async function recallEpisodes(
+  input: z.infer<typeof recallEpisodesSchema>,
+  agentId: string,
+) {
   let scopeId = input.scopeId;
   if (scopeId && !scopeId.startsWith("j")) {
     const scope = await convex.getScopeByName(scopeId);
     if (scope) scopeId = scope._id;
   }
 
-  try {
-    const results = await convex.vectorSearchEpisodes({
-      query: input.query,
-      scopeId,
-      agentId,
-      limit: input.limit,
-    });
-    if (results && Array.isArray(results) && results.length > 0) {
-      return { episodes: results, count: results.length, strategy: "vector" };
-    }
-  } catch {
-    // Vector search unavailable — fall through to text search
-  }
-
-  // Fallback: text search via query
-  const results = await convex.searchEpisodes({
+  const recallResult = await convex.recallEpisodes({
     query: input.query,
     scopeId: scopeId as any,
+    agentId,
+    startAfter: input.startAfter,
+    startBefore: input.startBefore,
     limit: input.limit,
   });
 
-  const episodes = Array.isArray(results) ? results : [];
-  return { episodes, count: episodes.length, strategy: "text" };
+  const episodes = applyTemporalFilters(
+    Array.isArray(recallResult.episodes) ? recallResult.episodes : [],
+    input.startAfter,
+    input.startBefore,
+  );
+  return { episodes, count: episodes.length, strategy: recallResult.strategy };
 }
 
 export async function linkFactsToEpisode(

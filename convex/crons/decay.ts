@@ -30,12 +30,17 @@ export const runDecay = internalMutation({
       let newRelevance = fact.relevanceScore * rate;
 
       // Emotional weight resists decay
+      let emotionalResistance = 1;
       if (fact.emotionalWeight) {
-        newRelevance *= 1 + fact.emotionalWeight * 0.5;
+        emotionalResistance += fact.emotionalWeight * 0.5;
+      } else if (fact.emotionalContext) {
+        // Lightweight fallback when context exists but enrichment has not assigned weight yet.
+        emotionalResistance += 0.1;
       }
+      newRelevance *= emotionalResistance;
 
       // Floor at 0.01
-      newRelevance = Math.max(newRelevance, 0.01);
+      newRelevance = Math.min(Math.max(newRelevance, 0.01), 2.0);
 
       if (Math.abs(newRelevance - fact.relevanceScore) > 0.001) {
         await ctx.db.patch(fact._id, {

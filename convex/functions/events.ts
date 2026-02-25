@@ -1,8 +1,30 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, query } from "../_generated/server";
+import { mutation, internalMutation, internalQuery, query } from "../_generated/server";
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 
 export const emit = internalMutation({
+  args: {
+    eventType: v.string(),
+    factId: v.optional(v.id("facts")),
+    scopeId: v.optional(v.id("memory_scopes")),
+    agentId: v.optional(v.string()),
+    payload: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
+  },
+  handler: async (ctx, args) => {
+    const watermark = await getNextWatermark(ctx);
+    return await ctx.db.insert("memory_events", {
+      eventType: args.eventType,
+      factId: args.factId,
+      scopeId: args.scopeId,
+      agentId: args.agentId,
+      payload: args.payload,
+      watermark,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const logEvent = mutation({
   args: {
     eventType: v.string(),
     factId: v.optional(v.id("facts")),

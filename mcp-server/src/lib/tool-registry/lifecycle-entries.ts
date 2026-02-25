@@ -18,6 +18,7 @@ import {
   getSystemPrompt, getSystemPromptSchema,
   updateFact, updateFactSchema,
 } from "../../tools/admin-primitives.js";
+import { forget, forgetSchema } from "../../tools/forget.js";
 
 import {
   listStaleFacts, listStaleFactsSchema,
@@ -44,6 +45,24 @@ export const entries: readonly ToolEntry[] = [
     },
     zodSchema: archiveFactSchema,
     handler: (args) => archiveFact(args),
+  },
+  {
+    tool: {
+      name: "memory_forget",
+      description: "Intentionally forget facts by ID or query match (soft-archive + event log).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          factId: { type: "string", description: "Fact ID to forget (direct)" },
+          query: { type: "string", description: "Find and forget facts matching this query" },
+          reason: { type: "string", description: "Why this fact should be forgotten" },
+          limit: { type: "number", description: "Max facts to forget when using query (default: 1, max: 10)" },
+        },
+        required: ["reason"],
+      },
+    },
+    zodSchema: forgetSchema,
+    handler: (args, agentId) => forget(args, agentId),
   },
   {
     tool: {
