@@ -24,6 +24,9 @@ import { entries as vaultEntries } from "./vault-entries.js";
 import { entries as eventsEntries } from "./events-entries.js";
 import { entries as contextEntries } from "./context-entries.js";
 import { entries as discoveryEntries, makeListCapabilitiesEntry } from "./discovery-entries.js";
+import { entries as episodesEntries } from "./episodes-entries.js";
+import { entries as kvEntries } from "./kv-entries.js";
+import { entries as subspaceEntries } from "./subspace-entries.js";
 
 // ── Dispatch ─────────────────────────────────────────
 import { routeToolCall as _routeToolCall } from "./dispatch.js";
@@ -37,6 +40,9 @@ const _baseEntries: ToolEntry[] = [
   ...lifecycleEntries,
   ...retrievalEntries,
   ...contextEntries,
+  ...episodesEntries,
+  ...kvEntries,
+  ...subspaceEntries,
   ...discoveryEntries,
 ];
 

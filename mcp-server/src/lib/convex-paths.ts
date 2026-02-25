@@ -121,6 +121,33 @@ export const PATHS = {
     getSyncStatus: "functions/sync:getSyncStatus",
   },
 
+  // KV Store
+  kvStore: {
+    kvSet: "functions/kv-store:kvSet",
+    kvGet: "functions/kv-store:kvGet",
+    kvDelete: "functions/kv-store:kvDelete",
+    kvList: "functions/kv-store:kvList",
+  },
+
+  // Episodes
+  episodes: {
+    createEpisode: "functions/episodes:createEpisode",
+    getEpisode: "functions/episodes:getEpisode",
+    listEpisodes: "functions/episodes:listEpisodes",
+    searchEpisodes: "functions/episodes:searchEpisodes",
+    updateEpisode: "functions/episodes:updateEpisode",
+  },
+
+  // Subspaces
+  subspaces: {
+    createSubspace: "functions/subspaces:createSubspace",
+    getSubspace: "functions/subspaces:getSubspace",
+    listSubspaces: "functions/subspaces:listSubspaces",
+    getByName: "functions/subspaces:getByName",
+    updateSubspace: "functions/subspaces:updateSubspace",
+    deleteSubspace: "functions/subspaces:deleteSubspace",
+  },
+
   // Actions
   actions: {
     vectorRecallAction: "actions/vectorSearch:vectorRecallAction",
@@ -132,5 +159,6 @@ export const PATHS = {
     mirrorToVault: "actions/mirrorToVault:mirrorToVault",
     observer: "actions/observer:runObserverPublic",
     reflector: "actions/reflector:runReflectorPublic",
+    vectorSearchEpisodes: "actions/vectorSearchEpisodes:vectorSearchEpisodes",
   },
 } as const;
