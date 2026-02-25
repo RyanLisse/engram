@@ -33,7 +33,7 @@ node mcp-server/dist/index.js
 
 ## Add Engram to your agent (easy guide)
 
-Use Engram from **Claude Code** or **OpenClaw** in a few steps.
+Use Engram from **Claude Code**, **OpenClaw**, or **OpenCode** in a few steps.
 
 ### 1. Build the MCP server (once)
 
@@ -73,11 +73,19 @@ cp plugins/claude-code/.mcp.json ~/.claude/settings.json
 
 **OpenClaw** — Add the same `engram` block to your OpenClaw MCP config (same `command`, `args`, `env`). Use your actual path in `args`.
 
+**OpenCode** — Run:
+
+```bash
+./plugins/opencode/setup.sh
+```
+
+This builds the MCP server, installs `.opencode/plugins/engram-memory.ts`, and prints `opencode.json` / `.mcp.json` snippets.
+
 ### 3. Restart and verify
 
-Restart Claude Code or OpenClaw, then call `memory_health`. You should see something like `{ "ok": true }`.
+Restart your editor (Claude/OpenClaw/OpenCode), then call `memory_health`. You should see something like `{ "ok": true }`.
 
-**Detailed setup:** [Claude Code](docs/setup/CLAUDE-CODE-SETUP.md) · [OpenClaw](docs/setup/OPENCLAW-SETUP.md) · [Editor integrations](docs/EDITOR-INTEGRATIONS.md)
+**Detailed setup:** [Claude Code](docs/setup/CLAUDE-CODE-SETUP.md) · [OpenClaw](docs/setup/OPENCLAW-SETUP.md) · [OpenCode](plugins/opencode/README.md) · [Editor integrations](docs/EDITOR-INTEGRATIONS.md)
 
 ---
 
@@ -136,6 +144,7 @@ See **Add Engram to your agent (easy guide)** above for short setup. Full detail
 |--------|-------|----------|
 | **Claude Code** | Add `engram` to `.mcp.json` (see easy guide) or `cp plugins/claude-code/.mcp.json ~/.claude/settings.json` | 8 lifecycle hooks, auto-recall, session checkpoints |
 | **OpenClaw** | Same MCP block in OpenClaw MCP config (see easy guide) | 73 tools; optional native plugin |
+| **OpenCode** | `./plugins/opencode/setup.sh` | MCP setup + lifecycle bridge plugin (`.opencode/plugins/engram-memory.ts`) |
 | **Windsurf** | `./plugins/windsurf/setup.sh` | Full MCP access, real-time events |
 | **Any MCP Client** | Same `command` / `args` / `env` as above | Standard MCP protocol |
 

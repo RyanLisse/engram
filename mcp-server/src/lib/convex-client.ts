@@ -11,5 +11,6 @@ export * from "./convex-client/entities.js";
 export * from "./convex-client/agents-scopes.js";
 export * from "./convex-client/signals-config.js";
 export * from "./convex-client/kv-store.js";
+export * from "./convex-client/memory-blocks.js";
 export * from "./convex-client/episodes.js";
 export * from "./convex-client/events.js";

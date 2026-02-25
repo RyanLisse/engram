@@ -494,4 +494,35 @@ export default defineSchema({
   })
     .index("by_agent_scope", ["agentId", "scopeId"])
     .index("by_subspace", ["subspaceId"]),
+
+  // ─── memory_blocks ─────────────────────────────────────────
+  // Letta-style named blocks with character limits. Injected into system prompt.
+  // Phase 7: character limits and versioning.
+  memory_blocks: defineTable({
+    label: v.string(), // "persona"|"human"|"project_status"|…
+    value: v.string(), // current content
+    characterLimit: v.number(), // max chars (e.g. 2000)
+    scopeId: v.id("memory_scopes"),
+    createdBy: v.string(), // agent ID
+    version: v.number(), // increments on each update (optimistic concurrency)
+    shared: v.optional(v.boolean()), // if true, multiple agents can attach
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_scope_label", ["scopeId", "label"])
+    .index("by_scope", ["scopeId"])
+    .index("by_agent", ["createdBy", "updatedAt"]),
+
+  // ─── block_versions ───────────────────────────────────────
+  // Version history for memory_blocks (append/replace audit trail).
+  block_versions: defineTable({
+    blockId: v.id("memory_blocks"),
+    previousValue: v.string(),
+    changeType: v.string(), // "append"|"replace"|"create"
+    changedBy: v.string(),
+    reason: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_block", ["blockId", "createdAt"])
+    .index("by_agent", ["changedBy", "createdAt"]),
 });

@@ -7,6 +7,7 @@ Engram provides first-class integration with multiple AI code editors through th
 | Editor | Status | Setup Time | Features | Documentation |
 |--------|--------|------------|----------|---------------|
 | **Claude Code** | ✅ Production | 2 min | Full automation with 8 lifecycle hooks | Built-in |
+| **OpenCode** | ✅ Production | 2 min | MCP + lifecycle bridge plugin | [plugins/opencode/README.md](../plugins/opencode/README.md) |
 | **Windsurf** | ✅ Production | 2 min | Full MCP server access (69 tools) | [plugins/windsurf/README.md](../plugins/windsurf/README.md) |
 | **OpenClaw** | ✅ Production | 1 min | Native integration via tool registry | [skill/README.md](../skill/README.md) |
 | **Cursor** | 🚧 Coming Soon | - | MCP server compatible | - |
@@ -91,6 +92,21 @@ cd skill && ./install.sh
 
 **Documentation:** [skill/README.md](../skill/README.md)
 
+### OpenCode
+
+**Automated Setup:**
+```bash
+./plugins/opencode/setup.sh
+```
+
+**Features:**
+- MCP registration attempt + fallback snippets
+- Lifecycle bridge plugin installed to `.opencode/plugins/engram-memory.ts`
+- Session/turn mapping into existing Engram automation scripts
+- Fail-safe non-blocking hook routing
+
+**Documentation:** [plugins/opencode/README.md](../plugins/opencode/README.md)
+
 ### Any MCP-Compatible Editor
 
 **Generic Configuration:**
@@ -135,19 +151,19 @@ All integrations require these environment variables:
 
 ## Feature Comparison
 
-| Feature | Claude Code | Windsurf | OpenClaw | Generic MCP |
-|---------|-------------|----------|----------|-------------|
-| Memory store/recall | ✅ | ✅ | ✅ | ✅ |
-| Semantic search | ✅ | ✅ | ✅ | ✅ |
-| Entity graphs | ✅ | ✅ | ✅ | ✅ |
-| Real-time events | ✅ | ✅ | ✅ | ✅ |
-| Lifecycle hooks | ✅ 8 hooks | ❌ | ✅ Native | ❌ |
-| Auto-recall | ✅ | ❌ Manual | ✅ | ❌ |
-| Session checkpoints | ✅ | ✅ | ✅ | ✅ |
-| Desktop notifications | ✅ | ❌ | ✅ | ❌ |
-| Passive observation | ✅ Auto | ✅ Manual | ✅ Auto | ✅ Manual |
-| Tool count | 69 | 69 | 69 | 69 |
-| Setup time | 2 min | 2 min | 1 min | 5 min |
+| Feature | Claude Code | OpenCode | Windsurf | OpenClaw | Generic MCP |
+|---------|-------------|----------|----------|----------|-------------|
+| Memory store/recall | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Semantic search | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Entity graphs | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Real-time events | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Lifecycle hooks | ✅ 8 hooks | ✅ Bridge | ❌ | ✅ Native | ❌ |
+| Auto-recall | ✅ | ✅ (turn-start) | ❌ Manual | ✅ | ❌ |
+| Session checkpoints | ✅ | ✅ (turn/session bridge) | ✅ | ✅ | ✅ |
+| Desktop notifications | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Passive observation | ✅ Auto | ✅ via bridge | ✅ Manual | ✅ Auto | ✅ Manual |
+| Tool count | 69 | 69 | 69 | 69 | 69 |
+| Setup time | 2 min | 2 min | 2 min | 1 min | 5 min |
 
 ## Architecture Differences
 
@@ -168,6 +184,12 @@ All integrations require these environment variables:
 - **Automation:** Built into agent runtime
 - **Performance:** <10ms (no transport overhead)
 - **Best For:** OpenClaw users building custom agents
+
+### OpenCode (Bridge Integration)
+- **Mechanism:** OpenCode plugin events routed through `plugins/opencode/hooks/router.sh`
+- **Automation:** Session + turn lifecycle mapped to existing Engram scripts
+- **Performance:** Async by default; sync for shutdown-sensitive events
+- **Best For:** OpenCode users wanting automation parity without duplicating logic
 
 ## Troubleshooting
 

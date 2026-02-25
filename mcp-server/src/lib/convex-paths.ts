@@ -136,6 +136,15 @@ export const PATHS = {
     kvList: "functions/kv-store:kvList",
   },
 
+  // Memory Blocks (Phase 7)
+  memoryBlocks: {
+    blockCreate: "functions/memoryBlocks:blockCreate",
+    blockGet: "functions/memoryBlocks:blockGet",
+    blockListByScope: "functions/memoryBlocks:blockListByScope",
+    blockWrite: "functions/memoryBlocks:blockWrite",
+    blockGetVersions: "functions/memoryBlocks:blockGetVersions",
+  },
+
   // Episodes
   episodes: {
     createEpisode: "functions/episodes:createEpisode",

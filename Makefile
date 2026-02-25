@@ -3,18 +3,20 @@ SHELL := /bin/bash
 
 CLAUDE_DEST ?= .claude
 OPENCLAW_PLUGIN_DIR ?= plugins/openclaw
+OPENCODE_PLUGIN_DIR ?= plugins/opencode
 OPENCLAW_HOOK_NAME ?= openclaw-plugin
 OPENCLAW_HOOKS_HOME ?= $(HOME)/.openclaw/hooks
 FORCE ?= 0
 CLAUDE_HOOK_SOURCE := plugins/claude-code/hooks
 
-.PHONY: help hooks-install-claude hooks-install-openclaw hooks-install-both harness-check harness-validate harness-install-pre-commit
+.PHONY: help hooks-install-claude hooks-install-openclaw hooks-install-both opencode-setup harness-check harness-validate harness-install-pre-commit
 
 help:
 	@echo "Targets:"
 	@echo "  make hooks-install-claude [CLAUDE_DEST=/path/to/.claude]"
 	@echo "  make hooks-install-openclaw [OPENCLAW_PLUGIN_DIR=plugins/openclaw] [FORCE=1]"
 	@echo "  make hooks-install-both [CLAUDE_DEST=...] [OPENCLAW_PLUGIN_DIR=...]"
+	@echo "  make opencode-setup [OPENCODE_PLUGIN_DIR=plugins/opencode]"
 	@echo "  make harness-validate       - Run golden principles validation"
 	@echo "  make harness-install-pre-commit - Install pre-commit hook for validation"
 
@@ -38,6 +40,9 @@ hooks-install-openclaw:
 
 hooks-install-both: hooks-install-claude hooks-install-openclaw
 	@echo "Installed both Claude and OpenClaw hooks"
+
+opencode-setup:
+	@bash "$(OPENCODE_PLUGIN_DIR)/setup.sh"
 
 harness-check:
 	@test -f AGENTS.md || { echo "Missing AGENTS.md"; exit 1; }

@@ -24,7 +24,7 @@ export function makeListCapabilitiesEntry(
       inputSchema: {
         type: "object",
         properties: {
-          category: { type: "string", description: "Filter by category (core, lifecycle, signals, agent, events, config, retrieval, delete, observation, composition, vault, health, context, discovery)" },
+          category: { type: "string", description: "Filter by category (core, lifecycle, signals, agent, events, config, retrieval, delete, observation, composition, vault, health, context, blocks, discovery)" },
           format: { type: "string", enum: ["list", "table", "json"], description: "Output format (default: list)" },
         },
       },
@@ -48,6 +48,7 @@ export function makeListCapabilitiesEntry(
         composition: ["memory_summarize", "memory_prune", "memory_create_theme", "memory_query_raw"],
         context: ["memory_resolve_scopes", "memory_load_budgeted_facts", "memory_search_daily_notes", "memory_get_graph_neighbors", "memory_get_activity_stats", "memory_get_workspace_info", "memory_build_system_prompt"],
         vault: ["memory_vault_sync", "memory_vault_export", "memory_vault_import", "memory_vault_list_files", "memory_vault_reconcile", "memory_query_vault", "memory_export_graph", "memory_checkpoint", "memory_wake"],
+        blocks: ["memory_block_read", "memory_block_write"],
         health: ["memory_health"],
         discovery: ["memory_list_capabilities"],
       };

@@ -26,6 +26,7 @@ import { entries as contextEntries } from "./context-entries.js";
 import { entries as discoveryEntries, makeListCapabilitiesEntry } from "./discovery-entries.js";
 import { entries as episodesEntries } from "./episodes-entries.js";
 import { entries as kvEntries } from "./kv-entries.js";
+import { entries as blockEntries } from "./block-entries.js";
 import { entries as subspaceEntries } from "./subspace-entries.js";
 
 // ── Dispatch ─────────────────────────────────────────
@@ -42,6 +43,7 @@ const _baseEntries: ToolEntry[] = [
   ...contextEntries,
   ...episodesEntries,
   ...kvEntries,
+  ...blockEntries,
   ...subspaceEntries,
   ...discoveryEntries,
 ];

@@ -11,5 +11,6 @@ export * from "./entities.js";
 export * from "./agents-scopes.js";
 export * from "./signals-config.js";
 export * from "./kv-store.js";
+export * from "./memory-blocks.js";
 export * from "./episodes.js";
 export * from "./events.js";
