@@ -66,7 +66,15 @@ export async function getManifest(
       if (!scope) {
         return { isError: true, message: `Scope "${resolvedScopeId}" not found` };
       }
-      resolvedScopeId = scope._id;
+      const scopeIdResolved = scope._id;
+      if (!scopeIdResolved) {
+        return { isError: true, message: "Scope ID missing after resolve" };
+      }
+      resolvedScopeId = scopeIdResolved;
+    }
+
+    if (!resolvedScopeId) {
+      return { isError: true, message: "No scope resolved for manifest" };
     }
 
     // ── 2. Fetch pinned facts using the by_pinned_scope index ─────

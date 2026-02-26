@@ -1,0 +1,156 @@
+╔════════════════════════════════════════════════════════════════════════════════════════╗
+║             AGENT-NATIVE ARCHITECTURE: ACTION PARITY ANALYSIS                          ║
+║         Complete Remaining Letta Context Repository Beads Review                       ║
+║                           2026-02-25                                                   ║
+╚════════════════════════════════════════════════════════════════════════════════════════╝
+
+BEAD: engram-7eb (Dashboard Version Timeline)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  OPERATION                      USER PATH              AGENT PATH                PARITY
+  ─────────────────────────────────────────────────────────────────────────────────────
+  View fact history              Dashboard Panel        memory_history tool       ✅ PASS
+  Rollback fact                  Dashboard Button       memory_rollback tool      ✅ PASS
+  Export to PDF                  Dashboard Menu         (Future: dashboard only)  ⚠️ UX LAYER
+
+
+BEAD: engram-uw7 (Vault Export)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  OPERATION                      USER PATH              AGENT PATH                PARITY
+  ─────────────────────────────────────────────────────────────────────────────────────
+  Export facts to vault          Daemon (implicit)      memory_vault_export tool  ✅ PASS
+  Write YAML frontmatter         Daemon (implicit)      Via vault-format.ts       ✅ PASS
+
+
+BEAD: engram-g3o (File Watcher Sync) — CRITICAL GAPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  OPERATION                      USER PATH              AGENT PATH                PARITY
+  ─────────────────────────────────────────────────────────────────────────────────────
+  Watch for file changes         Daemon chokidar        memory_vault_reconcile    ✅ PASS
+  Reconcile on edit              Daemon (implicit)      memory_vault_reconcile    ✅ PASS
+  ───────────────────────────────────────────────────────────────────────────────
+  ❌ Is sync running?            (No UI way)            [NO TOOL]                 ❌ FAIL
+  ❌ When was last sync?         (See logs)             [NO TOOL]                 ❌ FAIL
+  ❌ How many facts pending?     (No visibility)        [NO TOOL]                 ❌ FAIL
+  ❌ Pause/resume sync           (Config only)          [NO TOOL]                 ❌ FAIL
+  ❌ Trigger sync manually       (No direct way)        [NO TOOL]                 ❌ FAIL
+
+
+BEAD: engram-1vt (Git Auto-Commit) — CRITICAL GAPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  OPERATION                      USER PATH              AGENT PATH                PARITY
+  ─────────────────────────────────────────────────────────────────────────────────────
+  Initialize git repo            Daemon (implicit)      [NO TOOL]                 ❌ FAIL
+  Commit vault changes           Daemon (implicit)      [NO TOOL]                 ❌ FAIL
+  ───────────────────────────────────────────────────────────────────────────────
+  ❌ Query git status            $ git status           [NO TOOL]                 ❌ FAIL
+  ❌ View commit history          $ git log              [NO TOOL]                 ❌ FAIL
+  ❌ Rollback to commit           $ git revert           [NO TOOL]                 ❌ FAIL
+  ❌ Get last sync commit         $ git log --grep       [NO TOOL]                 ❌ FAIL
+
+
+EXISTING VAULT TOOLS (All Agent-Native ✅)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Tool Name                      Agents Can...         Status
+  ─────────────────────────────────────────────────────────────────────────────────────
+  memory_vault_export            Export facts to vault ✅ IMPLEMENTED
+  memory_vault_import            Import vault files    ✅ IMPLEMENTED
+  memory_vault_reconcile         Reconcile edits       ✅ IMPLEMENTED
+  memory_vault_sync              Orchestrate full sync ✅ IMPLEMENTED
+  memory_vault_query             Search vault files    ✅ IMPLEMENTED
+  memory_history                 Query fact versions   ✅ IMPLEMENTED
+  memory_rollback                Restore to version    ✅ IMPLEMENTED
+
+
+MISSING VAULT TOOLS (Required for Compliance)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Tool Name                      Agents Can...         Required By
+  ─────────────────────────────────────────────────────────────────────────────────────
+  ❌ memory_vault_git_status     Query git repo state  engram-1vt
+  ❌ memory_vault_git_commit     Commit vault changes  engram-1vt
+  ❌ memory_vault_git_log        View commit history   engram-1vt
+  ❌ memory_vault_git_rollback   Revert to commit      engram-1vt
+  ❌ memory_vault_sync_status    Query daemon state    engram-g3o
+  ❌ memory_vault_sync_run       Trigger sync manually engram-g3o
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════
+COMPLIANCE SCORECARD
+═══════════════════════════════════════════════════════════════════════════════════════════
+
+  Principle                     Status    Current         With Fixes
+  ─────────────────────────────────────────────────────────────────────────
+  Action Parity                 ❌ FAIL   5/7 features   7/7 features
+  (Users & agents can do same)
+
+  Context Parity                ❌ FAIL   Agents blind   Agents see all state
+  (Agents see same data)         to daemon
+
+  Shared Workspace              ✅ PASS   Vault shared   Vault shared
+  (Work in same data space)
+
+  Primitives over Workflows     ⚠️ PARTIAL Tools are OK  Will be OK
+  (Granular tools, not jobs)
+
+  Dynamic Context Injection     ✅ PASS   Tools auto-    Tools auto-
+  (System prompt discovers)      discovered discovered
+
+
+OVERALL AGENT-NATIVE SCORE
+═══════════════════════════════════════════════════════════════════════════════════════════
+
+  Beads Completed              3/8  (37%)      Fully Agent-Native: 2 ✅
+
+  Beads With Gaps              2/8  (25%)      CRITICAL Gaps: 2 ❌
+
+  Beads Waiting (Blocked)      3/8  (38%)      Blocked on gap fixes
+
+  Overall Compliance           3/10 capabilities = 30%
+
+  Verdict                      ⚠️  BLOCKER — Plan cannot complete until gaps fixed
+
+
+KEY DEPENDENCIES
+═════════════════════════════════════════════════════════════════════════════════════════════
+
+  engram-7g0 ✅                    engram-7eb ✅               engram-uw7 ✅
+  Bootstrap E2E Tests         Dashboard Timeline         Vault Export
+  (Ready now)                 (Ready now)                (Ready now)
+       │                            │                          │
+       └────────────────────────────┴──────────────────────────┘
+                        ↓
+  engram-wxn ❌ (BLOCKED)
+  FS Mirror Tests
+  Needs: engram-1vt + engram-g3o
+       ↑                    ↑
+  engram-1vt ❌        engram-g3o ❌
+  Git Tools            Sync Tools
+  (CRITICAL)           (CRITICAL)
+
+
+TIMELINE TO COMPLIANCE
+═════════════════════════════════════════════════════════════════════════════════════════
+
+  NOW              Phase 1: Create Critical Tools        Phase 2: Complete Plan Items
+  │                (4-6 hours)                           (2-3 hours after Phase 1)
+  │
+  ├─→ Create vault-git.ts                ─→ Add vault-git tools to registry
+  │                                      ─→ Add vault-sync tools to registry
+  ├─→ Create vault-sync-status.ts        ─→ Modify vault-sync daemon
+  │
+  └─→ Register 6 new tools               ─→ Create bootstrap tests ✅
+                                         ─→ Create dashboard component ✅
+                                         ─→ Create filesystem tests ✅
+                                         │
+                                         └─→ ALL 8 BEADS COMPLETE
+                                             100% AGENT-NATIVE COMPLIANT
+
+
+═════════════════════════════════════════════════════════════════════════════════════════════
+VERDICT: IMPLEMENT PHASE 1 FIRST, THEN PHASE 2
+═════════════════════════════════════════════════════════════════════════════════════════════

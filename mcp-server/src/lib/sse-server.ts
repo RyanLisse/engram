@@ -2,10 +2,11 @@
  * SSE HTTP Server — Real-time event streaming alongside MCP stdio.
  *
  * Provides:
- *   GET /events/:agentId       — SSE stream of events for an agent
- *   POST /webhook/vault-sync   — Webhook endpoint to trigger vault export
- *   POST /webhook/event        — Webhook endpoint to inject events
- *   GET /health                — Health check
+ *   GET /events/:agentId           — SSE stream of events for an agent
+ *   GET /api/fact-history/:factId   — JSON fact version history (dashboard)
+ *   POST /webhook/vault-sync        — Webhook endpoint to trigger vault export
+ *   POST /webhook/event             — Webhook endpoint to inject events
+ *   GET /health                    — Health check
  *
  * Started optionally via ENGRAM_SSE_PORT env var.
  */
@@ -14,6 +15,7 @@ import http from "node:http";
 import { eventBus, type EngramEvent } from "./event-bus.js";
 import { subscriptionManager } from "./subscription-manager.js";
 import { VaultSyncDaemon } from "../daemons/vault-sync.js";
+import { factHistory } from "../tools/fact-history.js";
 import path from "node:path";
 
 const DEFAULT_VAULT_ROOT = process.env.VAULT_ROOT || path.resolve(process.cwd(), "..", "vault");
@@ -156,6 +158,31 @@ export function startSSEServer(port: number): http.Server {
       return;
     }
 
+    // GET /api/fact-history/:factId — JSON fact version history for dashboard
+    const factHistoryMatch = req.method === "GET" && url.pathname.match(/^\/api\/fact-history\/([^/]+)$/);
+    if (factHistoryMatch) {
+      const factId = decodeURIComponent(factHistoryMatch[1]);
+      const limit = url.searchParams.get("limit");
+      try {
+        const result = await factHistory({
+          factId,
+          limit: limit ? parseInt(limit, 10) : 20,
+        });
+        if ("isError" in result && result.isError) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: result.message }));
+          return;
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: message }));
+      }
+      return;
+    }
+
     // 404
     res.writeHead(404, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Not found" }));
@@ -163,7 +190,7 @@ export function startSSEServer(port: number): http.Server {
 
   server.listen(port, () => {
     console.error(`[sse] SSE server listening on http://localhost:${port}`);
-    console.error(`[sse] Endpoints: GET /events/:agentId, POST /webhook/vault-sync, POST /webhook/event, GET /health`);
+    console.error(`[sse] Endpoints: GET /events/:agentId, GET /api/fact-history/:factId, POST /webhook/vault-sync, POST /webhook/event, GET /health`);
   });
 
   return server;

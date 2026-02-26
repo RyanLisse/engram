@@ -108,6 +108,10 @@ export async function defrag(
       scopeId = scopeId || `private-${agentId}`;
     }
 
+    if (!scopeId) {
+      return { isError: true, message: "No scope resolved for defrag" };
+    }
+
     // Query all facts in scope (active + dormant)
     const allFacts = await convex.listFactsByScope({
       scopeId,

@@ -29,6 +29,7 @@ npm run dev    # http://localhost:3939
 - **Live Event Stream** — SSE-connected real-time event feed
 - **Agent Stats** — Facts stored, recalls, subscriptions, uptime
 - **Agent Selector** — Switch between monitored agents
+- **Version Timeline** — Per-fact version history via `GET /api/fact-history/:factId`
 - **Health Monitoring** — Watermark tracking, listener counts
 - **Dark UI** — Tailwind CSS with zinc dark theme
 

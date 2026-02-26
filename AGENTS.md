@@ -42,6 +42,17 @@ bv --robot-insights   # Graph health (cycles, bottlenecks)
 
 **NEVER run bare `bv`** — it launches interactive TUI that blocks your session.
 
+## Beads Workflow (Plan → Beads → Polish)
+
+When converting a markdown plan to beads or polishing existing beads, follow **`docs/BEADS-WORKFLOW.md`**:
+
+- **Plan → beads:** Use the conversion prompt (in that doc) with `bd` only; create tasks, subtasks, and dependencies so beads are **self-contained** and never require re-reading the plan.
+- **Polish:** Reread AGENTS.md, then check each bead; revise for clarity and completeness. Include **unit + e2e test beads** with detailed logging. Do **not** oversimplify or drop features.
+- **Quality:** Beads are ready when self-contained, dependency-clean, test-covered, and polishing yields minimal change. Use `bv --robot-insights` to confirm no cycles.
+- **Fresh session:** If polishing flatlines, start a new session: read AGENTS.md + README.md, re-understand the codebase, then review beads with `bd`/`bv` and run the polish prompt again.
+
+Full prompts, checklist, and Agent Mail conventions are in **`docs/BEADS-WORKFLOW.md`**.
+
 ## I Want To...
 
 | Goal | Tool / Path |
@@ -57,6 +68,7 @@ bv --robot-insights   # Graph health (cycles, bottlenecks)
 ## Navigation Map
 
 - **Architecture & Design** → `CLAUDE.md`
+- **Beads workflow (plan → beads, polish, quality)** → `docs/BEADS-WORKFLOW.md`
 - **Golden Principles** → `GOLDEN_PRINCIPLES.md` (mechanical rules)
 - **Full API Reference** → `docs/API-REFERENCE.md` (auto-generated)
 - **Tool Registry** → `mcp-server/src/lib/tool-registry.ts` (single source of truth)

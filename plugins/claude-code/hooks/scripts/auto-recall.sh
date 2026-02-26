@@ -26,34 +26,22 @@ fi
 ENGRAM_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 AGENT_ID="${ENGRAM_AGENT_ID:-claude-code}"
 
-# Perform lightweight recall via Node
+# Perform hybrid recall (vector + text + RRF) via Node
 RESULT=$(node -e "
   const prompt = $(echo "$PROMPT" | jq -Rs .);
   const agentId = '$AGENT_ID';
 
-  import('$ENGRAM_ROOT/mcp-server/dist/lib/convex-client.js')
-    .then(async (convex) => {
+  import('$ENGRAM_ROOT/mcp-server/dist/recall-for-hook.js')
+    .then(async (m) => {
       try {
-        // Quick vector search — top 3 facts only for speed
-        const results = await convex.vectorSearch({
-          query: prompt,
-          agentId,
-          limit: 3,
-        });
-
-        if (!results || !results.results || results.results.length === 0) {
+        const result = await m.recallForHook(prompt, agentId, 3);
+        if (!result.ok || result.facts.length === 0) {
           process.exit(0);
         }
-
-        const facts = results.results
-          .filter(r => r.score > 0.3)
-          .map(r => '- ' + (r.content || '').substring(0, 200))
+        const facts = result.facts
+          .map(f => '- ' + (f.content || '').substring(0, 200))
           .join('\n');
-
-        if (!facts) { process.exit(0); }
-
-        const context = '## Relevant Memories (auto-recalled)\n' + facts;
-
+        const context = '## Relevant Memories (auto-recalled, hybrid + RRF)\n' + facts;
         console.log(JSON.stringify({
           hookSpecificOutput: {
             hookEventName: 'UserPromptSubmit',
@@ -61,7 +49,7 @@ RESULT=$(node -e "
           }
         }));
       } catch (e) {
-        process.stderr.write('[engram] Auto-recall failed: ' + e.message + '\n');
+        process.stderr.write('[engram] Auto-recall failed: ' + (e.message || e) + '\n');
         process.exit(0);
       }
     });
