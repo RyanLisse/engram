@@ -31,6 +31,15 @@ export interface EngramEvent {
   timestamp: number;
 }
 
+export interface RecallResult {
+  content: string;
+  score: number;
+  factType: string;
+  factId: string;
+  createdAt: number;
+  vaultPath?: string;
+}
+
 export type EventCallback = (event: EngramEvent) => void;
 
 /**
@@ -110,6 +119,80 @@ export class EngramClient {
     } catch {
       return { ok: false };
     }
+  }
+
+  async storeFact(opts: {
+    content: string;
+    factType?: string;
+    tags?: string[];
+    importanceScore?: number;
+  }): Promise<{ factId: string }> {
+    const res = await requestUrl({
+      url: `${this.config.sseUrl}/webhook/event`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "store_fact",
+        agentId: this.config.agentId,
+        payload: opts,
+      }),
+    });
+
+    const json = res.json as
+      | {
+          ok?: boolean;
+          factId?: string;
+          payload?: { factId?: string };
+          event?: { payload?: { factId?: string } };
+        }
+      | undefined;
+
+    const factId =
+      json?.factId ?? json?.payload?.factId ?? json?.event?.payload?.factId;
+
+    if (!factId) {
+      throw new Error("Engram did not return factId");
+    }
+
+    return { factId };
+  }
+
+  async recall(query: string, limit = 20): Promise<RecallResult[]> {
+    const res = await requestUrl({
+      url: `${this.config.sseUrl}/webhook/event`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "recall",
+        agentId: this.config.agentId,
+        payload: { query, limit },
+      }),
+    });
+
+    const json = res.json as
+      | {
+          results?: RecallResult[];
+          payload?: {
+            results?: RecallResult[];
+            facts?: RecallResult[];
+          };
+          event?: {
+            payload?: {
+              results?: RecallResult[];
+              facts?: RecallResult[];
+            };
+          };
+        }
+      | undefined;
+
+    return (
+      json?.results ??
+      json?.payload?.results ??
+      json?.payload?.facts ??
+      json?.event?.payload?.results ??
+      json?.event?.payload?.facts ??
+      []
+    );
   }
 
   /**

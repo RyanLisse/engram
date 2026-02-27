@@ -1,11 +1,102 @@
-import { Notice, Plugin } from "obsidian";
-import { EngramClient, type EngramEvent } from "./engram-client";
+import { Notice, Plugin, SuggestModal, TFile } from "obsidian";
+import {
+  EngramClient,
+  type EngramEvent,
+  type RecallResult,
+} from "./engram-client";
 import {
   EngramSettingTab,
   DEFAULT_SETTINGS,
   type EngramPluginSettings,
 } from "./settings";
 import { EngramStatusBar } from "./status-bar";
+
+class EngramRecallModal extends SuggestModal<RecallResult> {
+  private lastInputAt = 0;
+  private readonly client: EngramClient;
+
+  constructor(plugin: EngramPlugin) {
+    super(plugin.app);
+    this.client = plugin.client;
+    this.setPlaceholder("Search Engram memory...");
+  }
+
+  async getSuggestions(query: string): Promise<RecallResult[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const token = Date.now();
+    this.lastInputAt = token;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 300));
+
+    if (this.lastInputAt !== token) return [];
+
+    try {
+      return await this.client.recall(trimmed);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Engram recall failed: ${message}`);
+      return [];
+    }
+  }
+
+  renderSuggestion(result: RecallResult, el: HTMLElement): void {
+    const row = el.createDiv({ cls: "engram-recall-row" });
+    row.createDiv({
+      cls: "engram-recall-content",
+      text: this.buildSnippet(result.content),
+    });
+
+    const meta = row.createDiv({ cls: "engram-recall-meta" });
+    meta.createSpan({ cls: "engram-badge engram-score", text: this.scoreText(result) });
+    meta.createSpan({
+      cls: "engram-badge engram-fact-type",
+      text: result.factType || "fact",
+    });
+    meta.createSpan({
+      cls: "engram-time",
+      text: this.relativeTime(result.createdAt),
+    });
+  }
+
+  onChooseSuggestion(result: RecallResult, _evt: MouseEvent | KeyboardEvent): void {
+    void this.openSuggestion(result);
+  }
+
+  private buildSnippet(content: string): string {
+    const normalized = content.replace(/\s+/g, " ").trim();
+    return normalized.length > 80 ? `${normalized.slice(0, 80)}...` : normalized;
+  }
+
+  private scoreText(result: RecallResult): string {
+    return `score ${result.score.toFixed(2)}`;
+  }
+
+  private relativeTime(createdAt: number): string {
+    const ts = createdAt < 1_000_000_000_000 ? createdAt * 1000 : createdAt;
+    const deltaMs = Date.now() - ts;
+    if (deltaMs < 60_000) return "just now";
+    if (deltaMs < 3_600_000) return `${Math.floor(deltaMs / 60_000)}m ago`;
+    if (deltaMs < 86_400_000) return `${Math.floor(deltaMs / 3_600_000)}h ago`;
+    return `${Math.floor(deltaMs / 86_400_000)}d ago`;
+  }
+
+  private async openSuggestion(result: RecallResult): Promise<void> {
+    if (result.vaultPath) {
+      const abstractFile = this.app.vault.getAbstractFileByPath(result.vaultPath);
+      if (abstractFile instanceof TFile) {
+        await this.app.workspace.getLeaf(true).openFile(abstractFile);
+        return;
+      }
+    }
+
+    const fileName = `Engram Recall ${new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")}.md`;
+    const file = await this.app.vault.create(fileName, result.content);
+    await this.app.workspace.getLeaf(true).openFile(file);
+  }
+}
 
 export default class EngramPlugin extends Plugin {
   settings: EngramPluginSettings = DEFAULT_SETTINGS;
@@ -72,6 +163,44 @@ export default class EngramPlugin extends Plugin {
         }
       },
     });
+
+    // Register command: store active note as fact
+    this.addCommand({
+      id: "engram-store-as-fact",
+      name: "Engram: Store as Fact",
+      callback: async () => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) {
+          new Notice("No active file");
+          return;
+        }
+
+        try {
+          const content = await this.app.vault.read(file);
+          const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+          const factType =
+            typeof frontmatter?.factType === "string" ? frontmatter.factType : undefined;
+          const tags = this.parseTags(frontmatter?.tags);
+          const importanceScore = this.parseImportance(frontmatter?.importance);
+
+          await this.client.storeFact({ content, factType, tags, importanceScore });
+          new Notice("Fact stored in Engram");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          new Notice(`Engram store failed: ${message}`);
+        }
+      },
+    });
+
+    // Register command: recall search modal
+    this.addCommand({
+      id: "engram-recall",
+      name: "Engram: Recall",
+      hotkeys: [{ modifiers: ["Mod", "Shift"], key: "R" }],
+      callback: () => {
+        new EngramRecallModal(this).open();
+      },
+    });
   }
 
   async onunload(): Promise<void> {
@@ -116,5 +245,33 @@ export default class EngramPlugin extends Plugin {
     if (this.settings.showStatusBar) {
       this.statusBar.restartPolling();
     }
+  }
+
+  private parseTags(value: unknown): string[] | undefined {
+    if (Array.isArray(value)) {
+      const tags = value.filter((tag): tag is string => typeof tag === "string");
+      return tags.length > 0 ? tags : undefined;
+    }
+
+    if (typeof value === "string") {
+      const tags = value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      return tags.length > 0 ? tags : undefined;
+    }
+
+    return undefined;
+  }
+
+  private parseImportance(value: unknown): number | undefined {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
   }
 }
