@@ -48,7 +48,7 @@ describe("forget tool", () => {
     );
     expect(mockMutate).toHaveBeenNthCalledWith(
       2,
-      PATHS.events.emit,
+      PATHS.events.logEvent,
       expect.objectContaining({
         eventType: "fact.forgotten",
         factId: "fact_123",
