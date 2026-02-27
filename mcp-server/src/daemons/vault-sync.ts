@@ -5,6 +5,7 @@ import { reconcileFileEdit } from "../lib/vault-reconciler.js";
 import { ensureGitRepo, autoCommitChanges } from "../lib/vault-git.js";
 import { QmdManager } from "../lib/qmd-manager.js";
 import { eventBus } from "../lib/event-bus.js";
+import { generateDailyNotes } from "../lib/daily-notes.js";
 
 export interface VaultSyncOptions {
   vaultRoot: string;
@@ -60,6 +61,32 @@ export class VaultSyncDaemon {
       });
       exported += 1;
     }
+
+    if (exported > 0) {
+      const byScope = new Map<string, any[]>();
+      for (const fact of facts as any[]) {
+        const list = byScope.get(fact.scopeId) ?? [];
+        list.push(fact);
+        byScope.set(fact.scopeId, list);
+      }
+
+      for (const [scope, scopeFacts] of byScope.entries()) {
+        await generateDailyNotes({
+          vaultDir: this.vaultRoot,
+          scope,
+          facts: scopeFacts.map((fact: any) => ({
+            id: String(fact._id),
+            content: fact.content,
+            factType: fact.factType,
+            importanceScore: fact.importanceScore,
+            agentId: fact.createdBy,
+            createdAt: fact.timestamp,
+            fileName: fact.vaultPath,
+          })),
+        });
+      }
+    }
+
     if (exported > 0 && !this.gitReady) {
       // Retry git init lazily — may have failed at startup
       await ensureGitRepo(this.vaultRoot)
