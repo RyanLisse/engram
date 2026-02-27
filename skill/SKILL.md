@@ -121,6 +121,18 @@ engram status --robot | jq .healthy  # → true/false
 engram search "OpenClaw" --json | jq '.[].content'
 ```
 
+### QMD Local Search
+
+- `engram qmd search <query>` — BM25 keyword search on local vault files
+  - Options: `-n|--limit`, `-s|--scope`, `--min-score`, `--json`
+- `engram qmd vsearch <query>` — Semantic vector search via local embeddings
+  - Options: `-n|--limit`, `-s|--scope`, `--min-score`, `--json`
+- `engram qmd query <query>` — Hybrid search with LLM reranking (most accurate)
+  - Options: `-n|--limit`, `-s|--scope`, `--min-score`, `--full`, `--json`
+- `engram qmd deep <query>` — Fused cloud+local search (Engram + QMD via RRF)
+  - Options: `-n|--limit`, `-s|--scope`, `--cloud-weight`, `--local-weight`, `--json`
+- `engram qmd status` — QMD integration health and stats
+
 ### Robot Mode
 
 `engram status --robot` outputs a machine-readable JSON status:
@@ -139,7 +151,7 @@ engram search "OpenClaw" --json | jq '.[].content'
 }
 ```
 
-## MCP Tools (73)
+## MCP Tools (77)
 
 ### Core (6)
 `memory_store_fact` · `memory_recall` · `memory_search` · `memory_observe` · `memory_link_entity` · `memory_get_context`
@@ -177,6 +189,9 @@ engram search "OpenClaw" --json | jq '.[].content'
 ### Delete (5)
 `memory_delete_entity` · `memory_delete_scope` · `memory_delete_conversation` · `memory_delete_session` · `memory_delete_theme`
 
+### QMD Local Search (4)
+`memory_local_search` · `memory_local_vsearch` · `memory_local_query` · `memory_deep_search`
+
 ### Discovery & Health (2)
 `memory_list_capabilities` · `memory_health`
 
@@ -197,10 +212,21 @@ engram search "OpenClaw" --json | jq '.[].content'
 ## Architecture
 
 - **Convex Cloud** — 17 tables, native vector search, 19 cron jobs, async enrichment
-- **MCP Server** — 73 tools over stdio + optional SSE, TypeScript, Convex HTTP client
+- **MCP Server** — 77 tools over stdio + optional SSE, TypeScript, Convex HTTP client
+- **QMD Integration** — Optional local search via QMD (BM25 + vector + LLM rerank). Enable with `ENGRAM_QMD_ENABLED=true`. Manager: `mcp-server/src/lib/qmd-manager.ts`
 - **SSE Server** — Real-time event streaming via `ENGRAM_SSE_PORT` (webhooks + SSE)
 - **Dashboard** — Next.js agent monitoring UI (`dashboard/`)
 - **Tool Registry** — Single source of truth: `mcp-server/src/lib/tool-registry.ts`
 - **Embeddings** — Cohere Embed v4 (1024-dim MRL) → Ollama mxbai-embed-large → zero vector fallback
 - **Async Pipeline** — Facts stored in <50ms, enrichment runs asynchronously
 - **Memory Lifecycle** — 5-state machine: active → dormant → merged → archived → pruned
+
+## Obsidian Integration
+
+The vault sync system writes Obsidian-compatible markdown with Dataview-friendly YAML frontmatter:
+- ISO 8601 timestamps for Dataview date queries
+- Wiki-link entity references (`[[Entity Name]]`) for graph connections
+- `aliases` field for Obsidian search
+- `cssclasses` for styling (`engram-fact`, `engram-{factType}`)
+
+Plugin: `plugins/obsidian/` — Obsidian community plugin with SSE client, status bar, and settings.

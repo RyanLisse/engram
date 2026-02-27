@@ -13,7 +13,7 @@ Engram is a unified multi-agent memory system. It provides a shared memory layer
 - **Convex** — Cloud backend (schema, CRUD, vector search, scheduled functions)
 - **TypeScript** — All code (MCP server + Convex functions + CLI + plugins)
 - **Cohere Embed 4** — Multimodal embeddings (1024-dim, text + images + code)
-- **MCP (Model Context Protocol)** — Agent-facing interface (73 tools)
+- **MCP (Model Context Protocol)** — Agent-facing interface (77 tools)
 - **SSE HTTP Server** — Real-time event streaming (optional, via `ENGRAM_SSE_PORT`)
 - **Next.js** — Agent dashboard (real-time monitoring)
 - **Commander.js** — CLI framework
@@ -35,6 +35,7 @@ Key patterns:
 - **Scope-based access control**: Memory scoped to private/team/project/public.
 - **Differential memory decay**: Decay rate varies by fact type (decisions slow, notes fast).
 - **Memory lifecycle**: 5-state machine — active → dormant → merged → archived → pruned.
+- **QMD local search**: Optional on-device search via QMD (BM25+vector+rerank). Enabled by `ENGRAM_QMD_ENABLED=true`.
 
 ## Claude Code Hooks (6 lifecycle automations)
 
@@ -73,7 +74,7 @@ Defined in `.claude/settings.json`. Also distributable via `plugins/claude-code/
 | Daily 5:00 | `learning-synthesis` | Extract learning patterns |
 | Weekly Mon 4:00 | `update-golden-principles` | Refresh golden rules |
 
-## MCP Tools (73 primitives)
+## MCP Tools (77 primitives)
 
 All tools live in a shared registry: `mcp-server/src/lib/tool-registry.ts`.
 Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/generate-api-reference.ts`).
@@ -91,6 +92,7 @@ Full reference: `docs/API-REFERENCE.md` (auto-generated via `npx tsx scripts/gen
 ### Composition (4): summarize, prune, create_theme, query_raw
 ### Vault (9): vault_sync, vault_export, vault_import, vault_list_files, vault_reconcile, query_vault, export_graph, checkpoint, wake
 ### Observation Memory (3): om_status, observe_compress, reflect
+### QMD Local Search (4): local_search, local_vsearch, local_query, deep_search
 ### Discovery (1): list_capabilities
 ### Health (1): health
 
@@ -109,7 +111,8 @@ convex/               # Convex backend
 mcp-server/src/       # MCP server (v2 agent-native)
   index.ts            # Entry point — stdio + event bus + optional SSE
   lib/
-    tool-registry.ts  # ★ Single source of truth for all 73 tools
+    tool-registry.ts  # ★ Single source of truth for all 77 tools
+    qmd-manager.ts    # QMD local search integration
     convex-client.ts  # Convex HTTP client (string-based paths)
     embeddings.ts     # Cohere Embed 4 client
     event-bus.ts      # Internal pub/sub event bus
@@ -122,9 +125,13 @@ mcp-server/src/       # MCP server (v2 agent-native)
     subscriptions.ts        # Real-time subscription tools
     system-prompt-builder.ts # Full system prompt aggregator
 cli/src/              # Interactive CLI (commander.js)
+config/               # Canonical MCP contract + JSON Schema
+  engram-mcp.contract.json
+  engram-mcp.contract.schema.json
 plugins/
   claude-code/        # Claude Code plugin (.mcp.json + setup.sh)
   openclaw/           # OpenClaw native extension (imports tool-registry)
+  obsidian/           # Obsidian community plugin (SSE client, status bar)
 skill/                # OpenClaw skill package (SKILL.md + install.sh)
 dashboard/            # Next.js agent dashboard (real-time monitoring)
 scripts/
@@ -136,7 +143,7 @@ docs/
 ## Key Implementation Details
 
 ### Tool Registry (Single Source of Truth)
-`mcp-server/src/lib/tool-registry.ts` defines all 73 tools declaratively:
+`mcp-server/src/lib/tool-registry.ts` defines all 77 tools declaratively:
 - `TOOL_REGISTRY` — array of `{ tool, zodSchema, handler }` entries
 - `routeToolCall(name, args, agentId)` — validates + dispatches any tool
 - `getToolDefinitions()` — returns MCP `Tool[]` for ListTools

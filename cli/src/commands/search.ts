@@ -176,7 +176,7 @@ export const recordSignalCommand = new Command("record-signal")
   });
 
 export const searchCommand = new Command("search")
-  .description("Backwards-compatible alias for text-search")
+  .description("Backwards-compatible alias for text-search (see also: engram qmd query for local hybrid search)")
   .argument("[text]", "Search text")
   .option("-n, --limit <n>", "Max results", "20")
   .option("-t, --type <type>", "Filter by fact type")
