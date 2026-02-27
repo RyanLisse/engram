@@ -4,7 +4,7 @@
  * Run: npx tsx tests/generate-mcp-client-configs.test.ts
  * Exit 0 = all pass, exit 1 = failures
  */
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -46,6 +46,30 @@ function run(args: string = ""): string {
     encoding: "utf-8",
     timeout: 15000,
   });
+}
+
+function runWithStatus(args: string[] = []): {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+} {
+  const result = spawnSync("npx", ["tsx", SCRIPT, ...args], {
+    cwd: ROOT,
+    encoding: "utf-8",
+    timeout: 15000,
+  });
+  return {
+    status: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
+}
+
+function parseDryRunJson(client: string): any {
+  const output = run(`--dry-run --client ${client}`);
+  const jsonStart = output.indexOf("{");
+  assert(jsonStart >= 0, `no JSON found for client: ${client}`);
+  return JSON.parse(output.slice(jsonStart));
 }
 
 console.log("\n--- generate-mcp-client-configs tests ---\n");
@@ -187,6 +211,165 @@ test("generated args use correct prefix for each client", () => {
     args[0].startsWith("../../"),
     `expected ../../ prefix, got: ${args[0]}`
   );
+});
+
+// ── Additional coverage requested ──
+test("determinism: same contract generates byte-identical output twice", () => {
+  const first = run("--dry-run --client codex");
+  const second = run("--dry-run --client codex");
+  assertEqual(first, second, "dry-run output must be byte-identical");
+});
+
+test("per-client format: Claude Code .mcp.json has mcpServers.engram with command/args/env", () => {
+  const json = parseDryRunJson("claude-code");
+  assert(json.mcpServers !== undefined, "missing mcpServers");
+  assert(json.mcpServers.engram !== undefined, "missing mcpServers.engram");
+  assert(typeof json.mcpServers.engram.command === "string", "missing command");
+  assert(Array.isArray(json.mcpServers.engram.args), "missing args array");
+  assert(typeof json.mcpServers.engram.env === "object", "missing env object");
+});
+
+test("per-client format: Codex .mcp.json has mcpServers.engram with command/args/env", () => {
+  const json = parseDryRunJson("codex");
+  assert(json.mcpServers !== undefined, "missing mcpServers");
+  assert(json.mcpServers.engram !== undefined, "missing mcpServers.engram");
+  assert(typeof json.mcpServers.engram.command === "string", "missing command");
+  assert(Array.isArray(json.mcpServers.engram.args), "missing args array");
+  assert(typeof json.mcpServers.engram.env === "object", "missing env object");
+});
+
+test("per-client format: OpenCode opencode.json has expected top-level shape", () => {
+  const json = parseDryRunJson("opencode");
+  assert(typeof json.$schema === "string", "missing $schema");
+  assert(json.$schema.includes("opencode"), "unexpected $schema");
+  assert(json.mcpServers !== undefined, "missing mcpServers");
+  assert(json.mcpServers.engram !== undefined, "missing mcpServers.engram");
+});
+
+test("per-client format: Gemini CLI template has expected structure", () => {
+  const output = run("--dry-run --client gemini-cli");
+  assert(
+    output.includes(".gemini-settings"),
+    "dry-run header should include gemini settings template path"
+  );
+  const json = parseDryRunJson("gemini-cli");
+  assert(json.mcpServers !== undefined, "missing mcpServers");
+  assert(json.mcpServers.engram !== undefined, "missing mcpServers.engram");
+  assert(typeof json._generated === "object", "missing _generated metadata");
+});
+
+test("per-client format: FactoryDroid config has expected structure", () => {
+  const output = run("--dry-run --client factory-droid");
+  assert(
+    output.includes(".factory-mcp.json"),
+    "dry-run header should include factory-droid config path"
+  );
+  const json = parseDryRunJson("factory-droid");
+  assert(json.mcpServers !== undefined, "missing mcpServers");
+  assert(json.mcpServers.engram !== undefined, "missing mcpServers.engram");
+  assert(typeof json.mcpServers.engram.env === "object", "missing env object");
+});
+
+test("env vars: required vars CONVEX_URL and ENGRAM_AGENT_ID are present in every client config", () => {
+  for (const client of [
+    "claude-code",
+    "codex",
+    "opencode",
+    "gemini-cli",
+    "factory-droid",
+  ]) {
+    const json = parseDryRunJson(client);
+    const env = json.mcpServers.engram.env;
+    assert("CONVEX_URL" in env, `[${client}] missing CONVEX_URL`);
+    assert("ENGRAM_AGENT_ID" in env, `[${client}] missing ENGRAM_AGENT_ID`);
+  }
+});
+
+test("env vars: configs contain placeholders/defaults, not literal secret API key values", () => {
+  for (const client of [
+    "claude-code",
+    "codex",
+    "opencode",
+    "gemini-cli",
+    "factory-droid",
+  ]) {
+    const json = parseDryRunJson(client);
+    const env = json.mcpServers.engram.env as Record<string, string>;
+    for (const [key, valueRaw] of Object.entries(env)) {
+      const value = String(valueRaw ?? "");
+      if (!key.includes("API_KEY")) continue;
+
+      const looksLikeLiveSecret =
+        /sk-[A-Za-z0-9]/.test(value) ||
+        /co-[A-Za-z0-9]{8,}/.test(value) ||
+        /[A-Za-z0-9]{24,}/.test(value);
+      const looksLikePlaceholder =
+        value === "" ||
+        value.includes("YOUR_") ||
+        value.includes("<") ||
+        value.includes("${");
+      assert(
+        !looksLikeLiveSecret || looksLikePlaceholder,
+        `[${client}] ${key} appears to include a literal secret value`
+      );
+    }
+  }
+});
+
+test("verify mode: exits with status 0 when generated files match committed files", () => {
+  run("");
+  const result = runWithStatus(["--verify"]);
+  assertEqual(result.status, 0, "expected --verify to exit 0");
+});
+
+test("dry-run mode: does not write files to disk", () => {
+  const files = [
+    path.join(ROOT, "plugins/claude-code/.mcp.json"),
+    path.join(ROOT, "plugins/codex/.mcp.json"),
+    path.join(ROOT, "plugins/opencode/opencode.json"),
+    path.join(ROOT, "plugins/gemini-cli/.gemini-settings.template.json"),
+    path.join(ROOT, "plugins/factory-droid/.factory-mcp.json"),
+  ];
+
+  run("");
+  const before = files.map((file) =>
+    fs.existsSync(file)
+      ? fs.readFileSync(file, "utf-8")
+      : "__MISSING_FILE_SENTINEL__"
+  );
+  run("--dry-run");
+  const after = files.map((file) =>
+    fs.existsSync(file)
+      ? fs.readFileSync(file, "utf-8")
+      : "__MISSING_FILE_SENTINEL__"
+  );
+
+  assertEqual(
+    JSON.stringify(after),
+    JSON.stringify(before),
+    "dry-run should not modify generated files"
+  );
+});
+
+test("edge case: missing contract file throws a clear error", () => {
+  const backup = `${CONTRACT}.bak`;
+  assert(fs.existsSync(CONTRACT), "contract must exist before test");
+  if (fs.existsSync(backup)) fs.unlinkSync(backup);
+
+  fs.renameSync(CONTRACT, backup);
+  try {
+    const result = runWithStatus(["--dry-run"]);
+    assertEqual(result.status, 1, "expected exit code 1 for missing contract");
+    const combined = `${result.stdout}\n${result.stderr}`;
+    assert(
+      combined.includes("Contract not found"),
+      "expected clear 'Contract not found' error message"
+    );
+  } finally {
+    if (fs.existsSync(backup)) {
+      fs.renameSync(backup, CONTRACT);
+    }
+  }
 });
 
 // ── Summary ──
