@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "f023b68a9d5f",
+  "session_id": "e3513706-9bc9-4952-bc12-e0ee80cc0161",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T16:09:25.960522Z",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "scripts/__tests__/engram-preflight.test.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "95dd433ba432",
+  "token_usage": {
+    "input_tokens": 127,
+    "cache_creation_tokens": 773698,
+    "cache_read_tokens": 11156662,
+    "output_tokens": 73336,
+    "api_call_count": 97
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T16:09:22.388232Z",
+    "agent_lines": 57,
+    "human_added": 351,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 408,
+    "agent_percentage": 13.970588235294118
+  }
+}
