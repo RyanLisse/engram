@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "9bae6d8f5523",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/brainstorms/2026-02-27-obsidian-qmd-integration-brainstorm.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9b/ae6d8f5523/0/metadata.json",
+      "transcript": "/9b/ae6d8f5523/0/full.jsonl",
+      "context": "/9b/ae6d8f5523/0/context.md",
+      "content_hash": "/9b/ae6d8f5523/0/content_hash.txt",
+      "prompt": "/9b/ae6d8f5523/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 94,
+    "cache_creation_tokens": 433476,
+    "cache_read_tokens": 8570290,
+    "output_tokens": 62946,
+    "api_call_count": 74
+  }
+}
