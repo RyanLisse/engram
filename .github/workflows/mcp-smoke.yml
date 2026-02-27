@@ -1,0 +1,37 @@
+name: MCP Smoke Test
+
+on:
+  pull_request:
+    paths:
+      - 'mcp-server/**'
+      - 'convex/**'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      CONVEX_URL: ${{ secrets.CONVEX_URL }}
+      ENGRAM_AGENT_ID: ci-smoke
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install mcp-server dependencies
+        working-directory: mcp-server
+        run: npm ci
+
+      - name: Build mcp-server
+        working-directory: mcp-server
+        run: npm run build
+
+      - name: Install reloaderoo
+        run: npm install -g reloaderoo
+
+      - name: Run MCP smoke test
+        run: scripts/ci/mcp-smoke-test.sh

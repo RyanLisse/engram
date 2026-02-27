@@ -1,0 +1,32 @@
+name: Config Drift Check
+
+on:
+  pull_request:
+
+jobs:
+  config-drift:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify generated MCP client configs
+        id: verify_configs
+        continue-on-error: true
+        run: npx tsx scripts/generate-mcp-client-configs.ts --verify
+
+      - name: Fail with remediation when drift detected
+        if: steps.verify_configs.outcome == 'failure'
+        run: |
+          echo "Config drift detected above."
+          echo "Remediation: run npx tsx scripts/generate-mcp-client-configs.ts"
+          exit 1
