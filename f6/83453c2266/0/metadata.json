@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "f683453c2266",
+  "session_id": "e3513706-9bc9-4952-bc12-e0ee80cc0161",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T09:47:32.243426Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "config/engram-mcp.contract.json",
+    "config/engram-mcp.contract.schema.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6f09f07aaf46",
+  "token_usage": {
+    "input_tokens": 93,
+    "cache_creation_tokens": 432757,
+    "cache_read_tokens": 8464162,
+    "output_tokens": 62695,
+    "api_call_count": 73
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T09:47:31.115631Z",
+    "agent_lines": 361,
+    "human_added": 738,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1099,
+    "agent_percentage": 32.84804367606915
+  }
+}

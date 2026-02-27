@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "f683453c2266",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "config/engram-mcp.contract.json",
+    "config/engram-mcp.contract.schema.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f6/83453c2266/0/metadata.json",
+      "transcript": "/f6/83453c2266/0/full.jsonl",
+      "context": "/f6/83453c2266/0/context.md",
+      "content_hash": "/f6/83453c2266/0/content_hash.txt",
+      "prompt": "/f6/83453c2266/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 93,
+    "cache_creation_tokens": 432757,
+    "cache_read_tokens": 8464162,
+    "output_tokens": 62695,
+    "api_call_count": 73
+  }
+}
