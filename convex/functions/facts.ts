@@ -752,6 +752,7 @@ export const updateFact = mutation({
   handler: async (ctx, { factId, content, tags, factType, pinned, summary, agentId, reason }) => {
     const fact = await ctx.db.get(factId);
     if (!fact) throw new Error(`Fact not found: ${factId}`);
+    const now = Date.now();
 
     // Snapshot current state BEFORE patching (same transaction — atomic rollback)
     await ctx.runMutation(internal.functions.factVersions.createVersion, {
@@ -764,7 +765,7 @@ export const updateFact = mutation({
       reason,
     });
 
-    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    const patch: Record<string, unknown> = { updatedAt: now };
     if (content !== undefined) patch.content = content;
     if (content !== undefined) patch.tokenEstimate = estimateTokens(content);
     if (tags !== undefined) patch.tags = tags;
@@ -772,6 +773,13 @@ export const updateFact = mutation({
     if (pinned !== undefined) patch.pinned = pinned;
     if (summary !== undefined) patch.summary = summary;
     await ctx.db.patch(factId, patch);
+    await ctx.runMutation(internal.functions.events.emit, {
+      eventType: "fact.updated",
+      factId,
+      scopeId: fact.scopeId,
+      agentId: agentId ?? fact.createdBy,
+      payload: { factType: factType ?? fact.factType },
+    });
     return { updated: true };
   },
 });
@@ -785,6 +793,7 @@ export const archiveFactPublic = mutation({
   handler: async (ctx, { factId, agentId, reason }) => {
     const fact = await ctx.db.get(factId);
     if (!fact) throw new Error(`Fact not found: ${factId}`);
+    const now = Date.now();
 
     // Snapshot current state BEFORE archiving
     await ctx.runMutation(internal.functions.factVersions.createVersion, {
@@ -799,7 +808,14 @@ export const archiveFactPublic = mutation({
 
     await ctx.db.patch(factId, {
       lifecycleState: "archived",
-      updatedAt: Date.now(),
+      updatedAt: now,
+    });
+    await ctx.runMutation(internal.functions.events.emit, {
+      eventType: "fact.archived",
+      factId,
+      scopeId: fact.scopeId,
+      agentId: agentId ?? fact.createdBy,
+      payload: { reason: reason ?? "archive" },
     });
     return { archived: true };
   },

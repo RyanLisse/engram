@@ -59,7 +59,9 @@ function useSSE(agentId: string) {
     // Listen to typed events
     const types = [
       "fact_stored",
+      "fact.stored",
       "recall",
+      "recall_completed",
       "signal_recorded",
       "session_ended",
       "vault_sync_completed",
@@ -125,7 +127,9 @@ function StatCard({
 function EventRow({ event, onClick }: { event: SSEEvent; onClick?: () => void }) {
   const typeColors: Record<string, string> = {
     fact_stored: "text-emerald-400",
+    "fact.stored": "text-emerald-400",
     recall: "text-blue-400",
+    recall_completed: "text-blue-400",
     signal_recorded: "text-amber-400",
     session_ended: "text-purple-400",
     vault_sync_completed: "text-cyan-400",
@@ -135,7 +139,8 @@ function EventRow({ event, onClick }: { event: SSEEvent; onClick?: () => void })
   const ago = Math.round((Date.now() - event.timestamp) / 1000);
   const agoStr = ago < 60 ? `${ago}s` : `${Math.round(ago / 60)}m`;
 
-  const isClickable = event.type === "fact_stored" && !!onClick;
+  const isClickable =
+    (event.type === "fact_stored" || event.type === "fact.stored") && !!onClick;
 
   return (
     <div
@@ -182,8 +187,8 @@ export default function DashboardPage() {
     } catch {}
   }, []);
 
-  const factEvents = events.filter((e) => e.type === "fact_stored").length;
-  const recallEvents = events.filter((e) => e.type === "recall").length;
+  const factEvents = events.filter((e) => e.type === "fact_stored" || e.type === "fact.stored").length;
+  const recallEvents = events.filter((e) => e.type === "recall" || e.type === "recall_completed").length;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
@@ -281,7 +286,8 @@ export default function DashboardPage() {
                 key={i}
                 event={event}
                 onClick={
-                  event.type === "fact_stored" && typeof event.payload.factId === "string"
+                  (event.type === "fact_stored" || event.type === "fact.stored") &&
+                  typeof event.payload.factId === "string"
                     ? () => {
                         const factId = event.payload.factId as string;
                         setSelectedFactId(factId);

@@ -197,6 +197,24 @@ export const updateEpisode = mutation({
   },
 });
 
+export const deleteEpisode = mutation({
+  args: {
+    episodeId: v.id("episodes"),
+    agentId: v.optional(v.string()),
+  },
+  handler: async (ctx, { episodeId, agentId }) => {
+    const episode = await ctx.db.get(episodeId);
+    if (!episode) throw new Error(`Episode not found: ${episodeId}`);
+
+    if (agentId && episode.agentId !== agentId) {
+      throw new Error(`Agent ${agentId} is not authorized to delete episode ${episodeId}`);
+    }
+
+    await ctx.db.delete(episodeId);
+    return { deleted: true, episodeId };
+  },
+});
+
 export const createFromObservationSession = internalMutation({
   args: {
     scopeId: v.id("memory_scopes"),

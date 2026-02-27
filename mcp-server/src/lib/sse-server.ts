@@ -63,6 +63,7 @@ export function startSSEServer(port: number): http.Server {
       };
 
       eventBus.on(`agent:${agentId}`, handler);
+      eventBus.addPollingConsumer(`sse:${agentId}`);
 
       // Also listen to scope events if agent has subscriptions
       const subs = subscriptionManager.listSubscriptions(agentId);
@@ -92,6 +93,7 @@ export function startSSEServer(port: number): http.Server {
       req.on("close", () => {
         clearInterval(keepalive);
         eventBus.off(`agent:${agentId}`, handler);
+        eventBus.removePollingConsumer(`sse:${agentId}`);
         for (const sh of scopeHandlers) {
           eventBus.off(sh.channel, sh.handler);
         }

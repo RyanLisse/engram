@@ -178,3 +178,48 @@ export const blockGetVersions = query({
       .take(limit);
   },
 });
+
+// ── blockDelete ───────────────────────────────────────────────────────
+
+export const blockDelete = mutation({
+  args: {
+    blockId: v.optional(v.id("memory_blocks")),
+    scopeId: v.optional(v.id("memory_scopes")),
+    label: v.optional(v.string()),
+    agentId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    let block = null as any;
+
+    if (args.blockId) {
+      block = await ctx.db.get(args.blockId);
+    } else if (args.scopeId && args.label) {
+      block = await ctx.db
+        .query("memory_blocks")
+        .withIndex("by_scope_label", (q) =>
+          q.eq("scopeId", args.scopeId!).eq("label", args.label!)
+        )
+        .first();
+    } else {
+      throw new Error("Provide blockId or scopeId+label to delete a block");
+    }
+
+    if (!block) {
+      throw new Error("Memory block not found");
+    }
+
+    await checkWriteAccessHelper(ctx, block.scopeId, args.agentId);
+
+    const versions = await ctx.db
+      .query("block_versions")
+      .withIndex("by_block", (q) => q.eq("blockId", block._id))
+      .collect();
+
+    for (const version of versions) {
+      await ctx.db.delete(version._id);
+    }
+
+    await ctx.db.delete(block._id);
+    return { deleted: true, blockId: block._id, deletedVersions: versions.length };
+  },
+});

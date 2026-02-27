@@ -162,3 +162,34 @@ export const updateCapabilityEmbedding = mutation({
     });
   },
 });
+
+export const updateAgent = mutation({
+  args: {
+    agentId: v.string(),
+    name: v.optional(v.string()),
+    capabilities: v.optional(v.array(v.string())),
+    defaultScope: v.optional(v.string()),
+    telos: v.optional(v.string()),
+    settings: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    const agent = await ctx.db
+      .query("agents")
+      .withIndex("by_agentId", (q) => q.eq("agentId", args.agentId))
+      .unique();
+
+    if (!agent) {
+      throw new Error(`Agent not found: ${args.agentId}`);
+    }
+
+    const patch: Record<string, unknown> = { lastSeen: Date.now() };
+    if (args.name !== undefined) patch.name = args.name;
+    if (args.capabilities !== undefined) patch.capabilities = args.capabilities;
+    if (args.defaultScope !== undefined) patch.defaultScope = args.defaultScope;
+    if (args.telos !== undefined) patch.telos = args.telos;
+    if (args.settings !== undefined) patch.settings = args.settings;
+
+    await ctx.db.patch(agent._id, patch);
+    return { updated: true, agentId: args.agentId };
+  },
+});

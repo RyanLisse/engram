@@ -33,6 +33,7 @@ class EngramEventBus extends EventEmitter {
   private watermark = 0;
   private pollFn: ((watermark: number) => Promise<EngramEvent[]>) | null = null;
   private totalPollsSaved = 0;
+  private pollingConsumers = new Set<string>();
 
   /**
    * Register the poll function but don't start polling yet.
@@ -61,6 +62,21 @@ class EngramEventBus extends EventEmitter {
     console.error("[event-bus] Demand-driven polling activated (listener attached)");
   }
 
+  addPollingConsumer(id: string) {
+    const before = this.pollingConsumers.size;
+    this.pollingConsumers.add(id);
+    if (before === 0 && this.pollingConsumers.size === 1) {
+      this.ensurePolling();
+    }
+  }
+
+  removePollingConsumer(id: string) {
+    this.pollingConsumers.delete(id);
+    if (this.pollingConsumers.size === 0) {
+      this.pauseIfIdle();
+    }
+  }
+
   /**
    * Signal that no consumers remain. Stops polling to save Convex calls.
    * Called by subscription-manager when last subscription is removed.
@@ -74,8 +90,7 @@ class EngramEventBus extends EventEmitter {
   }
 
   private hasActiveListeners(): boolean {
-    // Check if anyone is listening to events (beyond default internal listeners)
-    return this.listenerCount("event") > 0;
+    return this.listenerCount("event") > 0 || this.pollingConsumers.size > 0;
   }
 
   private schedulePoll() {
@@ -166,6 +181,7 @@ class EngramEventBus extends EventEmitter {
     pollsSaved: number;
     isPolling: boolean;
     hasListeners: boolean;
+    pollingConsumerCount: number;
   } {
     return {
       currentIntervalMs: this.currentIntervalMs,
@@ -174,6 +190,7 @@ class EngramEventBus extends EventEmitter {
       pollsSaved: this.totalPollsSaved,
       isPolling: this.pollTimeout !== null,
       hasListeners: this.hasActiveListeners(),
+      pollingConsumerCount: this.pollingConsumers.size,
     };
   }
 }

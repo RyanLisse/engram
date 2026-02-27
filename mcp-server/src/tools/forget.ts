@@ -65,7 +65,7 @@ export async function forget(
         await convex.mutate(PATHS.facts.archiveFactPublic, { factId });
 
         // Log forget event
-        await convex.mutate(PATHS.events.emit ?? "functions/events:emit", {
+        await convex.mutate(PATHS.events.logEvent, {
           eventType: "fact.forgotten",
           factId,
           agentId,

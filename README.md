@@ -245,7 +245,7 @@ Engram integrates with Claude Code's lifecycle via hooks for automated memory op
 
 | Hook Event | Script | Purpose | Performance |
 |------------|--------|---------|-------------|
-| **SessionStart** | `session-start.sh` | Auto-inject agent context at session boundary | ~50-200ms |
+| **SessionStart** | `session-start.sh` | Inject identity/scopes/notifications; use `memory_get_system_prompt` or `memory_build_system_prompt` for full block | ~50-200ms |
 | **UserPromptSubmit** | `auto-recall.sh` | Auto-recall top-3 relevant memories per prompt | ~100-500ms |
 | **PostToolUse** | `post-tool-observe.sh` | Record file edit observations (async) | ~10-50ms |
 | **Notification** | `notification-alert.sh` | Desktop alerts when memory needs attention | <10ms |

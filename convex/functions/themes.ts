@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 export const create = mutation({
   args: {
@@ -11,7 +12,7 @@ export const create = mutation({
     importance: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("themes", {
+    const themeId = await ctx.db.insert("themes", {
       name: args.name,
       description: args.description,
       factIds: args.factIds,
@@ -20,6 +21,12 @@ export const create = mutation({
       importance: args.importance ?? 0.5,
       lastUpdated: Date.now(),
     });
+    await ctx.runMutation(internal.functions.events.emit, {
+      eventType: "theme.created",
+      scopeId: args.scopeId,
+      payload: { themeId, name: args.name },
+    });
+    return themeId;
   },
 });
 

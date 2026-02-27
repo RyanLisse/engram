@@ -9,6 +9,7 @@ import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { PATHS } from "../lib/convex-paths.js";
 
 export const endSessionSchema = z.object({
   summary: z.string().describe("Session summary for handoff to other agents"),
@@ -159,6 +160,14 @@ export async function endSession(
     }
 
     await fs.rm(dirtyFlag, { force: true }).catch(() => {});
+
+    await convex.mutate(PATHS.events.logEvent, {
+      eventType: "session.ended",
+      factId: fact.factId,
+      scopeId: targetScopeId,
+      agentId,
+      payload: { handoffRecorded: handoffRecorded ? "true" : "false" },
+    }).catch(() => {});
 
     return {
       factId: fact.factId,

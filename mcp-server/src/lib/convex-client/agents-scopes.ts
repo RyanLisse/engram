@@ -31,6 +31,17 @@ export async function listAgents() {
   return await query(PATHS.agents.list, {});
 }
 
+export async function updateAgent(args: {
+  agentId: string;
+  name?: string;
+  capabilities?: string[];
+  defaultScope?: string;
+  telos?: string;
+  settings?: unknown;
+}) {
+  return await mutate(PATHS.agents.updateAgent, args);
+}
+
 // ========================================
 // Scopes API
 // ========================================
@@ -83,6 +94,10 @@ export async function addScopeMember(args: {
 
 export async function listScopes(agentId: string) {
   return await query(PATHS.scopes.getPermitted, { agentId });
+}
+
+export async function deleteSubspace(args: { subspaceId: string }) {
+  return await mutate(PATHS.subspaces.deleteSubspace, args);
 }
 
 // ========================================

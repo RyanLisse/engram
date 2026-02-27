@@ -26,6 +26,30 @@ export function detectQueryIntent(query: string): "critical" | "balanced" | "bac
   return "balanced";
 }
 
+async function readNumericConfig(key: string, fallback: number): Promise<number> {
+  try {
+    const config = await convex.getConfig(key);
+    const value = Number(config?.value);
+    return Number.isFinite(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function detectQueryIntentWithConfig(
+  query: string,
+): Promise<"critical" | "balanced" | "background"> {
+  const baseIntent = detectQueryIntent(query);
+  const threshold = await readNumericConfig("intent_detection_threshold", 0.6);
+
+  if (threshold <= 0.4) {
+    const lower = query.toLowerCase();
+    if (/\b(error|issue|problem|fail|broken)\b/.test(lower)) return "critical";
+  }
+
+  return baseIntent;
+}
+
 export function getInclusionReason(fact: any): string {
   if (fact.observationTier === "critical") return "critical tier";
   if (fact.observationTier === "notable") return "notable tier";
@@ -43,9 +67,11 @@ export function getInclusionReason(fact: any): string {
 export function detectStrategy(
   estimatedTokens: number,
   tokenBudget: number,
+  compactThresholdRatio = 0.7,
+  offloadThresholdRatio = 2,
 ): ContextStrategy {
-  if (estimatedTokens < tokenBudget * 0.7) return "full";
-  if (estimatedTokens < tokenBudget * 2) return "compact";
+  if (estimatedTokens < tokenBudget * compactThresholdRatio) return "full";
+  if (estimatedTokens < tokenBudget * offloadThresholdRatio) return "compact";
   return "offload";
 }
 
@@ -61,14 +87,21 @@ export async function loadBudgetAwareContext(input: BudgetContextInput): Promise
     scopeIds: input.scopeId ? [input.scopeId] : undefined,
   });
 
-  const intent = detectQueryIntent(input.query);
+  const intent = await detectQueryIntentWithConfig(input.query);
+  const compactThresholdRatio = await readNumericConfig("budget_compact_threshold_ratio", 0.7);
+  const offloadThresholdRatio = await readNumericConfig("budget_offload_threshold_ratio", 2);
 
   // Estimate total result size to choose strategy
   const totalEstimatedTokens = results.reduce(
     (sum: number, f: any) => sum + estimateTokens(f.content ?? ""),
     0
   );
-  const strategy = detectStrategy(totalEstimatedTokens, input.tokenBudget);
+  const strategy = detectStrategy(
+    totalEstimatedTokens,
+    input.tokenBudget,
+    compactThresholdRatio,
+    offloadThresholdRatio,
+  );
 
   const sorted = [...results].sort((a: any, b: any) => {
     // Observation digests and summaries get highest priority (compressed context)

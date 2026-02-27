@@ -1,5 +1,6 @@
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { buildFullSystemPrompt } from "./system-prompt-builder.js";
 
 export const pollEventsSchema = z.object({
   watermark: z.number().optional(),
@@ -129,6 +130,21 @@ export async function getAgentContext(
   );
   const syncStatus = await convex.getSyncStatus(process.env.ENGRAM_NODE_ID ?? "default-node").catch(() => null);
   const queueDepth = (await convex.getUnmirroredFacts({ limit: 1000 }).catch(() => [])) as any[];
+  const promptResult = await buildFullSystemPrompt(
+    {
+      agentId,
+      tokenBudget: 2000,
+      includePinned: true,
+      includeManifest: true,
+      includeActivity: true,
+      includeConfig: true,
+      includeWorkspace: true,
+      includeNotifications: true,
+      includeHandoffs: true,
+      format: "markdown",
+    },
+    currentAgentId,
+  );
 
   return {
     agent: {
@@ -146,16 +162,28 @@ export async function getAgentContext(
       syncStatus,
       queueDepth: queueDepth.length,
     },
+    systemPromptBlock: promptResult.prompt,
   };
 }
 
 export const getSystemPromptSchema = z.object({ agentId: z.string().optional() });
 export async function getSystemPrompt(input: z.infer<typeof getSystemPromptSchema>, currentAgentId: string) {
-  const info = await getAgentInfo({ agentId: input.agentId }, currentAgentId);
-  const capabilities = info.agent?.capabilities ?? [];
-  const telos = info.agent?.telos ?? "";
-  const scopeNames = (info.scopes ?? []).map((s: any) => s.name).join(", ");
+  const result = await buildFullSystemPrompt(
+    {
+      agentId: input.agentId ?? currentAgentId,
+      tokenBudget: 4000,
+      includePinned: true,
+      includeManifest: true,
+      includeActivity: true,
+      includeConfig: true,
+      includeWorkspace: true,
+      includeNotifications: true,
+      includeHandoffs: true,
+      format: "markdown",
+    },
+    currentAgentId,
+  );
   return {
-    prompt: `You are ${info.agent?.name ?? currentAgentId}. Telos: ${telos}. Capabilities: ${capabilities.join(", ")}. Permitted scopes: ${scopeNames}.`,
+    prompt: result.prompt,
   };
 }

@@ -44,3 +44,12 @@ export async function blockGetVersions(args: {
 }) {
   return await query(PATHS.memoryBlocks.blockGetVersions, args);
 }
+
+export async function blockDelete(args: {
+  blockId?: string;
+  scopeId?: string;
+  label?: string;
+  agentId: string;
+}) {
+  return await mutate(PATHS.memoryBlocks.blockDelete, args);
+}

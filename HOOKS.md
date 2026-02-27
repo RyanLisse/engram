@@ -9,9 +9,10 @@ Event-driven hooks that make memory automatic, not manual.
 ### `on_session_start` — Warm Start Injection
 **Trigger:** Any OpenClaw agent session starts
 **Action:** 
-1. Detect topic from channel/agent/recent messages
-2. Call `memory_get_context(topic, limit=20)`
-3. Inject top facts as hidden context before first turn
+1. Inject identity/scopes/notifications context (`memory_get_agent_context`)
+2. For full prompt block, call `memory_get_system_prompt` or `memory_build_system_prompt`
+3. Optionally detect topic and call `memory_get_context(topic, limit=20)`
+4. Inject resulting context before first turn
 
 **Why:** Replaces static `MEMORY.md` with dynamic, relevance-weighted context. Agent only sees what matters for THIS conversation.
 

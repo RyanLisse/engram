@@ -1,4 +1,5 @@
 export type SearchStrategy = "vector-only" | "text-only" | "hybrid";
+import * as convex from "./convex-client.js";
 
 export interface RankCandidate {
   _id: string;
@@ -11,6 +12,24 @@ export interface RankCandidate {
   _score?: number;
   lexicalScore?: number;
 }
+
+type RankingWeights = {
+  semantic: number;
+  lexical: number;
+  importance: number;
+  freshness: number;
+  outcome: number;
+  emotional: number;
+};
+
+const DEFAULT_WEIGHTS: RankingWeights = {
+  semantic: 0.4,
+  lexical: 0.15,
+  importance: 0.2,
+  freshness: 0.1,
+  outcome: 0.1,
+  emotional: 0.05,
+};
 
 function clamp(value: number, min = 0, max = 1): number {
   return Math.max(min, Math.min(max, value));
@@ -42,6 +61,14 @@ function lexicalScore(query: string, content: string | undefined): number {
 }
 
 export function rankCandidates(query: string, candidates: RankCandidate[]): RankCandidate[] {
+  return rankCandidatesWithWeights(query, candidates, DEFAULT_WEIGHTS);
+}
+
+function rankCandidatesWithWeights(
+  query: string,
+  candidates: RankCandidate[],
+  weights: RankingWeights,
+): RankCandidate[] {
   return [...candidates]
     .map((c) => {
       const semantic = clamp(c._score ?? 0);
@@ -51,13 +78,40 @@ export function rankCandidates(query: string, candidates: RankCandidate[]): Rank
       const outcome = clamp(c.outcomeScore ?? 0.5);
       const emotional = clamp(c.emotionalWeight ?? 0);
       const hybridScore =
-        0.4 * semantic +
-        0.15 * lexical +
-        0.2 * importance +
-        0.1 * freshness +
-        0.1 * outcome +
-        0.05 * emotional;
+        weights.semantic * semantic +
+        weights.lexical * lexical +
+        weights.importance * importance +
+        weights.freshness * freshness +
+        weights.outcome * outcome +
+        weights.emotional * emotional;
       return { ...c, _score: hybridScore };
     })
     .sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
+}
+
+export async function rankCandidatesWithConfig(
+  query: string,
+  candidates: RankCandidate[],
+): Promise<RankCandidate[]> {
+  try {
+    const config = await convex.getConfig("recall_ranking_weights");
+    const rawValue = config?.value;
+    if (typeof rawValue === "string" && rawValue.trim().length > 0) {
+      const parsed = JSON.parse(rawValue);
+      if (parsed && typeof parsed === "object") {
+        const weights: RankingWeights = {
+          semantic: Number(parsed.semantic ?? DEFAULT_WEIGHTS.semantic),
+          lexical: Number(parsed.lexical ?? DEFAULT_WEIGHTS.lexical),
+          importance: Number(parsed.importance ?? DEFAULT_WEIGHTS.importance),
+          freshness: Number(parsed.freshness ?? DEFAULT_WEIGHTS.freshness),
+          outcome: Number(parsed.outcome ?? DEFAULT_WEIGHTS.outcome),
+          emotional: Number(parsed.emotional ?? DEFAULT_WEIGHTS.emotional),
+        };
+        return rankCandidatesWithWeights(query, candidates, weights);
+      }
+    }
+  } catch {
+    // fallback to defaults
+  }
+  return rankCandidatesWithWeights(query, candidates, DEFAULT_WEIGHTS);
 }

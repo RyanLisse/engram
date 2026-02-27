@@ -223,6 +223,14 @@ export const seedSystemConfig = internalMutation({
       ["default_token_budget", 4000, "tool_defaults", "Default token budget for get-context"],
       ["prune_age_threshold_days", 90, "lifecycle", "Default stale age threshold for prune"],
       ["forget_archive_threshold", 0.7, "lifecycle", "Forget score threshold for archive"],
+      ["auto_recall_limit", 3, "prompt_native", "Auto-recall top-K facts on user prompt hooks"],
+      ["auto_recall_rrf_k", 60, "prompt_native", "RRF k parameter for auto-recall ranking"],
+      ["auto_recall_strategy", "hybrid", "prompt_native", "Auto-recall strategy: hybrid or vector-only"],
+      ["system_prompt_sections", null, "prompt_native", "Optional JSON string to control system prompt section order/titles"],
+      ["recall_ranking_weights", null, "prompt_native", "Optional JSON string for recall blend weights"],
+      ["budget_compact_threshold_ratio", 0.7, "prompt_native", "Context loader compact threshold ratio"],
+      ["budget_offload_threshold_ratio", 2, "prompt_native", "Context loader offload threshold ratio"],
+      ["intent_detection_threshold", 0.6, "prompt_native", "Intent detection sensitivity threshold"],
     ] as const;
 
     let inserted = 0;

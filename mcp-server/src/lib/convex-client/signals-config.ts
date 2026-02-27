@@ -128,6 +128,17 @@ export async function createTheme(args: {
   return await mutate(PATHS.themes.create, args);
 }
 
+export async function updateTheme(args: {
+  themeId: string;
+  name?: string;
+  description?: string;
+  factIds?: string[];
+  entityIds?: string[];
+  importance?: number;
+}) {
+  return await mutate(PATHS.themes.update, args);
+}
+
 export async function deleteTheme(args: { themeId: string; hardDelete?: boolean }) {
   return await mutate(PATHS.themes.deleteTheme, args);
 }

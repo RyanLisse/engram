@@ -1,0 +1,3 @@
+Event type field and normalization (MCP server). Goal: dashboard and subscription filters see consistent event types.
+
+File: mcp-server/src/index.ts. In the event-bus poll callback use e.eventType instead of e.type. Add normalizer: fact.stored → fact_stored, recall_completed → recall; pass through eventType for others (signal_recorded, session_ended). Emit normalized type on EngramEvent so SSE and get_activity_stats see it. Current code ~lines 64–73 maps result.events with type: e.type; change to rawType = e.eventType ?? e.type ?? "unknown", type: normalizeEventType(rawType). Implement normalizeEventType with mapping above. Part of Phase 1 UI Integration from docs/plans/2026-02-25-agent-native-top5-implementation-plan.md.

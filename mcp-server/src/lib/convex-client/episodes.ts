@@ -52,6 +52,13 @@ export async function updateEpisode(args: {
   return await mutate(PATHS.episodes.updateEpisode, args);
 }
 
+export async function deleteEpisode(args: {
+  episodeId: string;
+  agentId?: string;
+}) {
+  return await mutate(PATHS.episodes.deleteEpisode, args);
+}
+
 export async function vectorSearchEpisodes(args: {
   query: string;
   scopeId?: string;

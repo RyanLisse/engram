@@ -57,6 +57,13 @@ const convexUrl = process.env.CONVEX_URL || "";
 const isPlaceholderConvexUrl = convexUrl.includes("your-deployment.convex.cloud");
 const disableEventBus = process.env.ENGRAM_DISABLE_EVENT_BUS === "1" || isPlaceholderConvexUrl;
 
+function normalizeEventType(rawType: string): string {
+  if (rawType === "fact.stored") return "fact_stored";
+  if (rawType === "recall_completed") return "recall";
+  if (rawType.includes(".")) return rawType.replace(/\./g, "_");
+  return rawType;
+}
+
 if (disableEventBus) {
   console.error("[engram-mcp] Event bus polling disabled (test or placeholder configuration)");
 } else {
@@ -64,7 +71,7 @@ if (disableEventBus) {
   eventBus.startPolling(async (watermark) => {
     const result = await convex.pollEvents({ agentId: AGENT_ID, watermark, limit: 50 });
     return (result?.events ?? []).map((e: any) => ({
-      type: e.type ?? "unknown",
+      type: normalizeEventType(e.eventType ?? e.type ?? "unknown"),
       agentId: e.agentId ?? AGENT_ID,
       scopeId: e.scopeId,
       payload: e,

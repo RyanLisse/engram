@@ -54,6 +54,7 @@ export const PATHS = {
     register: "functions/agents:register",
     getByAgentId: "functions/agents:getByAgentId",
     list: "functions/agents:list",
+    updateAgent: "functions/agents:updateAgent",
   },
 
   // Scopes
@@ -102,6 +103,7 @@ export const PATHS = {
   themes: {
     getByScope: "functions/themes:getByScope",
     create: "functions/themes:create",
+    update: "functions/themes:update",
     deleteTheme: "functions/themes:deleteTheme",
   },
 
@@ -143,6 +145,7 @@ export const PATHS = {
     blockListByScope: "functions/memoryBlocks:blockListByScope",
     blockWrite: "functions/memoryBlocks:blockWrite",
     blockGetVersions: "functions/memoryBlocks:blockGetVersions",
+    blockDelete: "functions/memoryBlocks:blockDelete",
   },
 
   // Episodes
@@ -152,6 +155,7 @@ export const PATHS = {
     listEpisodes: "functions/episodes:listEpisodes",
     searchEpisodes: "functions/episodes:searchEpisodes",
     updateEpisode: "functions/episodes:updateEpisode",
+    deleteEpisode: "functions/episodes:deleteEpisode",
   },
 
   // Agent Knowledge Profiles

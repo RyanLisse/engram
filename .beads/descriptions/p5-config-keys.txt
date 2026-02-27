@@ -1,0 +1,1 @@
+Prompt-native config keys: seed and document. Add to system_config (seed or migration): auto_recall_limit (number, default 3), auto_recall_rrf_k (60), auto_recall_strategy (hybrid|vector-only), system_prompt_sections (optional JSON), recall_ranking_weights (optional JSON), budget/intent keys. Document in API/config docs. Plan Phase 5.1.

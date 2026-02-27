@@ -806,6 +806,21 @@ Set a scope-specific policy override.
 | `policyValue` | any | ✓ | — |
 | `priority` | number |  | — |
 
+### Prompt-Native Config Keys (Seeded Defaults)
+
+Use `memory_get_config`, `memory_list_configs`, and `memory_set_config` with these keys:
+
+| Key | Default | Category | Purpose |
+|-----|---------|----------|---------|
+| `auto_recall_limit` | `3` | `prompt_native` | Top-K memories fetched by auto-recall hooks |
+| `auto_recall_rrf_k` | `60` | `prompt_native` | RRF k value for hybrid recall ranking |
+| `auto_recall_strategy` | `"hybrid"` | `prompt_native` | Recall strategy (`hybrid` or `vector-only`) |
+| `system_prompt_sections` | `null` | `prompt_native` | Optional JSON string controlling prompt section order/titles |
+| `recall_ranking_weights` | `null` | `prompt_native` | Optional JSON string overriding ranking blend weights |
+| `budget_compact_threshold_ratio` | `0.7` | `prompt_native` | Budget ratio threshold to switch to compact mode |
+| `budget_offload_threshold_ratio` | `2` | `prompt_native` | Budget ratio threshold to switch to offload mode |
+| `intent_detection_threshold` | `0.6` | `prompt_native` | Intent routing sensitivity threshold |
+
 ## Subscriptions
 
 ### `memory_subscribe`

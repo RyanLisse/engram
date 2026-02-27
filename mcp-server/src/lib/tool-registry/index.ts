@@ -27,6 +27,8 @@ import { entries as discoveryEntries, makeListCapabilitiesEntry } from "./discov
 import { entries as episodesEntries } from "./episodes-entries.js";
 import { entries as kvEntries } from "./kv-entries.js";
 import { entries as blockEntries } from "./block-entries.js";
+import { entries as crudEntries } from "./crud-entries.js";
+import { entries as parityEntries } from "./parity-entries.js";
 import { entries as subspaceEntries } from "./subspace-entries.js";
 
 // ── Dispatch ─────────────────────────────────────────
@@ -44,6 +46,8 @@ const _baseEntries: ToolEntry[] = [
   ...episodesEntries,
   ...kvEntries,
   ...blockEntries,
+  ...crudEntries,
+  ...parityEntries,
   ...subspaceEntries,
   ...discoveryEntries,
 ];

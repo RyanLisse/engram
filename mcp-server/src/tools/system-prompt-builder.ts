@@ -37,7 +37,10 @@ export async function buildFullSystemPrompt(
 ) {
   const agentId = input.agentId ?? currentAgentId;
   const tokenBudget = input.tokenBudget ?? 8000;
-  const sections: string[] = [];
+  const sections: Array<{ id: string; title: string; lines: string[] }> = [];
+  const addSection = (id: string, title: string, lines: string[]) => {
+    sections.push({ id, title, lines });
+  };
   let tokensUsed = 0;
 
   // 1. Agent identity
@@ -45,6 +48,14 @@ export async function buildFullSystemPrompt(
   const permitted = await convex.getPermittedScopes(agentId);
   const scopeList = Array.isArray(permitted) ? permitted : [];
 
+  addSection("agent_identity", "Agent Identity", [
+    `Agent ID: ${agentId}`,
+    `Name: ${agent?.name ?? "unknown"}`,
+    `Telos: ${agent?.telos ?? "none"}`,
+    `Capabilities: ${(agent?.capabilities ?? []).join(", ") || "none"}`,
+    `Default Scope: ${agent?.defaultScope ?? "none"}`,
+    `Permitted Scopes: ${scopeList.map((s: any) => s.name).join(", ") || "none"}`,
+  ]);
   const agentIdentityText = formatSection(input.format, "Agent Identity", [
     `Agent ID: ${agentId}`,
     `Name: ${agent?.name ?? "unknown"}`,
@@ -53,7 +64,6 @@ export async function buildFullSystemPrompt(
     `Default Scope: ${agent?.defaultScope ?? "none"}`,
     `Permitted Scopes: ${scopeList.map((s: any) => s.name).join(", ") || "none"}`,
   ]);
-  sections.push(agentIdentityText);
   tokensUsed += Math.ceil(agentIdentityText.length / 4);
 
   // 1.5. Pinned Memories (Progressive Disclosure)
@@ -78,9 +88,9 @@ export async function buildFullSystemPrompt(
       }
 
       if (pinnedFacts.length > 0) {
+        addSection("pinned_memories", "Pinned Memories", pinnedFacts);
         const pinnedSection = formatSection(input.format, "Pinned Memories", pinnedFacts);
-        sections.push(pinnedSection);
-        tokensUsed += pinnedTokens;
+        tokensUsed += Math.max(pinnedTokens, Math.ceil(pinnedSection.length / 4));
       }
     } catch {
       // skip pinned if unavailable
@@ -113,8 +123,8 @@ export async function buildFullSystemPrompt(
 
       if (manifestLines.length > 0) {
         manifestLines.unshift(`Total Facts: ${totalFacts}`);
+        addSection("memory_manifest", "Memory Manifest", manifestLines);
         const manifestSection = formatSection(input.format, "Memory Manifest", manifestLines);
-        sections.push(manifestSection);
         tokensUsed += Math.ceil(manifestSection.length / 4);
       }
     } catch {
@@ -140,9 +150,9 @@ export async function buildFullSystemPrompt(
         // Format digest facts with emoji observation blocks
         const formatted = formatFactsAsObservationBlocks(digestList);
         if (formatted) {
-          sections.push(formatSection(input.format, "Observation Log", [formatted]));
+          addSection("observation_log", "Observation Log", [formatted]);
         } else {
-          sections.push(formatSection(input.format, "Observation Log", [digestList[0].content]));
+          addSection("observation_log", "Observation Log", [digestList[0].content]);
         }
       } else {
         // Fallback to observation summaries with emoji prefixes based on importance
@@ -151,7 +161,7 @@ export async function buildFullSystemPrompt(
         if (summaryList.length > 0) {
           const formatted = formatFactsAsObservationBlocks(summaryList);
           if (formatted) {
-            sections.push(formatSection(input.format, "Observation Log", [formatted]));
+            addSection("observation_log", "Observation Log", [formatted]);
           } else {
             // Final fallback: emoji prefix based on importance score
             const tierEmoji = (s: any) => {
@@ -162,9 +172,11 @@ export async function buildFullSystemPrompt(
               if ((s.importanceScore ?? 0) >= 0.5) return "\u{1F7E1}";
               return "\u{1F7E2}";
             };
-            sections.push(formatSection(input.format, "Observation Log",
-              summaryList.map((s: any) => `${tierEmoji(s)} ${s.content}`)
-            ));
+            addSection(
+              "observation_log",
+              "Observation Log",
+              summaryList.map((s: any) => `${tierEmoji(s)} ${s.content}`),
+            );
           }
         }
       }
@@ -177,15 +189,15 @@ export async function buildFullSystemPrompt(
   if (input.includeActivity) {
     try {
       const stats = await getActivityStats({ periodHours: 24 }, agentId);
-      sections.push(formatSection(input.format, "Activity (Last 24h)", [
+      addSection("activity", "Activity (Last 24h)", [
         `Facts Stored: ${stats.factsStored}`,
         `Recalls: ${stats.recalls}`,
         `Signals: ${stats.signals}`,
         `Handoffs: ${stats.handoffs}`,
         `Total Events: ${stats.totalEvents}`,
-      ]));
+      ]);
     } catch {
-      sections.push(formatSection(input.format, "Activity", ["Unavailable"]));
+      addSection("activity", "Activity", ["Unavailable"]);
     }
   }
 
@@ -198,9 +210,9 @@ export async function buildFullSystemPrompt(
         `${c.key}: ${JSON.stringify(c.value)} (${c.category})`
       );
       if (configList.length > 15) configLines.push(`... and ${configList.length - 15} more`);
-      sections.push(formatSection(input.format, "Configuration", configLines.length > 0 ? configLines : ["No configs set"]));
+      addSection("configuration", "Configuration", configLines.length > 0 ? configLines : ["No configs set"]);
     } catch {
-      sections.push(formatSection(input.format, "Configuration", ["Unavailable"]));
+      addSection("configuration", "Configuration", ["Unavailable"]);
     }
   }
 
@@ -216,13 +228,13 @@ export async function buildFullSystemPrompt(
       const sharedScopes = scopeList.filter((s: any) =>
         s.members && Array.isArray(s.members) && s.members.length > 1
       );
-      sections.push(formatSection(input.format, "Workspace", [
+      addSection("workspace", "Workspace", [
         `Other Agents: ${otherAgents.length}`,
         ...agentLines,
         `Shared Scopes: ${sharedScopes.map((s: any) => `${s.name} (${s.members?.length} members)`).join(", ") || "none"}`,
-      ]));
+      ]);
     } catch {
-      sections.push(formatSection(input.format, "Workspace", ["Unavailable"]));
+      addSection("workspace", "Workspace", ["Unavailable"]);
     }
   }
 
@@ -232,9 +244,11 @@ export async function buildFullSystemPrompt(
       const notifications = await getNotifications({ limit: 5 }, agentId);
       const noteList = Array.isArray(notifications) ? notifications : [];
       if (noteList.length > 0) {
-        sections.push(formatSection(input.format, "Unread Notifications", noteList.map((n: any) =>
-          `[${n.type}] ${n.message ?? n.content ?? "notification"}`
-        )));
+        addSection(
+          "notifications",
+          "Unread Notifications",
+          noteList.map((n: any) => `[${n.type}] ${n.message ?? n.content ?? "notification"}`),
+        );
       }
     } catch {
       // skip
@@ -249,9 +263,11 @@ export async function buildFullSystemPrompt(
         const handoffs = await convex.getRecentHandoffs(agentId, scopeIds, 3);
         const handoffList = Array.isArray(handoffs) ? handoffs : [];
         if (handoffList.length > 0) {
-          sections.push(formatSection(input.format, "Recent Handoffs", handoffList.map((h: any) =>
-            `From ${h.fromAgent}: ${h.summary ?? "no summary"}`
-          )));
+          addSection(
+            "handoffs",
+            "Recent Handoffs",
+            handoffList.map((h: any) => `From ${h.fromAgent}: ${h.summary ?? "no summary"}`),
+          );
         }
       }
     } catch {
@@ -259,13 +275,53 @@ export async function buildFullSystemPrompt(
     }
   }
 
-  const prompt = sections.join("\n\n");
+  addSection(
+    "capabilities_hint",
+    "Capabilities",
+    ["To list all memory tools, use memory_list_capabilities."],
+  );
+
+  let orderedSections = sections;
+  try {
+    const sectionConfig = await convex.getConfig("system_prompt_sections");
+    const raw = sectionConfig?.value;
+    if (typeof raw === "string" && raw.trim().length > 0) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const byId = new Map(sections.map((section) => [section.id, section]));
+        const configured: typeof sections = [];
+        for (const item of parsed) {
+          if (!item || typeof item !== "object") continue;
+          const id = typeof item.id === "string" ? item.id : "";
+          if (!id) continue;
+          const source = byId.get(id);
+          if (!source) continue;
+          if (item.includeByDefault === false) continue;
+          configured.push({
+            ...source,
+            title:
+              typeof item.title === "string" && item.title.trim().length > 0
+                ? item.title
+                : source.title,
+          });
+          byId.delete(id);
+        }
+        orderedSections = [...configured, ...Array.from(byId.values())];
+      }
+    }
+  } catch {
+    // Keep default ordering/titles.
+  }
+
+  const prompt = orderedSections
+    .map((section) => formatSection(input.format, section.title, section.lines))
+    .join("\n\n");
   const estimatedTokens = Math.ceil(prompt.length / 4);
   return {
     prompt,
     agentId,
     format: input.format,
-    sectionCount: sections.length,
+    sectionCount: orderedSections.length,
     estimatedTokens,
     tokenBudget,
     tokensUsed: Math.max(tokensUsed, estimatedTokens),
