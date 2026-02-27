@@ -10,6 +10,8 @@ export interface VaultFact {
   updatedAt?: number;
   source: string;
   entityIds: string[];
+  /** Resolved entity names for wiki-link rendering. Falls back to entityIds when absent. */
+  entityNames?: string[];
   relevanceScore: number;
   accessedCount: number;
   importanceScore: number;
@@ -27,21 +29,43 @@ export interface ParsedVaultDocument {
   body: string;
 }
 
+/**
+ * Render entities for frontmatter. When entityNames are available, format as
+ * Obsidian wiki-links `[[Name]]`. Otherwise fall back to raw entity IDs.
+ */
+function renderEntities(fact: VaultFact): string[] {
+  if (fact.entityNames && fact.entityNames.length > 0) {
+    return fact.entityNames.map((name) => `[[${name}]]`);
+  }
+  return fact.entityIds;
+}
+
 export function generateFrontmatter(fact: VaultFact): string {
-  const data = {
+  const data: Record<string, unknown> = {
     id: fact._id,
     source: fact.source,
     factType: fact.factType,
     createdBy: fact.createdBy,
     scopeId: fact.scopeId,
-    timestamp: fact.timestamp,
-    updatedAt: fact.updatedAt,
-    entityIds: fact.entityIds,
+    timestamp: new Date(fact.timestamp).toISOString(),
+    ...(fact.updatedAt !== undefined
+      ? { updatedAt: new Date(fact.updatedAt).toISOString() }
+      : {}),
     tags: fact.tags,
-    importanceScore: fact.importanceScore,
-    relevanceScore: fact.relevanceScore,
+    entities: renderEntities(fact),
+    importanceScore: Number(fact.importanceScore),
+    relevanceScore: Number(fact.relevanceScore),
     lifecycleState: fact.lifecycleState,
   };
+
+  // Obsidian alias search: use factualSummary as alias when available
+  if (fact.factualSummary) {
+    data.aliases = [fact.factualSummary];
+  }
+
+  // Obsidian cssclasses for per-factType styling
+  data.cssclasses = ["engram-fact", `engram-${fact.factType}`];
+
   return yaml.dump(data, {
     lineWidth: 120,
     noRefs: true,
@@ -73,6 +97,33 @@ export function parseFrontmatter(fileContent: string): ParsedVaultDocument {
     frontmatter,
     body: match[2].trim(),
   };
+}
+
+/**
+ * Parse a vault timestamp value back to unix milliseconds.
+ * Handles both ISO 8601 strings (new format) and raw numbers (legacy format).
+ */
+export function parseVaultTimestamp(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const ms = new Date(value).getTime();
+    return Number.isNaN(ms) ? undefined : ms;
+  }
+  return undefined;
+}
+
+/**
+ * Parse vault entity references back to entity name/ID strings.
+ * Handles wiki-link format `[[Name]]` (new) and plain ID strings (legacy).
+ */
+export function parseVaultEntities(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry: unknown) => {
+    if (typeof entry !== "string") return String(entry);
+    const wikiMatch = entry.match(/^\[\[([^\]]+)\]\]$/);
+    return wikiMatch ? wikiMatch[1] : entry;
+  });
 }
 
 export function generateFilename(fact: Pick<VaultFact, "timestamp" | "factType" | "content">): string {

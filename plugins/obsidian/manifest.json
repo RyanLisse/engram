@@ -1,0 +1,10 @@
+{
+  "id": "engram-memory",
+  "name": "Engram Memory",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Connect your Obsidian vault to Engram — unified multi-agent memory system",
+  "author": "Engram",
+  "authorUrl": "https://github.com/anthropics/engram",
+  "isDesktopOnly": false
+}

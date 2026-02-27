@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parseFrontmatter } from "./vault-format.js";
+import { parseFrontmatter, parseVaultTimestamp, parseVaultEntities } from "./vault-format.js";
 import { applyVaultEdit, getFact } from "./convex-client.js";
 
 const HUMAN_FIELDS = new Set(["content", "tags", "entityIds"]);
@@ -20,10 +20,16 @@ export async function reconcileFileEdit(filePath: string) {
     dbFact = await getFact(factId);
   }
 
+  // Handle both new format (entities as wiki-links) and legacy (entityIds as plain strings)
+  const entities = frontmatter.entities ?? frontmatter.entityIds;
+  const resolvedEntityIds = Array.isArray(entities)
+    ? parseVaultEntities(entities)
+    : undefined;
+
   const patch = mergeHumanEdits(dbFact, {
     content: body,
     tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : undefined,
-    entityIds: Array.isArray(frontmatter.entityIds) ? frontmatter.entityIds : undefined,
+    entityIds: resolvedEntityIds,
   });
 
   if (dbFact && detectConflicts(dbFact, patch)) {
@@ -39,7 +45,8 @@ export async function reconcileFileEdit(filePath: string) {
     tags: patch.tags,
     entityIds: patch.entityIds,
     vaultPath: filePath,
-    updatedAt: Date.now(),
+    // Parse ISO 8601 or unix ms timestamps from frontmatter; fall back to now
+    updatedAt: parseVaultTimestamp(frontmatter.updatedAt) ?? Date.now(),
   });
 
   return { reconciled: true, ...result };

@@ -1,0 +1,22 @@
+.engram-status-connected {
+  color: var(--text-success);
+}
+
+.engram-status-connecting {
+  color: var(--text-warning);
+}
+
+.engram-status-disconnected {
+  color: var(--text-error);
+}
+
+.engram-status-bar {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.engram-status-bar:hover {
+  opacity: 0.8;
+}
