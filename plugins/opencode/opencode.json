@@ -1,4 +1,5 @@
 {
+  "$schema": "https://opencode.ai/config.json",
   "_generated": {
     "from": "config/engram-mcp.contract.json",
     "version": "1.0.0",
@@ -13,7 +14,7 @@
       "env": {
         "COHERE_API_KEY": "${COHERE_API_KEY}",
         "CONVEX_URL": "${CONVEX_URL}",
-        "ENGRAM_AGENT_ID": "claude-code",
+        "ENGRAM_AGENT_ID": "opencode",
         "ENGRAM_API_KEY": "",
         "ENGRAM_CLIENT_KEY": "",
         "ENGRAM_SSE_PORT": ""

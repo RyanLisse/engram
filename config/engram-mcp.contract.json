@@ -1,0 +1,150 @@
+{
+  "$schema": "./engram-mcp.contract.schema.json",
+  "name": "engram",
+  "version": "1.0.0",
+  "description": "Unified multi-agent memory system — shared memory layer for AI agents",
+  "server": {
+    "command": "node",
+    "args": ["mcp-server/dist/index.js"],
+    "buildCommand": "cd mcp-server && npm run build",
+    "transport": "stdio",
+    "serverName": "engram-mcp-server",
+    "serverVersion": "2.0.0"
+  },
+  "env": {
+    "required": {
+      "CONVEX_URL": {
+        "description": "Convex deployment URL for cloud backend",
+        "example": "https://your-deployment.convex.cloud",
+        "validation": "Must be a valid HTTPS URL ending in .convex.cloud"
+      },
+      "ENGRAM_AGENT_ID": {
+        "description": "Unique agent identity string. Determines scope isolation and event routing.",
+        "perClient": true,
+        "defaults": {
+          "claude-code": "claude-code",
+          "opencode": "opencode",
+          "gemini-cli": "gemini-cli",
+          "factory-droid": "factory-droid",
+          "codex": "codex"
+        },
+        "fallback": "indy"
+      }
+    },
+    "optional": {
+      "COHERE_API_KEY": {
+        "description": "Cohere API key for Embed 4 multimodal embeddings (1024-dim). Falls back to Ollama if unset.",
+        "example": "co-xxxxxxxxxxxxxxxx"
+      },
+      "ENGRAM_API_KEY": {
+        "description": "Server-side API key for MCP authentication. If set, ENGRAM_CLIENT_KEY must match.",
+        "default": ""
+      },
+      "ENGRAM_CLIENT_KEY": {
+        "description": "Client-side API key that must match ENGRAM_API_KEY when server auth is enabled.",
+        "default": ""
+      },
+      "ENGRAM_SSE_PORT": {
+        "description": "Port for optional SSE HTTP server for real-time event streaming. Disabled if unset.",
+        "example": "3001",
+        "type": "integer"
+      },
+      "ENGRAM_RATE_LIMIT": {
+        "description": "Maximum tool calls per minute per agent. Protects against runaway loops.",
+        "default": "200",
+        "type": "integer"
+      },
+      "ENGRAM_DISABLE_EVENT_BUS": {
+        "description": "Set to '1' to disable event bus polling. Auto-disabled for placeholder Convex URLs.",
+        "default": "",
+        "values": ["", "1"]
+      },
+      "VAULT_ROOT": {
+        "description": "Root directory for vault file storage (export, import, sync). Used by vault-sync, query-vault, export-graph, and context-primitives.",
+        "default": "../vault (relative to mcp-server cwd)"
+      },
+      "CHECKPOINT_DIR": {
+        "description": "Directory for session checkpoint files. Used by checkpoint, wake, and end-session tools.",
+        "default": "../.checkpoints (relative to mcp-server cwd)"
+      },
+      "OLLAMA_URL": {
+        "description": "Ollama server URL for local embedding fallback when COHERE_API_KEY is unset.",
+        "default": "http://localhost:11434"
+      },
+      "ENGRAM_OLLAMA_EMBED_MODEL": {
+        "description": "Ollama embedding model name when using local embeddings.",
+        "default": "mxbai-embed-large"
+      },
+      "ENGRAM_LANCE_PATH": {
+        "description": "Path to LanceDB cache directory for local vector search acceleration. Disabled if unset."
+      },
+      "ENGRAM_NODE_ID": {
+        "description": "Node identifier for multi-node sync status tracking in admin primitives.",
+        "default": "default-node"
+      }
+    }
+  },
+  "healthPolicy": {
+    "tool": "memory_health",
+    "params": {},
+    "expect": { "ok": true },
+    "timeoutMs": 5000,
+    "retries": 2,
+    "retryDelayMs": 1000
+  },
+  "clients": [
+    {
+      "name": "claude-code",
+      "configFormat": ".mcp.json",
+      "configPath": "plugins/claude-code/.mcp.json",
+      "wrapper": "scripts/start-claude-with-engram.sh",
+      "notes": "Uses relative path from plugin dir to mcp-server/dist/index.js"
+    },
+    {
+      "name": "opencode",
+      "configFormat": "opencode.json",
+      "configPath": "plugins/opencode/opencode.json",
+      "wrapper": "scripts/start-opencode-with-engram.sh",
+      "notes": "Also supports .mcp.json format; lifecycle bridge plugin installed to .opencode/plugins/"
+    },
+    {
+      "name": "gemini-cli",
+      "configFormat": ".gemini-settings.json",
+      "configPath": "plugins/gemini-cli/.gemini-settings.template.json",
+      "wrapper": "scripts/start-gemini-with-engram.sh",
+      "notes": "Gemini CLI reads from ~/.gemini/settings.json; template uses absolute paths"
+    },
+    {
+      "name": "factory-droid",
+      "configFormat": ".factory-mcp.json",
+      "configPath": "plugins/factory-droid/.factory-mcp.json",
+      "wrapper": "scripts/start-droid-with-engram.sh",
+      "notes": "Factory Droid MCP config; plugin directory pending creation"
+    },
+    {
+      "name": "codex",
+      "configFormat": ".mcp.json",
+      "configPath": "plugins/codex/.mcp.json",
+      "wrapper": "scripts/start-codex-with-engram.sh",
+      "notes": "Also supports config.toml format for ~/.codex/config.toml"
+    }
+  ],
+  "toolCount": 73,
+  "toolCategories": {
+    "core": ["memory_store_fact", "memory_recall", "memory_search", "memory_observe", "memory_link_entity", "memory_get_context"],
+    "factLifecycle": ["memory_update_fact", "memory_archive_fact", "memory_boost_relevance", "memory_list_stale_facts", "memory_mark_facts_merged", "memory_mark_facts_pruned"],
+    "signals": ["memory_record_signal", "memory_record_feedback", "memory_record_recall"],
+    "agent": ["memory_register_agent", "memory_end_session", "memory_get_agent_info", "memory_get_agent_context", "memory_get_system_prompt"],
+    "events": ["memory_poll_events", "memory_get_notifications", "memory_mark_notifications_read"],
+    "subscriptions": ["memory_subscribe", "memory_unsubscribe", "memory_list_subscriptions", "memory_poll_subscription"],
+    "config": ["memory_get_config", "memory_list_configs", "memory_set_config", "memory_set_scope_policy"],
+    "retrieval": ["memory_vector_search", "memory_text_search", "memory_rank_candidates", "memory_bump_access", "memory_get_observations", "memory_get_entities", "memory_get_themes", "memory_get_handoffs", "memory_search_facts", "memory_search_entities", "memory_search_themes", "memory_hierarchical_recall"],
+    "context": ["memory_resolve_scopes", "memory_load_budgeted_facts", "memory_search_daily_notes", "memory_get_graph_neighbors", "memory_get_activity_stats", "memory_get_workspace_info", "memory_build_system_prompt"],
+    "delete": ["memory_delete_entity", "memory_delete_scope", "memory_delete_conversation", "memory_delete_session", "memory_delete_theme"],
+    "composition": ["memory_summarize", "memory_prune", "memory_create_theme", "memory_query_raw"],
+    "vault": ["memory_vault_sync", "memory_vault_export", "memory_vault_import", "memory_vault_list_files", "memory_vault_reconcile", "memory_query_vault", "memory_export_graph", "memory_checkpoint", "memory_wake"],
+    "observationMemory": ["memory_om_status", "memory_observe_compress", "memory_reflect"],
+    "discovery": ["memory_list_capabilities"],
+    "health": ["memory_health"]
+  }
+}

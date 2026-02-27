@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/nicobailon/engram/config/engram-mcp.contract.schema.json",
+  "title": "Engram MCP Contract",
+  "description": "Schema for the Engram MCP contract — single source of truth for all agent client integrations",
+  "type": "object",
+  "required": ["name", "version", "description", "server", "env", "healthPolicy", "clients"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "name": {
+      "type": "string",
+      "const": "engram",
+      "description": "Package name — always 'engram'"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the contract"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the MCP server"
+    },
+    "server": {
+      "type": "object",
+      "required": ["command", "args", "buildCommand", "transport"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Executable command to start the MCP server"
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arguments to the server command"
+        },
+        "buildCommand": {
+          "type": "string",
+          "description": "Command to build the MCP server from source"
+        },
+        "transport": {
+          "type": "string",
+          "enum": ["stdio", "sse", "streamable-http"],
+          "description": "MCP transport protocol"
+        },
+        "serverName": {
+          "type": "string",
+          "description": "MCP server name reported in capabilities"
+        },
+        "serverVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "MCP server version reported in capabilities"
+        }
+      },
+      "description": "MCP server execution configuration"
+    },
+    "env": {
+      "type": "object",
+      "required": ["required", "optional"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/envVar" },
+          "description": "Environment variables that must be set for the server to start"
+        },
+        "optional": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/envVar" },
+          "description": "Environment variables with defaults or optional behavior"
+        }
+      },
+      "description": "Environment variable declarations"
+    },
+    "healthPolicy": {
+      "type": "object",
+      "required": ["tool", "params", "expect", "timeoutMs", "retries", "retryDelayMs"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "type": "string",
+          "description": "MCP tool name for health check"
+        },
+        "params": {
+          "type": "object",
+          "description": "Parameters to pass to the health check tool"
+        },
+        "expect": {
+          "type": "object",
+          "description": "Expected fields in the health check response (partial match)"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Health check timeout in milliseconds"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of retry attempts on health check failure"
+        },
+        "retryDelayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Delay between retries in milliseconds"
+        }
+      },
+      "description": "Health check policy for preflight validation"
+    },
+    "clients": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/clientEntry" },
+      "minItems": 1,
+      "description": "Agent client integrations that consume this MCP server"
+    },
+    "toolCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Total number of MCP tools exposed by the server"
+    },
+    "toolCategories": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "description": "Categorized listing of all MCP tool names"
+    }
+  },
+  "$defs": {
+    "envVar": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the variable"
+        },
+        "example": {
+          "type": "string",
+          "description": "Example value (never a real secret)"
+        },
+        "default": {
+          "type": "string",
+          "description": "Default value if not set"
+        },
+        "fallback": {
+          "type": "string",
+          "description": "Fallback value used in code when unset"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "integer", "boolean"],
+          "description": "Expected value type (all env vars are strings, this is semantic)"
+        },
+        "validation": {
+          "type": "string",
+          "description": "Human-readable validation rule"
+        },
+        "values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Enumerated allowed values"
+        },
+        "perClient": {
+          "type": "boolean",
+          "description": "Whether this variable should differ per client integration"
+        },
+        "defaults": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Per-client default values when perClient is true"
+        }
+      },
+      "additionalProperties": false
+    },
+    "clientEntry": {
+      "type": "object",
+      "required": ["name", "configFormat", "configPath"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Client identifier matching ENGRAM_AGENT_ID defaults"
+        },
+        "configFormat": {
+          "type": "string",
+          "description": "Config file format used by this client"
+        },
+        "configPath": {
+          "type": "string",
+          "description": "Path to the generated config file relative to repo root"
+        },
+        "wrapper": {
+          "type": "string",
+          "description": "Path to the preflight wrapper script relative to repo root"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Implementation notes for this client integration"
+        }
+      }
+    }
+  }
+}
