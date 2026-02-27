@@ -87,6 +87,28 @@ npx convex dev                   # Start Convex dev
 npx tsx scripts/generate-api-reference.ts  # Regen API docs
 ```
 
+## Codex + Engram Enforcement (Mandatory)
+
+To ensure Codex always uses Engram memory, launch Codex through:
+
+```bash
+./scripts/start-codex-with-engram.sh
+```
+
+This wrapper is the required entrypoint and enforces:
+- `CONVEX_URL` and `ENGRAM_AGENT_ID` are set
+- MCP server is built (`mcp-server/dist/index.js`)
+- `memory_health` preflight succeeds via `reloaderoo`
+
+If preflight fails, Codex does not start.
+
+### Required session behavior
+
+For every Codex session:
+1. Call `memory_get_agent_context` or `memory_get_system_prompt` at start
+2. Store key decisions with `memory_store_fact` during work
+3. Call `memory_end_session` before ending
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
@@ -112,4 +134,3 @@ npx tsx scripts/generate-api-reference.ts  # Regen API docs
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-
