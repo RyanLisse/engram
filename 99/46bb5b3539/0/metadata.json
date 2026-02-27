@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "9946bb5b3539",
+  "session_id": "e3513706-9bc9-4952-bc12-e0ee80cc0161",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T09:46:53.908027Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "cli/src/commands/qmd.ts",
+    "mcp-server/src/lib/qmd-manager.ts",
+    "mcp-server/src/lib/tool-registry/discovery-entries.ts",
+    "mcp-server/src/lib/tool-registry/index.ts",
+    "mcp-server/src/lib/tool-registry/qmd-entries.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6f09f07aaf46",
+  "checkpoint_transcript_start": 205,
+  "transcript_lines_at_start": 205,
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 347839,
+    "cache_read_tokens": 7684944,
+    "output_tokens": 48905,
+    "api_call_count": 62
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T09:46:52.786543Z",
+    "agent_lines": 1191,
+    "human_added": 1256,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2447,
+    "agent_percentage": 48.6718430731508
+  }
+}
