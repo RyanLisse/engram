@@ -30,6 +30,7 @@ import { entries as blockEntries } from "./block-entries.js";
 import { entries as crudEntries } from "./crud-entries.js";
 import { entries as parityEntries } from "./parity-entries.js";
 import { entries as subspaceEntries } from "./subspace-entries.js";
+import { entries as qmdEntries } from "./qmd-entries.js";
 
 // ── Dispatch ─────────────────────────────────────────
 import { routeToolCall as _routeToolCall } from "./dispatch.js";
@@ -49,6 +50,7 @@ const _baseEntries: ToolEntry[] = [
   ...crudEntries,
   ...parityEntries,
   ...subspaceEntries,
+  ...qmdEntries,
   ...discoveryEntries,
 ];
 

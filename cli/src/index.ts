@@ -22,6 +22,7 @@ import { configCommand } from "./commands/config.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import { conversationsCommand } from "./commands/conversations.js";
 import { bootstrapCommand } from "./commands/bootstrap.js";
+import { qmdCommand } from "./commands/qmd.js";
 
 // Load .env from cli dir or project root
 import { resolve, dirname } from "path";
@@ -87,5 +88,8 @@ program.addCommand(whoamiCommand);
 program.addCommand(statusCommand);
 program.addCommand(bootstrapCommand);
 program.addCommand(replCommand);
+
+// ── QMD local-first search ────────────────────────────
+program.addCommand(qmdCommand());
 
 program.parse();

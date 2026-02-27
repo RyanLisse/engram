@@ -42,6 +42,7 @@ export async function vaultExport(input: z.infer<typeof vaultExportSchema>) {
     };
   }
 
+  // syncOnce() handles QMD reindex internally when exported > 0
   const result = await daemon.syncOnce();
   return {
     vaultRoot: DEFAULT_VAULT_ROOT,

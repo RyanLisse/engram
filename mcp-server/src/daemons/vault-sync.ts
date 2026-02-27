@@ -3,6 +3,8 @@ import { getUnmirroredFacts, updateVaultPath } from "../lib/convex-client.js";
 import { writeFactToVault } from "../lib/vault-writer.js";
 import { reconcileFileEdit } from "../lib/vault-reconciler.js";
 import { ensureGitRepo, autoCommitChanges } from "../lib/vault-git.js";
+import { QmdManager } from "../lib/qmd-manager.js";
+import { eventBus } from "../lib/event-bus.js";
 
 export interface VaultSyncOptions {
   vaultRoot: string;
@@ -70,6 +72,12 @@ export class VaultSyncDaemon {
         `engram sync: ${exported} facts exported`
       ).catch(() => {});
     }
+
+    // QMD reindex — keep local search index current after export
+    if (exported > 0) {
+      await this.qmdReindex();
+    }
+
     return { exported };
   }
 
@@ -81,6 +89,41 @@ export class VaultSyncDaemon {
     });
     this.watcher.on("change", (filePath: string) => this.reconcileFile(filePath));
     this.watcher.on("add", (filePath: string) => this.reconcileFile(filePath));
+  }
+
+  /**
+   * Trigger QMD reindex after vault export.
+   * No-op when QMD is disabled or not installed.
+   * Embedding generation is fire-and-forget (slow, never blocks sync).
+   */
+  private async qmdReindex() {
+    const qmd = QmdManager.getInstance();
+    if (!qmd.isEnabled()) return;
+
+    const installed = await qmd.isInstalled();
+    if (!installed) return;
+
+    // Ensure collection exists (idempotent)
+    await qmd.ensureCollection(this.vaultRoot);
+
+    // Reindex — fast (~100ms incremental)
+    const reindexResult = await qmd.reindex();
+    if (reindexResult.ok) {
+      eventBus.publish({
+        type: "qmd_reindex_completed",
+        agentId: "system",
+        payload: {
+          filesIndexed: reindexResult.value.filesIndexed,
+          durationMs: reindexResult.value.durationMs,
+        },
+        timestamp: Date.now(),
+      });
+    }
+
+    // Embedding refresh — fire-and-forget (5-30s, never blocks sync)
+    qmd.ensureEmbeddings().catch((err) => {
+      console.warn("[vault-sync] QMD embedding refresh failed:", err?.message);
+    });
   }
 
   private async reconcileFile(filePath: string) {

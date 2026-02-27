@@ -24,7 +24,7 @@ export function makeListCapabilitiesEntry(
       inputSchema: {
         type: "object",
         properties: {
-          category: { type: "string", description: "Filter by category (core, lifecycle, signals, agent, events, config, retrieval, delete, observation, composition, vault, health, context, blocks, parity, crud, discovery)" },
+          category: { type: "string", description: "Filter by category (core, lifecycle, signals, agent, events, config, retrieval, delete, observation, composition, vault, health, context, blocks, parity, crud, qmd, discovery)" },
           format: { type: "string", enum: ["list", "table", "json"], description: "Output format (default: list)" },
         },
       },
@@ -64,6 +64,7 @@ export function makeListCapabilitiesEntry(
           "memory_update_theme",
           "memory_update_agent",
         ],
+        qmd: ["memory_local_search", "memory_local_vsearch", "memory_local_query", "memory_deep_search"],
         health: ["memory_health"],
         discovery: ["memory_list_capabilities"],
       };
