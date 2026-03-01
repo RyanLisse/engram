@@ -8,6 +8,19 @@ Engram is like a shared notebook for your AI assistants -- when one assistant le
 
 ## What You'll Need
 
+### OpenClaw Users — One Command
+
+If you use OpenClaw, skip the manual steps:
+
+```bash
+bash ~/Tools/engram/scripts/engram-install.sh && openclaw gateway restart
+```
+
+This deploys, builds, configures, bootstraps your existing memories, and verifies — all in one shot. Continue reading only if you want to understand what's happening under the hood.
+
+---
+
+
 Before you start, make sure you have:
 
 - **A computer** running macOS, Linux, or Windows

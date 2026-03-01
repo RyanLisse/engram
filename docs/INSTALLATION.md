@@ -13,6 +13,30 @@ Complete guide for setting up Engram from scratch.
 
 ## Quick Install
 
+## OpenClaw One-Liner
+
+If you're on OpenClaw, the fastest path:
+
+```bash
+bash ~/Tools/engram/scripts/engram-install.sh
+```
+
+This handles: Convex deploy → plugin build → config patch → memory bootstrap → verify. Run `openclaw gateway restart` after.
+
+### What the installer does
+
+1. **Deploys Convex functions** from `.env.local`
+2. **Builds the OpenClaw plugin** (`plugins/openclaw/`)
+3. **Installs plugin** to `~/.openclaw/extensions/engram/`
+4. **Patches `openclaw.json`** — adds engram plugin entry if missing
+5. **Bootstraps memories** — scans `~/.openclaw/workspace/memory/*.md` and ingests into engram
+6. **Verifies** recall works end-to-end
+
+### Auto-sync (post-install)
+
+An hourly cron job (`Engram Memory Sync`) automatically picks up new/modified `.md` files and ingests them. State tracked in `memory/.engram-sync-state.json`.
+
+
 ```bash
 # Clone repository
 git clone https://github.com/yourusername/engram.git

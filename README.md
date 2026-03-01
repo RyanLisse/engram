@@ -18,6 +18,16 @@ Engram is a shared memory layer that any OpenClaw agent can plug into. Cloud-syn
 
 ## Quick Start
 
+### OpenClaw (one-liner)
+
+```bash
+bash ~/Tools/engram/scripts/engram-install.sh
+```
+
+This does everything: deploys Convex → builds plugin → patches OpenClaw config → bootstraps existing memory files → verifies recall. Restart OpenClaw after.
+
+### Manual Setup
+
 ```bash
 # Install MCP server dependencies
 cd mcp-server && npm install && npx tsc
@@ -25,11 +35,22 @@ cd mcp-server && npm install && npx tsc
 # Set environment variables
 export CONVEX_URL="https://your-deployment.convex.cloud"
 export ENGRAM_AGENT_ID="your-agent-id"
-export COHERE_API_KEY="your-cohere-key"  # Optional: enables real embeddings
+export COHERE_API_KEY="your-cohere-key"  # Optional
 
 # Run the MCP server
 node mcp-server/dist/index.js
 ```
+
+### Auto-Memory Discovery
+
+Engram auto-ingests existing memory files from your workspace. The installer bootstraps all `.md` files from `~/.openclaw/workspace/memory/` on first run, then an hourly cron syncs new/modified files.
+
+```bash
+# Manual sync (also runs hourly via cron)
+node ~/.openclaw/workspace/scripts/engram-sync.mjs
+```
+
+State tracked in `memory/.engram-sync-state.json` — only changed files re-ingested.
 
 ## Add Engram to your agent (easy guide)
 
