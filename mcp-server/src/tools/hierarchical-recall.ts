@@ -131,8 +131,7 @@ export async function hierarchicalRecall(
         for (const rel of entity.relationships.slice(0, 5)) {
           let relatedEntity: any;
           try {
-            const results = await getEntitiesPrimitive({ query: rel.targetId, limit: 1 });
-            relatedEntity = results[0];
+            relatedEntity = await convex.getEntityByEntityId(rel.targetId);
           } catch {
             continue;
           }
