@@ -86,4 +86,18 @@ crons.weekly(
   internal.crons.updateGoldenPrinciples.runUpdateGoldenPrinciples
 );
 
+// Every 10 min: Observer/Reflector threshold sweep
+crons.interval(
+  "observer-sweep",
+  { minutes: 10 },
+  internal.crons.observerSweep.runObserverSweep
+);
+
+// Every 15 min: Proactive action recommendations
+crons.interval(
+  "action-recommendations",
+  { minutes: 15 },
+  internal.crons.actionRecommendations.runActionRecommendations
+);
+
 export default crons;

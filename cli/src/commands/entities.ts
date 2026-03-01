@@ -16,6 +16,7 @@ entitiesCommand
   .argument("<query>", "Search query")
   .option("-t, --type <type>", "Filter by entity type (person, project, tool, concept)")
   .option("-n, --limit <n>", "Max results", "10")
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (query: string, opts: any) => {
     const spinner = ora("Searching entities...").start();
     try {
@@ -25,6 +26,11 @@ entitiesCommand
         limit: parseInt(opts.limit, 10),
       });
       spinner.stop();
+
+      if (opts.json) {
+        console.log(JSON.stringify(results || [], null, 2));
+        return;
+      }
 
       if (!results || !Array.isArray(results) || results.length === 0) {
         console.log(fmt.warn("No entities found"));

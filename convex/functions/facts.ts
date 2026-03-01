@@ -218,6 +218,29 @@ export const listByScope = internalQuery({
   },
 });
 
+/** Count active facts older than N days for a given agent (used by action-recommendations cron). */
+export const countStaleFacts = internalQuery({
+  args: {
+    agentId: v.string(),
+    olderThanDays: v.optional(v.number()),
+  },
+  handler: async (ctx, { agentId, olderThanDays }) => {
+    const ageMs = (olderThanDays ?? 90) * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - ageMs;
+    const rows = await ctx.db
+      .query("facts")
+      .withIndex("by_agent", (q) => q.eq("createdBy", agentId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("lifecycleState"), "active"),
+          q.lt(q.field("timestamp"), cutoff)
+        )
+      )
+      .take(200);
+    return rows.length;
+  },
+});
+
 /** List facts by lifecycle state (used by crons). */
 export const listByLifecycle = internalQuery({
   args: {
@@ -381,6 +404,42 @@ export const bumpAccess = mutation({
 });
 
 // ─── Internal Mutations ──────────────────────────────────────────────
+
+/** Internal storeFact for use by Observer/Reflector actions (bypasses write-access check). */
+export const storeFactInternal = internalMutation({
+  args: {
+    content: v.string(),
+    source: v.string(),
+    createdBy: v.string(),
+    scopeId: v.id("memory_scopes"),
+    factType: v.string(),
+    tags: v.optional(v.array(v.string())),
+    observationGeneration: v.optional(v.number()),
+    observationSessionId: v.optional(v.id("observation_sessions")),
+  },
+  handler: async (ctx, args) => {
+    const importanceScore = estimateImportance(args.factType);
+    const factId = await ctx.db.insert("facts", {
+      content: args.content,
+      source: args.source,
+      entityIds: [],
+      tags: args.tags ?? [],
+      factType: args.factType,
+      scopeId: args.scopeId,
+      createdBy: args.createdBy,
+      timestamp: Date.now(),
+      relevanceScore: 1.0,
+      accessedCount: 0,
+      importanceScore,
+      lifecycleState: "active",
+      observationGeneration: args.observationGeneration,
+      observationSessionId: args.observationSessionId,
+    });
+    // Schedule async enrichment
+    await ctx.scheduler.runAfter(0, internal.actions.enrich.enrichFact, { factId });
+    return { factId, importanceScore };
+  },
+});
 
 /** Enrichment pipeline writes back embeddings, summaries, entities, importance. */
 export const updateEnrichment = internalMutation({
@@ -580,6 +639,281 @@ export const markFactsMerged = mutation({
       });
     }
     return { merged: sourceFactIds.length };
+  },
+});
+
+// ─── Observation Session Queries/Mutations ──────────────────────────
+
+export const getObservationSession = query({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+  },
+  handler: async (ctx, { scopeId, agentId }) => {
+    return await ctx.db
+      .query("observation_sessions")
+      .withIndex("by_scope_agent", (q) => q.eq("scopeId", scopeId).eq("agentId", agentId))
+      .first();
+  },
+});
+
+/** Internal version for use by actions. */
+export const getObservationSessionInternal = internalQuery({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+  },
+  handler: async (ctx, { scopeId, agentId }) => {
+    return await ctx.db
+      .query("observation_sessions")
+      .withIndex("by_scope_agent", (q) => q.eq("scopeId", scopeId).eq("agentId", agentId))
+      .first();
+  },
+});
+
+export const upsertObservationSession = internalMutation({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    pendingTokenEstimate: v.optional(v.number()),
+    summaryTokenEstimate: v.optional(v.number()),
+    observerThreshold: v.optional(v.number()),
+    reflectorThreshold: v.optional(v.number()),
+    lastObserverRun: v.optional(v.number()),
+    lastReflectorRun: v.optional(v.number()),
+    observerGeneration: v.optional(v.number()),
+    reflectorGeneration: v.optional(v.number()),
+    compressionLevel: v.optional(v.number()),
+    bufferFactId: v.optional(v.id("facts")),
+    bufferReady: v.optional(v.boolean()),
+    bufferTokenEstimate: v.optional(v.number()),
+    lastObserverFingerprint: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("observation_sessions")
+      .withIndex("by_scope_agent", (q) => q.eq("scopeId", args.scopeId).eq("agentId", args.agentId))
+      .first();
+
+    const now = Date.now();
+    if (existing) {
+      const patch: Record<string, unknown> = { updatedAt: now };
+      if (args.pendingTokenEstimate !== undefined) patch.pendingTokenEstimate = args.pendingTokenEstimate;
+      if (args.summaryTokenEstimate !== undefined) patch.summaryTokenEstimate = args.summaryTokenEstimate;
+      if (args.observerThreshold !== undefined) patch.observerThreshold = args.observerThreshold;
+      if (args.reflectorThreshold !== undefined) patch.reflectorThreshold = args.reflectorThreshold;
+      if (args.lastObserverRun !== undefined) patch.lastObserverRun = args.lastObserverRun;
+      if (args.lastReflectorRun !== undefined) patch.lastReflectorRun = args.lastReflectorRun;
+      if (args.observerGeneration !== undefined) patch.observerGeneration = args.observerGeneration;
+      if (args.reflectorGeneration !== undefined) patch.reflectorGeneration = args.reflectorGeneration;
+      if (args.compressionLevel !== undefined) patch.compressionLevel = args.compressionLevel;
+      if (args.bufferFactId !== undefined) patch.bufferFactId = args.bufferFactId;
+      if (args.bufferReady !== undefined) patch.bufferReady = args.bufferReady;
+      if (args.bufferTokenEstimate !== undefined) patch.bufferTokenEstimate = args.bufferTokenEstimate;
+      if (args.lastObserverFingerprint !== undefined) patch.lastObserverFingerprint = args.lastObserverFingerprint;
+      await ctx.db.patch(existing._id, patch);
+      return existing._id;
+    }
+
+    return await ctx.db.insert("observation_sessions", {
+      scopeId: args.scopeId,
+      agentId: args.agentId,
+      pendingTokenEstimate: args.pendingTokenEstimate ?? 0,
+      summaryTokenEstimate: args.summaryTokenEstimate ?? 0,
+      observerThreshold: args.observerThreshold ?? 10000,
+      reflectorThreshold: args.reflectorThreshold ?? 20000,
+      observerGeneration: args.observerGeneration ?? 0,
+      reflectorGeneration: args.reflectorGeneration ?? 0,
+      compressionLevel: args.compressionLevel ?? 0,
+      bufferReady: args.bufferReady ?? false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const incrementPendingTokens = internalMutation({
+  args: {
+    sessionId: v.id("observation_sessions"),
+    tokenDelta: v.number(),
+  },
+  handler: async (ctx, { sessionId, tokenDelta }) => {
+    const session = await ctx.db.get(sessionId);
+    if (!session) return;
+    await ctx.db.patch(sessionId, {
+      pendingTokenEstimate: session.pendingTokenEstimate + tokenDelta,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/** Public wrapper for incrementPendingTokens (used by MCP server). */
+export const incrementPendingTokensPublic = mutation({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    tokenDelta: v.number(),
+  },
+  handler: async (ctx, { scopeId, agentId, tokenDelta }) => {
+    const session = await ctx.db
+      .query("observation_sessions")
+      .withIndex("by_scope_agent", (q) => q.eq("scopeId", scopeId).eq("agentId", agentId))
+      .first();
+
+    if (session) {
+      await ctx.db.patch(session._id, {
+        pendingTokenEstimate: session.pendingTokenEstimate + tokenDelta,
+        updatedAt: Date.now(),
+      });
+      return session._id;
+    }
+
+    // Auto-create session if it doesn't exist
+    return await ctx.db.insert("observation_sessions", {
+      scopeId,
+      agentId,
+      pendingTokenEstimate: Math.max(0, tokenDelta),
+      summaryTokenEstimate: 0,
+      observerThreshold: 10000,
+      reflectorThreshold: 20000,
+      observerGeneration: 0,
+      reflectorGeneration: 0,
+      compressionLevel: 0,
+      bufferReady: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/** Public wrapper for upsertObservationSession (used by MCP server). */
+export const upsertObservationSessionPublic = mutation({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    observerThreshold: v.optional(v.number()),
+    reflectorThreshold: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("observation_sessions")
+      .withIndex("by_scope_agent", (q) => q.eq("scopeId", args.scopeId).eq("agentId", args.agentId))
+      .first();
+
+    const now = Date.now();
+    if (existing) {
+      const patch: Record<string, unknown> = { updatedAt: now };
+      if (args.observerThreshold !== undefined) patch.observerThreshold = args.observerThreshold;
+      if (args.reflectorThreshold !== undefined) patch.reflectorThreshold = args.reflectorThreshold;
+      await ctx.db.patch(existing._id, patch);
+      return existing._id;
+    }
+
+    return await ctx.db.insert("observation_sessions", {
+      scopeId: args.scopeId,
+      agentId: args.agentId,
+      pendingTokenEstimate: 0,
+      summaryTokenEstimate: 0,
+      observerThreshold: args.observerThreshold ?? 10000,
+      reflectorThreshold: args.reflectorThreshold ?? 20000,
+      observerGeneration: 0,
+      reflectorGeneration: 0,
+      compressionLevel: 0,
+      bufferReady: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+/** List uncompressed observations for a scope+agent (active, factType=observation). */
+export const listUncompressedObservations = internalQuery({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, agentId, limit }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("factType"), "observation"),
+          q.eq(q.field("lifecycleState"), "active"),
+          q.eq(q.field("createdBy"), agentId)
+        )
+      )
+      .order("desc")
+      .take(limit ?? 200);
+  },
+});
+
+/** List observation summaries for a scope+agent. */
+export const listObservationSummaries = internalQuery({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, agentId, limit }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("factType"), "observation_summary"),
+          q.eq(q.field("lifecycleState"), "active"),
+          q.eq(q.field("createdBy"), agentId)
+        )
+      )
+      .order("desc")
+      .take(limit ?? 50);
+  },
+});
+
+/** Public wrapper for listObservationSummaries. */
+export const listObservationSummariesPublic = query({
+  args: {
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { scopeId, agentId, limit }) => {
+    return await ctx.db
+      .query("facts")
+      .withIndex("by_scope", (q) => q.eq("scopeId", scopeId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("factType"), "observation_summary"),
+          q.eq(q.field("lifecycleState"), "active"),
+          q.eq(q.field("createdBy"), agentId)
+        )
+      )
+      .order("desc")
+      .take(limit ?? 50);
+  },
+});
+
+/** Update lifecycle state with optional mergedInto pointer. */
+export const updateLifecycleWithMerge = internalMutation({
+  args: {
+    factId: v.id("facts"),
+    lifecycleState: v.string(),
+    mergedInto: v.optional(v.id("facts")),
+  },
+  handler: async (ctx, { factId, lifecycleState, mergedInto }) => {
+    const patch: Record<string, unknown> = { lifecycleState, updatedAt: Date.now() };
+    if (mergedInto !== undefined) patch.mergedInto = mergedInto;
+    await ctx.db.patch(factId, patch);
+  },
+});
+
+/** List all observation sessions (used by observer sweep cron). */
+export const listObservationSessions = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("observation_sessions").collect();
   },
 });
 

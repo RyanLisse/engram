@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "../_generated/server";
+import { internalMutation, internalQuery, query } from "../_generated/server";
 
 export const emit = internalMutation({
   args: {
@@ -46,6 +46,29 @@ export const poll = query({
 
     const nextWatermark = rows.length > 0 ? rows[rows.length - 1].watermark : watermark ?? 0;
     return { events: rows, nextWatermark };
+  },
+});
+
+/** Get recent events for an agent filtered by eventType (used by action-recommendations cooldown). */
+export const getRecentByAgentAndType = internalQuery({
+  args: {
+    agentId: v.string(),
+    eventType: v.string(),
+    sinceMs: v.number(),
+  },
+  handler: async (ctx, { agentId, eventType, sinceMs }) => {
+    const cutoff = Date.now() - sinceMs;
+    return await ctx.db
+      .query("memory_events")
+      .withIndex("by_agent_watermark", (q) => q.eq("agentId", agentId))
+      .order("desc")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("eventType"), eventType),
+          q.gte(q.field("createdAt"), cutoff)
+        )
+      )
+      .take(1);
   },
 });
 

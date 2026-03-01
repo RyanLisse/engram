@@ -421,6 +421,39 @@ export async function markFactsMerged(args: {
   return await mutate(PATHS.facts.markFactsMerged, args);
 }
 
+// ========================================
+// Observation Sessions API
+// ========================================
+
+export async function getObservationSession(scopeId: string, agentId: string) {
+  return await query(PATHS.facts.getObservationSession, { scopeId, agentId });
+}
+
+export async function listObservationSummaries(scopeId: string, agentId: string, limit?: number) {
+  return await query(PATHS.facts.listObservationSummariesPublic, { scopeId, agentId, limit });
+}
+
+export async function incrementObservationTokens(scopeId: string, agentId: string, tokenDelta: number) {
+  return await mutate(PATHS.facts.incrementPendingTokensPublic, { scopeId, agentId, tokenDelta });
+}
+
+export async function upsertObservationSession(args: {
+  scopeId: string;
+  agentId: string;
+  observerThreshold?: number;
+  reflectorThreshold?: number;
+}) {
+  return await mutate(PATHS.facts.upsertObservationSessionPublic, args);
+}
+
+export async function runObserver(scopeId: string, agentId: string, compressionLevel?: number) {
+  return await action(PATHS.actions.observer, { scopeId, agentId, compressionLevel });
+}
+
+export async function runReflector(scopeId: string, agentId: string) {
+  return await action(PATHS.actions.reflector, { scopeId, agentId });
+}
+
 export async function listAgents() {
   return await query(PATHS.agents.list, {});
 }

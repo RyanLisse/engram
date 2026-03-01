@@ -61,6 +61,84 @@ Add to your Claude Code MCP settings (`.mcp.json`):
 }
 ```
 
+## CLI (Agent-Native)
+
+Engram ships with a full-featured CLI that supports `--json` output for agent consumption. All commands can be run directly from the shell.
+
+### Installation
+
+```bash
+cd ~/Tools/engram/cli
+npm run build
+npm link  # makes `engram` available globally
+```
+
+### Core Commands (All Support --json)
+
+- `engram store <content>` — Store a fact
+  - Options: `-t|--type`, `-s|--scope`, `--tags`, `--source`, `--emotion`, `--json`
+- `engram recall <query>` — Semantic search (deprecated, use primitives)
+  - Options: `-n|--limit`, `-s|--scope`, `-t|--type`, `--json`
+- `engram search <text>` — Full-text search
+  - Aliases: `text-search`, `search`
+  - Options: `-n|--limit`, `-t|--type`, `--tags`, `--json`
+- `engram vector-search <query>` — Semantic vector search
+  - Options: `-n|--limit`, `-s|--scope`, `-t|--type`, `--json`
+- `engram context <topic>` — Get warm-start context
+  - Options: `-n|--max-facts`, `-s|--scope`, `--entities`, `--themes`, `--json`
+- `engram status` — System health and stats
+  - Options: `--json`, `--robot` (machine-readable with health check)
+
+### Facts Lifecycle
+
+- `engram facts get <factId>` — Get a single fact (`--json`)
+- `engram facts update <factId>` — Update fact content/tags/type
+- `engram facts archive <factId>` — Soft delete
+- `engram facts bump <factId>` — Signal usefulness to ALMA
+- `engram facts boost <factId>` — Boost relevance score
+- `engram facts stale` — List stale facts (`--json`, `-s|--scope`, `-d|--days`, `-n|--limit`)
+- `engram facts prune <factIds...>` — Mark facts as pruned
+- `engram facts merge <targetId> <sourceIds...>` — Merge facts
+- `engram facts signals <factId>` — View quality signals (`--json`)
+
+### Entities
+
+- `engram entities search <query>` — Search entities (`--json`, `-t|--type`, `-n|--limit`)
+- `engram entities create <id> <name>` — Create/update entity (`-t|--type`)
+
+### Agent-Friendly Output
+
+All commands support `--json` for machine-readable output. Use this for agent automation:
+
+```bash
+# Store and capture fact ID
+FACT_ID=$(engram store "Ryan prefers voice for stories" --json | jq -r .factId)
+
+# Get status health check
+engram status --robot | jq .healthy  # → true/false
+
+# Search and parse results
+engram search "OpenClaw" --json | jq '.[].content'
+```
+
+### Robot Mode
+
+`engram status --robot` outputs a machine-readable JSON status:
+
+```json
+{
+  "healthy": true,
+  "agentId": "cammy",
+  "agentRegistered": true,
+  "convexUrl": "https://accurate-cardinal-287.convex.cloud",
+  "factCount": 142,
+  "scopeCount": 8,
+  "sessionCount": 3,
+  "lastActivity": 1708876543210,
+  "timestamp": 1708876800000
+}
+```
+
 ## MCP Tools (69)
 
 ### Core (6)

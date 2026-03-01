@@ -64,6 +64,19 @@ export async function observe(
       await convex.classifyObservation({ factId: stored.factId });
     }
 
+    // Track observation tokens in session (best-effort, non-blocking)
+    try {
+      const tokenEstimate = Math.ceil(input.observation.length / 4);
+      await convex.incrementObservationTokens(
+        resolvedScopeId as string,
+        agentId,
+        tokenEstimate
+      );
+    } catch (err: any) {
+      // Non-blocking — don't fail the observation if token tracking fails
+      console.error("[observe] Token tracking error (non-blocking):", err.message);
+    }
+
     return { ack: true };
   } catch (error: any) {
     console.error("[observe] Error:", error);

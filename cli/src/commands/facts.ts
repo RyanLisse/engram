@@ -126,6 +126,7 @@ factsCommand
   .option("-s, --scope <scope>", "Scope name")
   .option("-d, --days <n>", "Older than N days", "30")
   .option("-n, --limit <n>", "Max results", "20")
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (opts: any) => {
     const spinner = ora("Finding stale facts...").start();
     try {
@@ -145,6 +146,11 @@ factsCommand
 
       const facts = await client.listStaleFacts(args);
       spinner.stop();
+
+      if (opts.json) {
+        console.log(JSON.stringify(facts || [], null, 2));
+        return;
+      }
 
       if (!facts || !Array.isArray(facts) || facts.length === 0) {
         console.log(fmt.warn("No stale facts found"));
@@ -197,11 +203,17 @@ factsCommand
   .command("signals")
   .description("View signals on a fact")
   .argument("<factId>", "Fact ID")
-  .action(async (factId: string) => {
+  .option("--json", "Output raw JSON for agent consumption")
+  .action(async (factId: string, opts: any) => {
     const spinner = ora("Loading signals...").start();
     try {
       const signals = await client.getSignalsByFact(factId);
       spinner.stop();
+
+      if (opts.json) {
+        console.log(JSON.stringify(signals || [], null, 2));
+        return;
+      }
 
       if (!signals || !Array.isArray(signals) || signals.length === 0) {
         console.log(fmt.warn("No signals on this fact"));

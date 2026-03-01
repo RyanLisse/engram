@@ -75,6 +75,7 @@ export const textSearchCommand = new Command("text-search")
   .option("-n, --limit <n>", "Max results", "20")
   .option("-t, --type <type>", "Filter by fact type")
   .option("--tags <tags>", "Comma-separated tags to filter")
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (text: string, opts) => {
     const spinner = ora("Running text search...").start();
     try {
@@ -85,6 +86,10 @@ export const textSearchCommand = new Command("text-search")
         tags: opts.tags,
       });
       spinner.stop();
+      if (opts.json) {
+        console.log(JSON.stringify(results || [], null, 2));
+        return;
+      }
       printFactResults(results);
     } catch (err: any) {
       spinner.fail(err.message);
@@ -98,6 +103,7 @@ export const vectorSearchCommand = new Command("vector-search")
   .option("-n, --limit <n>", "Max results", "20")
   .option("-s, --scope <scope>", "Scope name to search in")
   .option("-t, --type <type>", "Filter by fact type")
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (query: string, opts) => {
     const spinner = ora("Running vector search...").start();
     try {
@@ -108,6 +114,10 @@ export const vectorSearchCommand = new Command("vector-search")
         type: opts.type,
       });
       spinner.stop();
+      if (opts.json) {
+        console.log(JSON.stringify(results || [], null, 2));
+        return;
+      }
       printFactResults(results);
     } catch (err: any) {
       spinner.fail(err.message);
@@ -171,6 +181,7 @@ export const searchCommand = new Command("search")
   .option("-n, --limit <n>", "Max results", "20")
   .option("-t, --type <type>", "Filter by fact type")
   .option("--tags <tags>", "Comma-separated tags to filter")
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (text: string | undefined, opts: any) => {
     if (!text) {
       console.log(fmt.warn("Usage: engram text-search <text> (or engram search <text>)"));
@@ -185,6 +196,10 @@ export const searchCommand = new Command("search")
         tags: opts.tags,
       });
       spinner.stop();
+      if (opts.json) {
+        console.log(JSON.stringify(results || [], null, 2));
+        return;
+      }
       printFactResults(results);
     } catch (err: any) {
       spinner.fail(err.message);

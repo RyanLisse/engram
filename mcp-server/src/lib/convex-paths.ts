@@ -27,6 +27,10 @@ export const PATHS = {
     markPruned: "functions/facts:markPruned",
     listStaleFacts: "functions/facts:listStaleFacts",
     markFactsMerged: "functions/facts:markFactsMerged",
+    getObservationSession: "functions/facts:getObservationSession",
+    listObservationSummariesPublic: "functions/facts:listObservationSummariesPublic",
+    incrementPendingTokensPublic: "functions/facts:incrementPendingTokensPublic",
+    upsertObservationSessionPublic: "functions/facts:upsertObservationSessionPublic",
   },
 
   // Entities
@@ -124,5 +128,7 @@ export const PATHS = {
     embedAgentCapabilities: "actions/embedAgentCapabilities:embedAgentCapabilities",
     reconcileFromVault: "actions/reconcileFromVault:reconcileFromVault",
     mirrorToVault: "actions/mirrorToVault:mirrorToVault",
+    observer: "actions/observer:runObserverPublic",
+    reflector: "actions/reflector:runReflectorPublic",
   },
 } as const;

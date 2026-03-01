@@ -19,6 +19,10 @@ export default defineSchema({
     importanceTier: v.optional(v.string()), // structural|potential|contextual
     observationTier: v.optional(v.string()), // critical|notable|background
     observationCompressed: v.optional(v.boolean()), // whether background compression ran
+    observationGeneration: v.optional(v.number()), // Observer generation that compressed this
+    observationSessionId: v.optional(v.id("observation_sessions")),
+    assertionType: v.optional(v.string()), // assertion|question|neutral
+    referencedDate: v.optional(v.number()), // three-date temporal model
     observationOriginalContent: v.optional(v.string()), // original pre-compression text
     source: v.string(), // "direct"|"observation"|"import"|"consolidation"
     entityIds: v.array(v.string()),
@@ -70,6 +74,7 @@ export default defineSchema({
       searchField: "content",
       filterFields: ["scopeId", "factType", "createdBy"],
     })
+    .index("by_observation_session", ["observationSessionId", "timestamp"])
     .vectorIndex("vector_search", {
       vectorField: "embedding",
       dimensions: 1024, // Cohere Embed 4 output
@@ -333,4 +338,28 @@ export default defineSchema({
     .index("by_agent", ["agentId", "startTime"])
     .index("by_task_type", ["taskType", "success"])
     .index("by_success", ["success", "endTime"]),
+
+  // ─── observation_sessions ──────────────────────────────────────────
+  // Per-scope, per-agent compression state tracker for Observer/Reflector pipeline.
+  observation_sessions: defineTable({
+    scopeId: v.id("memory_scopes"),
+    agentId: v.string(),
+    pendingTokenEstimate: v.number(),       // tokens of uncompressed observations
+    summaryTokenEstimate: v.number(),       // tokens of accumulated summaries
+    observerThreshold: v.number(),          // default 10000
+    reflectorThreshold: v.number(),         // default 20000
+    lastObserverRun: v.optional(v.number()),
+    lastReflectorRun: v.optional(v.number()),
+    observerGeneration: v.number(),         // increments each Observer run
+    reflectorGeneration: v.number(),
+    compressionLevel: v.number(),           // 0-3 escalating
+    bufferFactId: v.optional(v.id("facts")),
+    bufferReady: v.boolean(),
+    bufferTokenEstimate: v.optional(v.number()),
+    lastObserverFingerprint: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_scope_agent", ["scopeId", "agentId"])
+    .index("by_agent", ["agentId"]),
 });

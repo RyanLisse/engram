@@ -71,6 +71,12 @@ export async function loadBudgetAwareContext(input: BudgetContextInput): Promise
   const strategy = detectStrategy(totalEstimatedTokens, input.tokenBudget);
 
   const sorted = [...results].sort((a: any, b: any) => {
+    // Observation digests and summaries get highest priority (compressed context)
+    const factTypeWeight = (ft?: string) =>
+      ft === "observation_digest" ? 5 : ft === "observation_summary" ? 4 : 0;
+    const byFactType = factTypeWeight(b.factType) - factTypeWeight(a.factType);
+    if (byFactType !== 0) return byFactType;
+
     const tierWeight = (tier?: string) =>
       tier === "critical" ? 3 : tier === "notable" ? 2 : tier === "background" ? 1 : 0;
     const byTier = tierWeight(b.observationTier) - tierWeight(a.observationTier);

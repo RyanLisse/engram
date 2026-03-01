@@ -15,6 +15,7 @@ export const recallCommand = new Command("recall")
   .option("-s, --scope <scope>", "Scope name to search in")
   .option("-t, --type <type>", "Filter by fact type")
   .option("--no-fallback", "Disable text-search fallback when vector results are empty")
+  .option("--json", "Output raw JSON for agent consumption")
   .action(async (query: string, opts) => {
     const spinner = ora("Composing recall from primitives...").start();
     try {
@@ -36,6 +37,12 @@ export const recallCommand = new Command("recall")
       }
 
       spinner.stop();
+
+      if (opts.json) {
+        console.log(JSON.stringify(results || [], null, 2));
+        return;
+      }
+
       console.log(fmt.warn("recall is deprecated; use vector-search and text-search primitives directly."));
 
       if (!results || !Array.isArray(results) || results.length === 0) {
