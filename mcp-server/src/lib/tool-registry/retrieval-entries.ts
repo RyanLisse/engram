@@ -169,7 +169,7 @@ export const entries: readonly ToolEntry[] = [
   {
     tool: {
       name: "memory_get_manifest",
-      description: "Progressive Disclosure: returns a tiered overview of agent memory — pinned facts (always-loaded tier) plus a category distribution by factType with counts and recent snippets. Use this first to understand what's in memory, then call memory_recall to load specific categories on-demand.",
+      description: "Progressive Disclosure: returns pinned facts plus category summaries, using summary → factualSummary → truncated content fallback so legacy rows still disclose cleanly.",
       inputSchema: {
         type: "object",
         properties: {
@@ -186,7 +186,7 @@ export const entries: readonly ToolEntry[] = [
   {
     tool: {
       name: "memory_chain_recall",
-      description: "Multi-hop QA retrieval using reasoning chains. Hop 1: QA index search on the query. Hop 2: entity expansion — facts sharing entities with hop 1 results. Hop 3: causal traversal via temporalLinks. Each fact is annotated with _hopDepth (0=direct, 1=entity, 2=causal). Deduplication keeps the shallowest path.",
+      description: "Multi-hop QA retrieval using reasoning chains with per-fact provenance. Hop 1: QA index search. Hop 2: entity expansion. Hop 3: temporal/causal traversal. Facts include _hopDepth and _chainProvenance.",
       inputSchema: {
         type: "object",
         properties: {

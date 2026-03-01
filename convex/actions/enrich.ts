@@ -44,6 +44,55 @@ export function generateHeuristicQA(
   };
 }
 
+function shouldUpgradeQAPair(factType: string, importanceScore: number): boolean {
+  return new Set(["decision", "correction", "insight"]).has(factType) && importanceScore >= 0.78;
+}
+
+function extractDetailFragment(content: string, topic: string): string | null {
+  const normalizedTopicTokens = topic.toLowerCase().split(/\s+/).filter(Boolean);
+  const cleanedWords = content
+    .replace(/[^\w\s-]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+
+  const loweredWords = cleanedWords.map((word) => word.toLowerCase());
+  const topicStart = loweredWords.findIndex((word, index) =>
+    normalizedTopicTokens.every((token, offset) => loweredWords[index + offset] === token)
+  );
+  const detailWords =
+    topicStart >= 0
+      ? cleanedWords.slice(topicStart + normalizedTopicTokens.length, topicStart + normalizedTopicTokens.length + 6)
+      : cleanedWords.slice(0, 6);
+  const stopwords = new Set(["the", "a", "an", "and", "or", "to", "for", "of", "we", "was", "is", "are"]);
+  const detail = detailWords.filter((word) => !stopwords.has(word.toLowerCase())).join(" ").trim();
+  return detail.length > 0 ? detail : null;
+}
+
+export function generateQAPair(
+  content: string,
+  factType: string,
+  entityIds: string[],
+  importanceScore: number,
+): { qaQuestion: string; qaAnswer: string; qaEntities: string[]; qaConfidence: number } | null {
+  const base = generateHeuristicQA(content, factType, entityIds);
+  if (!base) return null;
+  if (!shouldUpgradeQAPair(factType, importanceScore)) return base;
+
+  const topic = extractTopic(content, entityIds);
+  if (!topic) return base;
+  const displayTopic = findDisplayTopic(content, topic) ?? topic;
+  const detail = extractDetailFragment(content, topic);
+
+  return {
+    ...base,
+    qaQuestion: detail
+      ? `What was ${factType === "correction" ? "corrected" : factType === "insight" ? "learned" : "decided"} about ${displayTopic} regarding ${detail}?`
+      : base.qaQuestion,
+    qaConfidence: 0.82,
+  };
+}
+
 /**
  * Extracts a short topic string for use in QA question templates.
  * Uses the first entity ID label if available, otherwise the first noun phrase
@@ -64,6 +113,12 @@ function extractTopic(content: string, entityIds: string[]): string | null {
   // Last fallback: first 4 words of content (truncated subject)
   const words = content.trim().split(/\s+/).slice(0, 4).join(" ");
   return words.length > 0 ? words : null;
+}
+
+function findDisplayTopic(content: string, topic: string): string | null {
+  const escaped = topic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const match = content.match(new RegExp(escaped, "i"));
+  return match?.[0] ?? null;
 }
 
 /**
@@ -192,7 +247,7 @@ export const enrichFact = internalAction({
     }
 
     // 6b. QA-pair generation (Panini-inspired heuristic)
-    const qa = generateHeuristicQA(fact.content, fact.factType, fact.entityIds);
+    const qa = generateQAPair(fact.content, fact.factType, fact.entityIds, importanceScore);
     if (qa) {
       await ctx.runMutation(internal.functions.facts.patchFact, {
         factId,
@@ -201,12 +256,19 @@ export const enrichFact = internalAction({
     }
 
     // 6c. Summary auto-generation for progressive disclosure
-    if (!fact.factualSummary) {
+    if (!fact.factualSummary || !fact.summary) {
       const summary = generateFactSummary(fact.content, fact.factType);
       if (summary) {
-        await ctx.runMutation(internal.functions.facts.patchFact, {
+        if (!fact.summary) {
+          await ctx.runMutation(internal.functions.facts.patchFact, {
+            factId,
+            fields: { summary },
+          });
+        }
+        await ctx.runMutation(internal.functions.facts.updateEnrichment, {
           factId,
-          fields: { factualSummary: summary },
+          factualSummary: fact.factualSummary ?? summary,
+          summary: fact.summary ?? summary,
         });
       }
     }

@@ -12,7 +12,7 @@
  */
 
 import { describe, test, expect, vi, beforeEach, beforeAll } from "vitest";
-import { generateHeuristicQA } from "../src/lib/enrich-qa.js";
+import { generateHeuristicQA, generateQAPair } from "../src/lib/enrich-qa.js";
 // NOTE: rrf.js is mocked below for recall integration tests, so we use vi.importActual
 // in the RRF describe block to test the real implementation.
 let realRRF: (sets: Array<Array<{ _id: string; [key: string]: any }>>, k?: number) => any[];
@@ -201,6 +201,33 @@ describe("generateHeuristicQA — confidence", () => {
   });
 });
 
+describe("generateQAPair — high-value upgrade path", () => {
+  test("upgrades high-importance decision facts above heuristic confidence", () => {
+    const result = generateQAPair(
+      "We decided to standardize on TypeScript for all new backend services because the tooling is stronger.",
+      "decision",
+      ["entity-typescript", "entity-backend"],
+      0.86
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.qaConfidence).toBeGreaterThan(0.6);
+    expect(result!.qaQuestion).toContain("TypeScript");
+  });
+
+  test("keeps low-importance observations on heuristic confidence", () => {
+    const result = generateQAPair(
+      "The cache warmed successfully after the cron tick.",
+      "observation",
+      ["entity-cache"],
+      0.45
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.qaConfidence).toBe(0.6);
+  });
+});
+
 describe("generateHeuristicQA — entity extraction", () => {
   test("entity IDs are included in qaEntities", () => {
     const result = generateHeuristicQA(
@@ -317,6 +344,26 @@ describe("reciprocalRankFusion — QA pathway fusion", () => {
     for (const fact of fused) {
       expect(fact.rrf_score).toBeGreaterThan(0);
     }
+  });
+
+  test("merges pathway metadata when the same fact appears in multiple result sets", () => {
+    const sharedFactText = { _id: "fact_shared", content: "Shared", _pathways: ["symbolic"] };
+    const sharedFactQa = {
+      _id: "fact_shared",
+      content: "Shared",
+      _pathways: ["qa"],
+      _qaMatch: true,
+      qaConfidence: 0.82,
+    };
+
+    const fused = realRRF([
+      [sharedFactText],
+      [sharedFactQa],
+    ]);
+
+    expect(fused[0]._pathways).toEqual(expect.arrayContaining(["symbolic", "qa"]));
+    expect(fused[0]._qaMatch).toBe(true);
+    expect(fused[0].qaConfidence).toBe(0.82);
   });
 });
 
@@ -502,6 +549,41 @@ describe("recall — QA search pathway integration", () => {
       const sharedOccurrences = result.facts.filter((f: any) => f._id === "fact_shared");
       expect(sharedOccurrences).toHaveLength(1);
     }
+  });
+
+  test("passes explicit fused QA weighting into ranking candidates", async () => {
+    const textFact = { ...makeFact({ _id: "fact_text" }), _pathways: ["symbolic"] };
+    const qaFact = {
+      ...makeFact({ _id: "fact_qa" }),
+      _qaMatch: true,
+      qaConfidence: 0.82,
+      _pathways: ["qa"],
+    };
+
+    mockTextSearch.mockResolvedValue([textFact]);
+    mockSearchByQA.mockResolvedValue([qaFact]);
+    mockReciprocalRankFusion.mockImplementation((sets: any[][]) => [
+      {
+        ...qaFact,
+        rrf_score: 0.04,
+        _pathways: ["qa"],
+      },
+      {
+        ...textFact,
+        rrf_score: 0.03,
+        _pathways: ["symbolic"],
+      },
+    ]);
+    mockRankCandidatesPrimitive.mockResolvedValue(defaultRank([qaFact, textFact]));
+
+    await recall({ query: "TypeScript", searchStrategy: "hybrid" }, "agent-1");
+
+    const rankingInput = mockRankCandidatesPrimitive.mock.calls[0][0];
+    const rankedQaFact = rankingInput.candidates.find((candidate: any) => candidate._id === "fact_qa");
+    const rankedTextFact = rankingInput.candidates.find((candidate: any) => candidate._id === "fact_text");
+
+    expect(rankedQaFact._score).toBeGreaterThan(rankedTextFact._score);
+    expect(rankedQaFact._qaMatch).toBe(true);
   });
 });
 

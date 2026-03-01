@@ -31,6 +31,16 @@ export function reciprocalRankFusion(
       const rrf = 1 / (k + rank + 1);
       if (existing) {
         existing.score += rrf;
+        const existingPathways = new Set<string>(existing.fact._pathways ?? []);
+        const newPathways = Array.isArray(fact._pathways) ? fact._pathways : [];
+        for (const pathway of newPathways) existingPathways.add(pathway);
+        existing.fact = {
+          ...existing.fact,
+          ...fact,
+          _pathways: [...existingPathways],
+          _qaMatch: existing.fact._qaMatch || fact._qaMatch || undefined,
+          qaConfidence: Math.max(existing.fact.qaConfidence ?? 0, fact.qaConfidence ?? 0) || undefined,
+        };
       } else {
         scores.set(fact._id, { score: rrf, fact });
       }

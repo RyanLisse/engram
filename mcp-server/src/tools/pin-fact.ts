@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import * as convex from "../lib/convex-client.js";
+import { generateFactSummary } from "../lib/fact-summary.js";
 
 export const pinFactSchema = z.object({
   factId: z.string().describe("Fact ID to pin"),
@@ -99,10 +100,18 @@ export async function pinFact(
       };
     }
 
-    // Update fact: set pinned to true
+    // Update fact: set pinned to true and ensure a disclosure summary exists.
+    const summary =
+      typeof (fact as any).summary === "string" && (fact as any).summary.trim().length > 0
+        ? (fact as any).summary
+        : typeof (fact as any).factualSummary === "string" && (fact as any).factualSummary.trim().length > 0
+          ? (fact as any).factualSummary
+          : generateFactSummary((fact as any).content ?? "", (fact as any).factType);
+
     await convex.updateFact({
       factId: input.factId,
       pinned: true,
+      summary: summary || undefined,
     });
 
     return {

@@ -291,7 +291,7 @@ Manually trigger Observer compression for a scope. Compresses raw observations i
 
 ### `memory_reflect`
 
-Manually trigger Reflector condensation for a scope. Condenses observation summaries into a dense digest with optional depth and time window control.
+Manually trigger Reflector condensation for a scope. Depth, custom time window, and `focusEntities` actively filter which observation summaries are condensed.
 
 **Parameters:**
 
@@ -388,7 +388,7 @@ PageIndex-inspired graph traversal retrieval. Traverses entity→fact backlinks�
 
 ### `memory_get_manifest`
 
-Progressive Disclosure: returns a tiered overview of agent memory — pinned facts (always-loaded tier) plus a category distribution by factType with counts and recent snippets. Use this first to understand what's in memory, then call memory_recall to load specific categories on-demand.
+Progressive Disclosure: returns a tiered overview of agent memory — pinned facts plus category summaries. Summary display falls back through `summary`, `factualSummary`, then truncated content so legacy facts still disclose cleanly.
 
 **Parameters:**
 
@@ -399,7 +399,7 @@ Progressive Disclosure: returns a tiered overview of agent memory — pinned fac
 
 ### `memory_chain_recall`
 
-Multi-hop QA retrieval using reasoning chains. Hop 1: QA index search on the query. Hop 2: entity expansion — facts sharing entities with hop 1 results. Hop 3: causal traversal via temporalLinks. Each fact is annotated with _hopDepth (0=direct, 1=entity, 2=causal). Deduplication keeps the shallowest path.
+Multi-hop QA retrieval using reasoning chains. Hop 1: QA index search on the query. Hop 2: entity expansion. Hop 3: causal traversal via temporalLinks. Each fact is annotated with `_hopDepth` and `_chainProvenance`, and deduplication keeps the shallowest path.
 
 **Parameters:**
 

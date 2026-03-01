@@ -32,9 +32,12 @@ Agent-Native Principles:
 
 Key patterns:
 - **Async enrichment pipeline**: Facts stored immediately (<50ms), enrichment runs async.
+- **Progressive disclosure summaries**: `summary` is the UX-facing one-line disclosure field; `factualSummary` remains the compact retrieval/storage summary.
 - **Scope-based access control**: Memory scoped to private/team/project/public.
 - **Differential memory decay**: Decay rate varies by fact type (decisions slow, notes fast).
 - **Memory lifecycle**: 5-state machine — active → dormant → merged → archived → pruned.
+- **Targeted reflection**: `memory_reflect` depth, time window, and entity focus now change the actual candidate set, not just response metadata.
+- **Bootstrap ingestion**: `scripts/bootstrap-from-sessions.ts` supports dry-run, JSON export, and direct ingest with provenance/idempotency tags.
 - **QMD local search**: Optional on-device search via QMD (BM25+vector+rerank). Enabled by `ENGRAM_QMD_ENABLED=true`.
 
 ## Claude Code Hooks (6 lifecycle automations)

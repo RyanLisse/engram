@@ -58,6 +58,45 @@ ${summaryBlock}
   return { system, user };
 }
 
+function normalizeEntityTerm(entity: string): string {
+  return entity.replace(/^entity-/, "").replace(/[-_]+/g, " ").trim().toLowerCase();
+}
+
+function matchesFocusEntities(
+  summary: { content: string; entityIds?: string[] },
+  focusEntities: string[]
+): boolean {
+  if (focusEntities.length === 0) return true;
+
+  const entityIds = Array.isArray(summary.entityIds) ? summary.entityIds : [];
+  if (entityIds.some((entityId) => focusEntities.includes(entityId))) {
+    return true;
+  }
+
+  const loweredContent = summary.content.toLowerCase();
+  return focusEntities.some((entity) => {
+    const normalized = normalizeEntityTerm(entity);
+    return normalized.length > 0 && loweredContent.includes(normalized);
+  });
+}
+
+export function filterSummariesForReflection(
+  summaries: Array<{ content: string; timestamp: number; entityIds?: string[] }>,
+  options?: { now?: number; timeWindowHours?: number; focusEntities?: string[] }
+) {
+  const now = options?.now ?? Date.now();
+  const focusEntities = options?.focusEntities ?? [];
+  const minTimestamp =
+    typeof options?.timeWindowHours === "number" && Number.isFinite(options.timeWindowHours)
+      ? now - options.timeWindowHours * 60 * 60 * 1000
+      : null;
+
+  return summaries.filter((summary) => {
+    if (minTimestamp !== null && summary.timestamp < minTimestamp) return false;
+    return matchesFocusEntities(summary, focusEntities);
+  });
+}
+
 async function callLLM(
   systemMsg: string,
   userMsg: string,
@@ -101,18 +140,26 @@ export const runReflector = internalAction({
   args: {
     scopeId: v.id("memory_scopes"),
     agentId: v.string(),
+    timeWindowHours: v.optional(v.number()),
+    focusEntities: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, { scopeId, agentId }) => {
-    // 1. Fetch active summaries
-    const summaries = await ctx.runQuery(
+  handler: async (ctx, { scopeId, agentId, timeWindowHours, focusEntities }) => {
+    // 1. Fetch active summaries, then honor manual filtering options.
+    const allSummaries = await ctx.runQuery(
       internal.functions.facts.listObservationSummaries,
-      { scopeId, agentId, limit: 50 }
+      { scopeId, agentId, limit: 200 }
     );
+    const summaries = filterSummariesForReflection(allSummaries, {
+      timeWindowHours,
+      focusEntities,
+    });
 
     if (summaries.length < 2) {
       return {
         skipped: true,
-        reason: `Only ${summaries.length} summaries (need ≥2)`,
+        reason: `Only ${summaries.length} summaries matched filters (need ≥2)`,
+        availableSummaries: allSummaries.length,
+        filteredSummaries: summaries.length,
       };
     }
 
@@ -218,6 +265,8 @@ export const runReflector = internalAction({
 
     return {
       skipped: false,
+      availableSummaries: allSummaries.length,
+      filteredSummaries: summaries.length,
       inputSummaries: summaries.length,
       inputTokens,
       outputTokens,
@@ -240,14 +289,13 @@ export const runReflectorPublic = action({
     focusEntities: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    // Note: timeWindowHours and focusEntities are accepted but currently passed through
-    // for future enhancement. Current implementation processes all available summaries.
     const result = await ctx.runAction(internal.actions.reflector.runReflector, {
       scopeId: args.scopeId,
       agentId: args.agentId,
+      timeWindowHours: args.timeWindowHours,
+      focusEntities: args.focusEntities,
     });
 
-    // Enhance result with request parameters
     return {
       ...result,
       timeWindowHours: args.timeWindowHours ?? 168, // default 1 week

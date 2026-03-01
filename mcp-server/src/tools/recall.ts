@@ -55,6 +55,58 @@ type RecallSuccess = {
   factsTruncated?: boolean;
 };
 
+const RECALL_PATHWAY_WEIGHTS: Record<string, number> = {
+  kv: 1.1,
+  semantic: 1.0,
+  symbolic: 0.95,
+  qa: 1.15,
+  graph: 0.9,
+  "local-cache": 0.92,
+};
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function annotatePathwayResults(rows: any[], pathway: keyof typeof RECALL_PATHWAY_WEIGHTS): any[] {
+  const pathwayWeight = RECALL_PATHWAY_WEIGHTS[pathway];
+  return rows.map((row: any) => {
+    const baseScore =
+      typeof row._score === "number"
+        ? row._score
+        : pathway === "qa"
+          ? row.qaConfidence ?? 0.7
+          : pathway === "kv"
+            ? 0.98
+            : pathway === "graph"
+              ? 0.58
+              : 0.65;
+
+    return {
+      ...row,
+      _pathways: Array.from(new Set([...(row._pathways ?? []), pathway])),
+      _score: clampScore(baseScore * pathwayWeight),
+    };
+  });
+}
+
+function applyExplicitFusedWeighting(fused: any[]): any[] {
+  const maxRrf = Math.max(1e-9, ...fused.map((fact) => fact.rrf_score ?? 0));
+  return fused.map((fact) => {
+    const pathways = Array.isArray(fact._pathways) ? fact._pathways : [];
+    const strongestWeight = pathways.reduce(
+      (max: number, pathway: string) => Math.max(max, RECALL_PATHWAY_WEIGHTS[pathway] ?? 1),
+      1
+    );
+    const qaConfidenceBoost = fact._qaMatch ? (fact.qaConfidence ?? 0.7) / 0.7 : 1;
+
+    return {
+      ...fact,
+      _score: clampScore(((fact.rrf_score ?? 0) / maxRrf) * strongestWeight * qaConfidenceBoost),
+    };
+  });
+}
+
 function estimateTokens(text: string): number {
   if (!text) return 0;
   return Math.ceil(text.length / 4);
@@ -122,7 +174,10 @@ async function qaSearch(query: string, scopeIds: string[], limit: number): Promi
   if (scopeIds.length === 0) return [];
   try {
     const results = await convexSearchByQA({ query, scopeIds, limit });
-    return (results as any[]).map((r: any) => ({ ...r, _qaMatch: true }));
+    return annotatePathwayResults(
+      (results as any[]).map((r: any) => ({ ...r, _qaMatch: true })),
+      "qa"
+    );
   } catch (err: any) {
     console.error("[recall] QA search failed (non-fatal):", err?.message ?? err);
     return [];
@@ -195,7 +250,9 @@ export async function recall(
 
     const [textResults, qaResults] = await Promise.all([
       shouldRunText
-        ? textSearch({ query: queryText, limit, scopeIds, factType: input.factType })
+        ? textSearch({ query: queryText, limit, scopeIds, factType: input.factType }).then((rows) =>
+            annotatePathwayResults(rows as any[], "symbolic")
+          )
         : Promise.resolve([]),
       shouldRunQA
         ? qaSearch(input.query, scopeIds, limit)
@@ -216,8 +273,14 @@ export async function recall(
       }
     }
 
-    const localCacheResults = vectorResults.filter((r: any) => r._source === "local-cache");
-    const remoteVectorResults = vectorResults.filter((r: any) => r._source !== "local-cache");
+    const localCacheResults = annotatePathwayResults(
+      vectorResults.filter((r: any) => r._source === "local-cache"),
+      "local-cache"
+    );
+    const remoteVectorResults = annotatePathwayResults(
+      vectorResults.filter((r: any) => r._source !== "local-cache"),
+      "semantic"
+    );
 
     const pathways: string[] = [];
     if (kvResults.length > 0) pathways.push("kv");
@@ -254,7 +317,7 @@ export async function recall(
 
     let rankedResults: any[] = [];
     if (rrfInputSets.length >= 2) {
-      const fused = reciprocalRankFusion(rrfInputSets);
+      const fused = applyExplicitFusedWeighting(reciprocalRankFusion(rrfInputSets));
       const ranked = await rankCandidatesPrimitive({
         query: input.query,
         candidates: fused as any,

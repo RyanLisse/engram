@@ -54,7 +54,7 @@ export async function chainRecall(
     const chain: any[] = [];
     const factsPerHop: number[] = [];
 
-    function addToChain(fact: any, hopDepth: number): boolean {
+    function addToChain(fact: any, hopDepth: number, provenance?: Record<string, any>): boolean {
       if (!fact?._id) return false;
       if (fact.lifecycleState && fact.lifecycleState !== "active") return false;
       if (scopeIds.length > 0 && !scopeIds.includes(fact.scopeId)) return false;
@@ -65,7 +65,7 @@ export async function chainRecall(
         return false;
       }
       seen.set(fact._id, hopDepth);
-      chain.push({ ...fact, _hopDepth: hopDepth });
+      chain.push({ ...fact, _hopDepth: hopDepth, _chainProvenance: provenance });
       return true;
     }
 
@@ -101,7 +101,18 @@ export async function chainRecall(
     }
 
     for (const fact of hop1Facts) {
-      if (addToChain(fact, 0)) hop1Count++;
+      const provenance =
+        fact.qaQuestion
+          ? {
+              via: "qa",
+              qaQuestion: fact.qaQuestion,
+              qaConfidence: fact.qaConfidence ?? null,
+            }
+          : {
+              via: "text-fallback",
+              query: input.query,
+            };
+      if (addToChain(fact, 0, provenance)) hop1Count++;
     }
     factsPerHop.push(hop1Count);
 
@@ -113,7 +124,7 @@ export async function chainRecall(
     // Collect unique entity IDs from hop 1 results, resolve to entities,
     // then follow each entity's backlinks to related facts.
     let hop2Count = 0;
-    const hop2CandidateFacts: any[] = [];
+    const hop2CandidateFacts: Array<{ fact: any; provenance: Record<string, any> }> = [];
 
     const hop1EntityIds = Array.from(
       new Set(
@@ -134,7 +145,14 @@ export async function chainRecall(
 
       const backlinks = await getFactsByIds(entity.backlinks.slice(0, perHopLimit));
       for (const fact of backlinks) {
-        hop2CandidateFacts.push(fact);
+        hop2CandidateFacts.push({
+          fact,
+          provenance: {
+            via: "entity-backlink",
+            entityId,
+            sourceHop: 1,
+          },
+        });
       }
     }
 
@@ -153,15 +171,26 @@ export async function chainRecall(
             scopeIds,
             limit: Math.ceil(perHopLimit / qaAnswers.length),
           });
-          if (Array.isArray(results)) hop2CandidateFacts.push(...results);
+          if (Array.isArray(results)) {
+            hop2CandidateFacts.push(
+              ...results.map((fact: any) => ({
+                fact,
+                provenance: {
+                  via: "qa-answer-search",
+                  answer,
+                  sourceHop: 1,
+                },
+              }))
+            );
+          }
         } catch {
           // skip
         }
       }
     }
 
-    for (const fact of hop2CandidateFacts) {
-      if (addToChain(fact, 1)) hop2Count++;
+    for (const candidate of hop2CandidateFacts) {
+      if (addToChain(candidate.fact, 1, candidate.provenance)) hop2Count++;
     }
     factsPerHop.push(hop2Count);
 
@@ -193,7 +222,14 @@ export async function chainRecall(
           continue;
         }
 
-        if (addToChain(linked, 2)) hop3Count++;
+        if (
+          addToChain(linked, 2, {
+            via: "temporal-link",
+            sourceFactId: fact._id,
+            relation: link.relation,
+            confidence: link.confidence ?? null,
+          })
+        ) hop3Count++;
       }
     }
     factsPerHop.push(hop3Count);

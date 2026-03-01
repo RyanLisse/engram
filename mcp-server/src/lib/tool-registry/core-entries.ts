@@ -323,7 +323,7 @@ export const entries: readonly ToolEntry[] = [
   {
     tool: {
       name: "memory_reflect",
-      description: "Manually trigger Reflector condensation for a scope. Condenses observation summaries into a dense digest with optional depth and time window control.",
+      description: "Manually trigger Reflector condensation for a scope. Depth, custom time window, and focusEntities actively filter which observation summaries are condensed.",
       inputSchema: {
         type: "object",
         properties: {

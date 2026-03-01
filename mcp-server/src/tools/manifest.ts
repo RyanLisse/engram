@@ -38,6 +38,17 @@ interface ManifestResult {
   hint: string;
 }
 
+function getDisclosureSummary(fact: any): string {
+  const summary = typeof fact.summary === "string" ? fact.summary.trim() : "";
+  if (summary) return summary;
+
+  const factualSummary = typeof fact.factualSummary === "string" ? fact.factualSummary.trim() : "";
+  if (factualSummary) return factualSummary;
+
+  const content = typeof fact.content === "string" ? fact.content : "";
+  return content.slice(0, 120);
+}
+
 export async function getManifest(
   input: GetManifestInput,
   agentId: string
@@ -109,16 +120,14 @@ export async function getManifest(
       .map(([type, { count, recent }]) => ({
         type,
         count,
-        recentSummary: recent
-          ? (recent.summary ?? (recent.content as string ?? "").slice(0, 120))
-          : "",
+        recentSummary: recent ? getDisclosureSummary(recent) : "",
       }));
 
     // ── 5. Build pinned result entries ────────────────────────────
     const pinned = pinnedFacts.map((fact: any) => {
       const entry: ManifestResult["pinned"][number] = {
         factId: fact._id,
-        summary: fact.summary,
+        summary: getDisclosureSummary(fact),
         tags: fact.tags ?? [],
         timestamp: fact.timestamp,
       };

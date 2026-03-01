@@ -9,6 +9,7 @@ import { Command } from "commander";
 import { homedir } from "os";
 import { resolve } from "path";
 import { existsSync } from "fs";
+import { spawn } from "child_process";
 
 export interface BootstrapOptions {
   source: "claude-code" | "openclaw";
@@ -26,6 +27,24 @@ const DEFAULT_PATHS: Record<string, string> = {
 export function resolveBootstrapPath(source: string, overridePath?: string): string {
   if (overridePath) return resolve(overridePath);
   return DEFAULT_PATHS[source] ?? "";
+}
+
+async function runBootstrapScript(scriptPath: string, scriptArgs: string[]): Promise<void> {
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    const child = spawn("npx", ["tsx", scriptPath, ...scriptArgs], {
+      cwd: resolve(process.cwd()),
+      stdio: "inherit",
+    });
+
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolvePromise();
+      } else {
+        rejectPromise(new Error(`Bootstrap script exited with code ${code ?? "unknown"}`));
+      }
+    });
+    child.on("error", rejectPromise);
+  });
 }
 
 export const bootstrapCommand = new Command("bootstrap")
@@ -58,51 +77,17 @@ export const bootstrapCommand = new Command("bootstrap")
     }
 
     try {
-      // Dynamic imports to avoid loading heavy modules when not needed
-      const { findSessionFiles } = await import("../../../scripts/bootstrap-from-sessions.js");
-      const { processFilesBatch, crossFileDedup, summarizeResults } = await import(
-        "../../../scripts/bootstrap-parallel.js"
-      );
-
-      let files: string[];
       if (options.source === "claude-code") {
-        // For Claude Code, find JSONL files recursively
-        const { globSync } = await import("glob");
         const pattern = resolve(sessionPath, "**", "*.jsonl");
-        files = globSync(pattern).sort();
+        const args = [pattern, "--concurrency", String(options.concurrency)];
+        if (options.limit) args.push("--limit", String(options.limit));
+        if (options.dryRun) args.push("--dry-run");
+        await runBootstrapScript(resolve(process.cwd(), "scripts", "bootstrap-parallel.ts"), args);
       } else {
-        files = findSessionFiles(sessionPath);
-      }
-
-      if (options.limit) {
-        files = files.slice(0, options.limit);
-      }
-
-      if (files.length === 0) {
-        console.log(`No session files found in: ${sessionPath}`);
-        process.exit(0);
-      }
-
-      console.error(`Found ${files.length} session file(s). Processing...`);
-
-      const rawFacts = await processFilesBatch(files, options.concurrency);
-      const deduped = crossFileDedup(rawFacts);
-      const stats = summarizeResults(deduped);
-
-      if (options.dryRun) {
-        console.log("\n--- Bootstrap Dry Run ---");
-        console.log(`Files processed:    ${stats.totalFiles || files.length}`);
-        console.log(`Facts extracted:    ${stats.totalFactsExtracted || rawFacts.length}`);
-        console.log(`After dedup:        ${stats.factsAfterDedup || deduped.length}`);
-        console.log(`Processing time:    ${stats.processingTimeMs || 0}ms`);
-        console.log("\nBy type:");
-        const byType = stats.byType || {};
-        for (const [type, count] of Object.entries(byType)) {
-          console.log(`  ${type}: ${count}`);
-        }
-      } else {
-        // Output JSON to stdout for piping to engram store or other tools
-        console.log(JSON.stringify(deduped, null, 2));
+        const args = [sessionPath];
+        if (options.limit) args.push("--limit", String(options.limit));
+        if (options.dryRun) args.push("--dry-run");
+        await runBootstrapScript(resolve(process.cwd(), "scripts", "bootstrap-from-sessions.ts"), args);
       }
     } catch (err: any) {
       console.error(`Bootstrap failed: ${err.message}`);

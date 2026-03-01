@@ -10,9 +10,13 @@ import { promises as fs } from "fs";
 import * as path from "path";
 import * as os from "os";
 import {
+  buildContentDedupKey,
   findSessionFiles,
   parseOpenClawSession,
   extractFactsFromSession,
+  buildBootstrapTags,
+  mapParsedFactToStoreInput,
+  ingestFacts,
 } from "../../scripts/bootstrap-from-sessions.js";
 import type { ParsedFact } from "../../scripts/parse-claude-code-history.js";
 
@@ -393,5 +397,97 @@ describe("bootstrap integration", () => {
 
     expect(facts.length).toBeGreaterThan(0);
     expect(facts.some((f) => f.factType === "decision")).toBe(true);
+  });
+});
+
+describe("bootstrap ingest helpers", () => {
+  test("buildBootstrapTags adds provenance tags without duplicates", () => {
+    const tags = buildBootstrapTags({
+      source: "/tmp/sessions/agent.jsonl",
+      importMode: "ingest",
+      existingTags: ["bootstrap", "custom"],
+    });
+
+    expect(tags).toContain("bootstrap");
+    expect(tags).toContain("session-import");
+    expect(tags).toContain("import:ingest");
+    expect(tags).toContain("custom");
+    expect(tags.filter((tag) => tag === "bootstrap")).toHaveLength(1);
+  });
+
+  test("mapParsedFactToStoreInput maps parsed facts into Engram store shape", () => {
+    const parsedFact: ParsedFact = {
+      content: "I prefer using TypeScript for backend services",
+      factType: "preference",
+      importance: 0.8,
+      entityHints: ["TypeScript"],
+      source: "/tmp/sessions/agent.jsonl",
+      timestamp: 1234,
+    };
+
+    const mapped = mapParsedFactToStoreInput(parsedFact, {
+      agentId: "agent-1",
+      scopeId: "jscope1",
+      importMode: "ingest",
+      importedAt: 9999,
+    });
+
+    expect(mapped).toMatchObject({
+      content: parsedFact.content,
+      createdBy: "agent-1",
+      scopeId: "jscope1",
+      source: parsedFact.source,
+      factType: "preference",
+      entityIds: ["entity-typescript"],
+    });
+    expect(mapped.tags).toContain("bootstrap");
+    expect(mapped.tags).toContain("session-import");
+    expect(mapped.summary).toContain("TypeScript");
+  });
+
+  test("ingestFacts stores only facts whose content hash was not previously imported", async () => {
+    const parsedFacts: ParsedFact[] = [
+      {
+        content: "I prefer TypeScript",
+        factType: "preference",
+        importance: 0.8,
+        entityHints: ["TypeScript"],
+        source: "/tmp/sessions/one.jsonl",
+        timestamp: 1000,
+      },
+      {
+        content: "I decided to use Convex",
+        factType: "decision",
+        importance: 0.7,
+        entityHints: ["Convex"],
+        source: "/tmp/sessions/two.jsonl",
+        timestamp: 2000,
+      },
+    ];
+
+    const existingKeys = new Set<string>();
+    existingKeys.add(buildContentDedupKey("I prefer TypeScript"));
+
+    const stored: Array<Record<string, unknown>> = [];
+    const result = await ingestFacts(parsedFacts, {
+      agentId: "agent-1",
+      scopeId: "jscope1",
+      importMode: "ingest",
+      importedAt: 9999,
+      existingDedupKeys: existingKeys,
+      storeFact: async (input) => {
+        stored.push(input);
+        return { factId: `fact-${stored.length}` };
+      },
+    });
+
+    expect(result).toMatchObject({
+      attempted: 2,
+      imported: 1,
+      skippedDuplicates: 1,
+      failed: 0,
+    });
+    expect(stored).toHaveLength(1);
+    expect(stored[0].content).toBe("I decided to use Convex");
   });
 });

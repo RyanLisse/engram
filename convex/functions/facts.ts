@@ -530,6 +530,7 @@ export const patchFact = internalMutation({
     factId: v.id("facts"),
     fields: v.object({
       referencedDate: v.optional(v.number()),
+      summary: v.optional(v.string()),
       qaQuestion: v.optional(v.string()),
       qaAnswer: v.optional(v.string()),
       qaEntities: v.optional(v.array(v.string())),
@@ -541,6 +542,7 @@ export const patchFact = internalMutation({
     if (!fact) return; // fact removed before enrichment sub-step ran
     const updates: Record<string, unknown> = {};
     if (fields.referencedDate !== undefined) updates.referencedDate = fields.referencedDate;
+    if (fields.summary !== undefined) updates.summary = fields.summary;
     if (fields.qaQuestion !== undefined) updates.qaQuestion = fields.qaQuestion;
     if (fields.qaAnswer !== undefined) updates.qaAnswer = fields.qaAnswer;
     if (fields.qaEntities !== undefined) updates.qaEntities = fields.qaEntities;
@@ -558,6 +560,7 @@ export const updateEnrichment = internalMutation({
     factId: v.id("facts"),
     embedding: v.optional(v.array(v.float64())),
     factualSummary: v.optional(v.string()),
+    summary: v.optional(v.string()),
     entityIds: v.optional(v.array(v.string())),
     importanceScore: v.optional(v.float64()),
   },
@@ -574,11 +577,13 @@ export const updateEnrichment = internalMutation({
       });
     }
     if (fields.factualSummary !== undefined) patch.factualSummary = fields.factualSummary;
+    if (fields.summary !== undefined) patch.summary = fields.summary;
     if (fields.entityIds !== undefined) patch.entityIds = fields.entityIds;
     if (fields.importanceScore !== undefined) patch.importanceScore = fields.importanceScore;
 
     if (
       fields.factualSummary !== undefined ||
+      fields.summary !== undefined ||
       fields.entityIds !== undefined ||
       fields.importanceScore !== undefined
     ) {

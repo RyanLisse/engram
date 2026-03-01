@@ -216,12 +216,20 @@ async function main(): Promise<void> {
   let globPattern: string | null = null;
   let concurrency = 4;
   let dryRun = false;
+  let limit: number | null = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--concurrency" && i + 1 < args.length) {
       concurrency = parseInt(args[i + 1], 10);
       if (isNaN(concurrency) || concurrency < 1) {
         console.error("Error: --concurrency must be a positive integer");
+        process.exit(1);
+      }
+      i++;
+    } else if (args[i] === "--limit" && i + 1 < args.length) {
+      limit = parseInt(args[i + 1], 10);
+      if (isNaN(limit) || limit < 1) {
+        console.error("Error: --limit must be a positive integer");
         process.exit(1);
       }
       i++;
@@ -245,8 +253,9 @@ async function main(): Promise<void> {
 
   // Find matching files
   const files = globSync(expandedPattern, { absolute: true });
+  const limitedFiles = limit ? files.slice(0, limit) : files;
 
-  if (files.length === 0) {
+  if (limitedFiles.length === 0) {
     console.error(`No files found matching pattern: ${globPattern}`);
     process.exit(1);
   }
@@ -254,7 +263,7 @@ async function main(): Promise<void> {
   const startTime = Date.now();
 
   // Process files
-  const facts = await processFilesBatch(files, concurrency);
+  const facts = await processFilesBatch(limitedFiles, concurrency);
 
   // Deduplicate across files
   const deduplicated = crossFileDedup(facts);
@@ -267,11 +276,11 @@ async function main(): Promise<void> {
     // Human-readable output
     console.log(`\n📄 Parallel Bootstrap Results`);
     console.log(`${"=".repeat(60)}`);
-    console.log(`Files processed: ${files.length}`);
+    console.log(`Files processed: ${limitedFiles.length}`);
     console.log(`Concurrency: ${concurrency}`);
     console.log(`Facts extracted: ${facts.length}`);
     console.log(`After dedup: ${deduplicated.length}`);
-    console.log(`Dedup reduction: ${(((facts.length - deduplicated.length) / facts.length) * 100).toFixed(1)}%`);
+    console.log(`Dedup reduction: ${facts.length > 0 ? (((facts.length - deduplicated.length) / facts.length) * 100).toFixed(1) : "0.0"}%`);
     console.log(`${"=".repeat(60)}\n`);
     console.log("By Type:");
     for (const [type, count] of Object.entries(summary.byType)) {

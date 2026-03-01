@@ -325,6 +325,22 @@ describe("getManifest", () => {
     expect(result.pinned[0].summary).toBe("1-liner");
   });
 
+  test("falls back to factualSummary for pinned entries when summary is missing", async () => {
+    const pinned = [
+      makeFact({
+        _id: "jp1",
+        content: "Secret stuff that should not be exposed in summary-only mode",
+        pinned: true,
+        summary: undefined,
+        factualSummary: "Fallback disclosure summary",
+      }),
+    ];
+    mockGetPinnedFacts.mockResolvedValue(pinned);
+    mockListFactsByScope.mockResolvedValue(pinned);
+    const result = await getManifest({ scopeId: SCOPE_ID, includePinnedContent: false }, "agent-1") as any;
+    expect(result.pinned[0].summary).toBe("Fallback disclosure summary");
+  });
+
   test("computes category distribution from all non-pruned/merged facts", async () => {
     const facts = [
       makeFact({ factType: "decision" }),
@@ -372,6 +388,42 @@ describe("getManifest", () => {
   test("hint string is present in result", async () => {
     const result = await getManifest({ scopeId: SCOPE_ID }, "agent-1") as any;
     expect(result.hint).toContain("memory_recall");
+  });
+
+  test("category recentSummary falls back from summary to factualSummary to truncated content", async () => {
+    const facts = [
+      makeFact({
+        _id: "jfact-summary",
+        factType: "decision",
+        timestamp: 3000,
+        summary: "Primary summary",
+        factualSummary: "Should not be used",
+        content: "Longer content that should not be used",
+      }),
+      makeFact({
+        _id: "jfact-factual",
+        factType: "insight",
+        timestamp: 2000,
+        summary: undefined,
+        factualSummary: "Fallback factual summary",
+        content: "Longer content that should not be used either",
+      }),
+      makeFact({
+        _id: "jfact-content",
+        factType: "plan",
+        timestamp: 1000,
+        summary: undefined,
+        factualSummary: undefined,
+        content: "x".repeat(140),
+      }),
+    ];
+    mockListFactsByScope.mockResolvedValue(facts);
+
+    const result = await getManifest({ scopeId: SCOPE_ID }, "agent-1") as any;
+
+    expect(result.categories.find((c: any) => c.type === "decision").recentSummary).toBe("Primary summary");
+    expect(result.categories.find((c: any) => c.type === "insight").recentSummary).toBe("Fallback factual summary");
+    expect(result.categories.find((c: any) => c.type === "plan").recentSummary).toBe("x".repeat(120));
   });
 });
 
