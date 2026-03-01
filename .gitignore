@@ -34,3 +34,9 @@ docs-site/.turbo/
 
 # Plugin artifacts
 plugins/openclaw/package-lock.json
+.claude/worktrees/
+.claude/worktrees/
+.mcp_data/
+*.backup
+*.bak*
+test-adapter-e2e.ts

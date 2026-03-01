@@ -525,4 +525,30 @@ export default defineSchema({
   })
     .index("by_block", ["blockId", "createdAt"])
     .index("by_agent", ["changedBy", "createdAt"]),
+
+  // ─── adapter_modules ───────────────────────────────────────
+  // Doc-to-LoRA adapter memory modules. Tracks adapter-ready knowledge domains.
+  adapter_modules: defineTable({
+    agentId: v.string(),
+    scopeId: v.id("memory_scopes"),
+    name: v.string(),
+    mode: v.string(), // "retrieval" | "adapter"
+    status: v.string(), // "draft" | "ready" | "stale" | "generating"
+    document: v.optional(v.string()),
+    documentChecksum: v.optional(v.string()),
+    factCount: v.optional(v.number()),
+    tokenEstimate: v.optional(v.number()),
+    baseModel: v.optional(v.string()),
+    loraConfig: v.optional(v.object({
+      rank: v.number(),
+      targetModules: v.array(v.string()),
+      alpha: v.optional(v.number()),
+    })),
+    lastGeneratedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_scope", ["scopeId"])
+    .index("by_status", ["status"]),
 });

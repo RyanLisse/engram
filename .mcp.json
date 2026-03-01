@@ -1,14 +1,12 @@
 {
   "mcpServers": {
-    "engram": {
-      "command": "node",
-      "args": ["mcp-server/dist/index.js"],
+    "contextplus": {
+      "command": "bunx",
+      "args": ["contextplus"],
       "env": {
-        "CONVEX_URL": "https://accurate-cardinal-287.convex.cloud",
-        "ENGRAM_AGENT_ID": "indy",
-        "COHERE_API_KEY": "${COHERE_API_KEY}"
-      },
-      "description": "Engram multi-agent memory system — 73 tools for storing, recalling, and sharing knowledge"
+        "OLLAMA_EMBED_MODEL": "mxbai-embed-large",
+        "OLLAMA_CHAT_MODEL": "llama3.2"
+      }
     }
   }
 }

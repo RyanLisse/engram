@@ -132,10 +132,10 @@ export const PATHS = {
 
   // KV Store
   kvStore: {
-    kvSet: "functions/kv-store:kvSet",
-    kvGet: "functions/kv-store:kvGet",
-    kvDelete: "functions/kv-store:kvDelete",
-    kvList: "functions/kv-store:kvList",
+    kvSet: "functions/kv_store:kvSet",
+    kvGet: "functions/kv_store:kvGet",
+    kvDelete: "functions/kv_store:kvDelete",
+    kvList: "functions/kv_store:kvList",
   },
 
   // Memory Blocks (Phase 7)
