@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@lancedb/lancedb": "^0.26.2",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "chokidar": "^5.0.0",
     "convex": "^1.31.7",
     "js-yaml": "^4.1.1",
