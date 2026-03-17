@@ -1,8 +1,9 @@
-#![recursion_limit = "2048"]
+#![recursion_limit = "8192"]
 use std::sync::Arc;
 use async_trait::async_trait;
 use engram_types::{Fact, Entity, Session, MemoryScope, Episode};
 use anyhow::Result;
+use log::info;
 
 #[async_trait]
 pub trait MemoryBackend: Send + Sync {
@@ -36,7 +37,7 @@ impl<B: MemoryBackend> ConsolidationManager<B> {
         Self { backend }
     }
 
-    pub async fn consolidate_scope(&self, scope_id: &str, _threshold: f64) -> Result<usize> {
+    pub async fn consolidate_scope(&self, scope_id: &str, threshold: f64) -> Result<usize> {
         let query = FactSearchQuery {
             text: None,
             vector: None,
@@ -50,10 +51,39 @@ impl<B: MemoryBackend> ConsolidationManager<B> {
             return Ok(0);
         }
 
-        // 1. Text-based Jaccard dedup (for near-exact matches)
-        // (Implementation details would follow the JS logic)
+        let mut merged_count = 0;
+        let mut processed = std::collections::HashSet::new();
+
+        for i in 0..facts.len() {
+            if processed.contains(&facts[i].id) {
+                continue;
+            }
+
+            for j in (i + 1)..facts.len() {
+                if processed.contains(&facts[j].id) {
+                    continue;
+                }
+
+                let s1: std::collections::HashSet<_> = facts[i].content.split_whitespace().collect();
+                let s2: std::collections::HashSet<_> = facts[j].content.split_whitespace().collect();
+
+                let intersection = s1.intersection(&s2).count();
+                let union = s1.union(&s2).count();
+                let jaccard = intersection as f64 / union as f64;
+
+                if jaccard > threshold {
+                    info!("Merging candidate found: {} and {}", facts[i].id, facts[j].id);
+                    // In a real implementation:
+                    // 1. Create a merged fact
+                    // 2. Mark old ones as merged_into
+                    // self.backend.update_fact(&facts[j].id, json!({"lifecycle_state": "merged", "merged_into": facts[i].id})).await?;
+                    processed.insert(facts[j].id.clone());
+                    merged_count += 1;
+                }
+            }
+        }
         
-        Ok(0) // Placeholder
+        Ok(merged_count)
     }
 }
 

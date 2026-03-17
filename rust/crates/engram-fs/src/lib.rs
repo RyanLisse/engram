@@ -1,3 +1,4 @@
+#![recursion_limit = "8192"]
 use anyhow::Result;
 use notify::{Watcher, RecursiveMode, Event};
 use std::path::Path;
@@ -41,7 +42,7 @@ impl<B: MemoryBackend> VaultWatcher<B> {
                 if path.extension().and_then(|s| s.to_str()) == Some("md") {
                     let content = fs::read_to_string(&path)?;
                     let fact = Fact {
-                        id: "".to_string(), // Backend will generate or we use path as stable ID
+                        id: format!("fs-{}", uuid::Uuid::new_v4()), // Use unique ID or path-based hash
                         content: content.clone(),
                         factual_summary: None,
                         timestamp: chrono::Utc::now().timestamp_millis(),

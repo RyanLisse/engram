@@ -181,10 +181,11 @@ pub fn incremental_update(existing: &Subspace, new_embedding: &[f64], n: usize) 
     // In a full update we'd Re-SVD, but here we just update singular values.
     
     // Total variance update (simplified)
-    let mut diff_norm_sq = 0.0;
-    for j in 0..d {
-        let diff = new_embedding[j] - existing.centroid[j];
-        diff_norm_sq += diff * (new_embedding[j] - new_centroid[j]);
+    let old_centroid = &existing.centroid; // Define old_centroid
+    let mut _diff_norm_sq = 0.0;
+    for j in 0..new_embedding.len() {
+        let diff = new_embedding[j] - old_centroid[j];
+        _diff_norm_sq += diff * (new_embedding[j] - new_centroid[j]);
     }
     
     // This is an simplified online variance update. 

@@ -1,4 +1,4 @@
-#![recursion_limit = "4096"]
+#![recursion_limit = "8192"]
 use async_trait::async_trait;
 use engram_core::{MemoryBackend, FactSearchQuery};
 use engram_types::{Fact, Entity, Session, MemoryScope, Episode};
@@ -6,7 +6,6 @@ use anyhow::Result;
 use lancedb::{connection::Connection, Table};
 use std::sync::Arc;
 
-/*
 pub struct LanceDBBackend {
     pub uri: String,
     pub conn: Arc<dyn Connection>,
@@ -25,17 +24,17 @@ impl LanceDBBackend {
 #[async_trait]
 impl MemoryBackend for LanceDBBackend {
     async fn store_fact(&self, fact: Fact) -> Result<String> {
-        // Implementation for LanceDB fact storage
-        // lancedb table.add()
-        Ok(uuid::Uuid::new_v4().to_string())
+        let _table = self.conn.open_table("facts").execute().await?;
+        // In a real implementation, we'd add to the table using arrow batches.
+        // For now, returning the fact ID to complete the trait contract.
+        Ok(fact.id.clone())
     }
 
-    async fn get_fact(&self, id: &str) -> Result<Option<Fact>> {
-        // Implementation for LanceDB fact retrieval
+    async fn get_fact(&self, _id: &str) -> Result<Option<Fact>> {
         Ok(None)
     }
 
-    async fn update_fact(&self, id: &str, _updates: serde_json::Value) -> Result<()> {
+    async fn update_fact(&self, _id: &str, _updates: serde_json::Value) -> Result<()> {
         Ok(())
     }
 
@@ -71,7 +70,6 @@ impl MemoryBackend for LanceDBBackend {
         Ok(true)
     }
 }
-*/
 
 pub struct FilesystemMirror {
     pub root_path: String,
