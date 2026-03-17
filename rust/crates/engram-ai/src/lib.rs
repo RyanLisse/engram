@@ -286,50 +286,58 @@ impl ReflectionEngine {
     pub fn classify_fact(content: &str) -> (&'static str, f32) {
         let lower = content.to_lowercase();
 
-        // 1. Corrections: strong negative indicators or "actually"/"no"
+        // 1. Corrections: strong negative indicators
         if lower.contains("actually,")
             || lower.contains("no, i")
-            || lower.contains("don't do that")
-            || lower.contains("don't do this")
-            || lower.contains("never do that")
             || lower.contains("that's wrong")
             || lower.contains("scratch that")
             || lower.contains("revert")
+            || lower.contains("incorrect")
+            || lower.contains("mistake")
         {
-            return ("correction", 0.9);
+            return ("correction", 0.95);
         }
 
-        // 2. Preferences: personal style/methodology
+        // 2. Constraints & Preferences: personal style/methodology
         if lower.contains("i prefer")
             || lower.contains("i like")
             || lower.contains("always use")
-            || lower.contains("always do")
             || lower.contains("never use")
-            || lower.contains("never do")
-            || lower.contains("i want")
-            || lower.contains("my preference")
-            || lower.contains("i find it")
-            || lower.contains("works best")
+            || lower.contains("strictly")
+            || lower.contains("constraint")
+            || lower.contains("requirement")
+            || lower.contains("must be")
+            || lower.contains("should be")
         {
-            return ("preference", 0.8);
+            return ("preference", 0.85);
         }
 
-        // 3. Decisions: forward-looking choices
+        // 3. Technical Specs & Architectures
+        if lower.contains("architecture")
+            || lower.contains("implementation")
+            || lower.contains("endpoint")
+            || lower.contains("schema")
+            || lower.contains("interface")
+            || lower.contains("module")
+            || lower.contains("crate")
+            || lower.contains("dependency")
+            || lower.contains("layer")
+        {
+            return ("technical_spec", 0.75);
+        }
+
+        // 4. Decisions: forward-looking choices
         if lower.contains("let's go with")
             || lower.contains("we'll use")
             || lower.contains("decided to")
-            || lower.contains("i've decided")
-            || lower.contains("let's use")
-            || lower.contains("let's implement")
-            || lower.contains("i'll use")
-            || lower.contains("we decided")
-            || lower.contains("choose")
+            || lower.contains("implement this")
             || lower.contains("go with")
+            || lower.contains("choice")
         {
             return ("decision", 0.7);
         }
 
-        ("note", 0.5)
+        ("note", 0.4)
     }
 
     pub fn generate_reflection_report(

@@ -2,6 +2,7 @@
  * Fact Lifecycle (6) + Delete Operations (5) + Theme Creation (1) + Agent Identity (3) entries.
  */
 
+import { z } from "zod";
 import type { ToolEntry } from "./types.js";
 
 import {
@@ -23,6 +24,7 @@ import { pinFact, pinFactSchema, unpinFact, unpinFactSchema } from "../../tools/
 import { factHistory, factHistorySchema, factRollback, factRollbackSchema } from "../../tools/fact-history.js";
 import { defrag, defragSchema } from "../../tools/defrag.js";
 import { sleepReflect, sleepReflectSchema } from "../../tools/sleep-reflect.js";
+import { bootstrapVerifyLine, bootstrapVerifyLineSchema } from "../../tools/bootstrap.js";
 
 import {
   listStaleFacts, listStaleFactsSchema,
@@ -258,5 +260,20 @@ export const entries: readonly ToolEntry[] = [
     },
     zodSchema: getSystemPromptSchema,
     handler: (args, agentId) => getSystemPrompt(args, agentId),
+  },
+  {
+    tool: {
+      name: "memory_bootstrap_verify_line",
+      description: "Verify a single JSONL line from a session file using the history bootstrap parser logic.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          line: { type: "string", description: "Single JSONL line from a session file" },
+        },
+        required: ["line"],
+      },
+    },
+    zodSchema: bootstrapVerifyLineSchema,
+    handler: (args) => bootstrapVerifyLine(args),
   },
 ];

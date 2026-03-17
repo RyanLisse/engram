@@ -6,6 +6,7 @@ use anyhow::Result;
 use lancedb::{connection::Connection, Table};
 use std::sync::Arc;
 
+/*
 pub struct LanceDBBackend {
     pub uri: String,
     pub conn: Arc<dyn Connection>,
@@ -70,6 +71,7 @@ impl MemoryBackend for LanceDBBackend {
         Ok(true)
     }
 }
+*/
 
 pub struct FilesystemMirror {
     pub root_path: String,
@@ -204,5 +206,28 @@ impl<B: MemoryBackend> BatchImporter<B> {
             }
         }
         Ok(count)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_valid_user_line() {
+        let line = r#"{"message": {"role": "user", "content": "I need to implement a new feature in the engram-sync crate tonight."}, "timestamp": "2026-03-17T20:00:00Z"}"#;
+        let fact = HistoryParser::parse_line(line).unwrap();
+        assert!(fact.is_some());
+        let f = fact.unwrap();
+        assert_eq!(f.content, "I need to implement a new feature in the engram-sync crate tonight.");
+        assert_eq!(f.source, "history_bootstrap");
+        assert_eq!(f.created_by, "system:bootstrap");
+    }
+
+    #[test]
+    fn test_parse_assistant_line_ignored() {
+        let line = r#"{"message": {"role": "assistant", "content": "I can help with that."}, "timestamp": "2026-03-17T20:01:00Z"}"#;
+        let fact = HistoryParser::parse_line(line).unwrap();
+        assert!(fact.is_none());
     }
 }
